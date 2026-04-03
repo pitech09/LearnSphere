@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans 'School Dashboard' %}{% endblock title %}
+
+{% block content %}
+
+<nav style="--bs-breadcrumb-divider: '>';">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Dashboard' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="title-1">{% trans 'School Dashboard' %}</h1>
+</div>
+
+<!-- REAL COUNTS ONLY -->
+<div class="row users-count px-3">
+
+  <!-- Students -->
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-user-graduate fa-2x text-primary me-3"></i>
+      <div>
+        <small>{% trans 'Students' %}</small>
+        <h2>{{ student_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teachers -->
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-chalkboard-teacher fa-2x text-success me-3"></i>
+      <div>
+        <small>{% trans 'Teachers' %}</small>
+        <h2>{{ lecturer_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admins -->
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-user-shield fa-2x text-danger me-3"></i>
+      <div>
+        <small>{% trans 'Admins' %}</small>
+        <h2>{{ superuser_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- GENDER CHART + ACTIVITY -->
+<div class="row px-2">
+
+  <!-- Gender Chart -->
+  <div class="col-md-6 p-2">
+    <div class="card p-3">
+      <h5>
+        <i class="fas fa-chart-pie me-2"></i>
+        {% trans 'Student Gender Distribution' %}
+      </h5>
+      <canvas id="genderChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Activity Logs -->
+  <div class="col-md-6 p-2">
+    <div class="card p-3">
+      <h5>
+        <i class="fas fa-clock me-2"></i>
+        {% trans 'Latest Activities' %}
+      </h5>
+      <ul class="small">
+        {% for log in logs %}
+          <li>
+            <i class="fas fa-circle text-muted me-2" style="font-size:6px;"></i>
+            {{ log.message }} 
+            <span class="text-muted">- {{ log.created_at }}</span>
+          </li>
+        {% empty %}
+          <li>{% trans 'No recent activity' %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const males = {{ males_count }};
+const females = {{ females_count }};
+
+new Chart(document.getElementById('genderChart'), {
+  type: 'pie',
+  data: {
+    labels: ['Male','Female'],
+    datasets: [{
+      data: [males, females]
+    }]
+  },
+  options: {
+    plugins: {
+      title: {
+        display: true,
+        text: 'Student Gender Distribution'
+      }
+    }
+  }
+});
+</script>
+
+<style>
+.card-count {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* better alignment */
+.card-count i {
+  width: 40px;
+  text-align: center;
+}
+</style>
+
+{% endblock %}
