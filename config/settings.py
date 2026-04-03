@@ -257,14 +257,14 @@ LEVEL_CHOICES = (
     (MASTER_DEGREE, _("High School")),
 )
 
-FIRST = "1st Quarter"
-SECOND = "2nd Quarter"
-THIRD = "3rd Quarter"
-FOURTH = "4th Quarter"
+FIRST = "1st"
+SECOND = "2nd"
+THIRD = "3rd"
+FOURTH = "4th"
 
 SEMESTER_CHOICES = (
-    (FIRST, _("1st Quarter")),
-    (SECOND, _("2nd Quarter")),
-    (THIRD, _("3rd Quarter")),
-    (FOURTH, _("4th Quarter")),
+    (FIRST, _("1st")),
+    (SECOND, _("2nd")),
+    (THIRD, _("3rd")),
+    (FOURTH, _("4th")),
 )
