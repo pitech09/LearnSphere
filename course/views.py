@@ -386,85 +386,137 @@ def handle_video_delete(request, slug, video_slug):
 # Course Registration Views
 # ########################################################
 
-
 @login_required
 @student_required
 def course_registration(request):
+
+    print("\n" + "=" * 60)
+    print("📍 COURSE REGISTRATION VIEW HIT")
+    print("=" * 60)
+
+    student = get_object_or_404(Student, student__id=request.user.id)
+
+    print(f"👤 Student: {student}")
+    print(f"🏷️ Program: {student.program}")
+    print(f"📊 Level (IGNORED): {student.level}")
+
+    # ─────────────────────────────
+    # POST: REGISTER COURSES
+    # ─────────────────────────────
     if request.method == "POST":
-        student = Student.objects.get(student__pk=request.user.id)
-        ids = ()
-        data = request.POST.copy()
-        data.pop("csrfmiddlewaretoken", None)  # remove csrf_token
-        for key in data.keys():
-            ids = ids + (str(key),)
-        for s in range(0, len(ids)):
-            course = Course.objects.get(pk=ids[s])
-            obj = TakenCourse.objects.create(student=student, course=course)
-            obj.save()
+
+        print("\n📥 POST REQUEST DETECTED")
+        print(f"POST DATA RAW: {dict(request.POST)}")
+
+        course_ids = request.POST.getlist("course_ids")
+        print(f"🎯 Selected course IDs: {course_ids}")
+
+        for cid in course_ids:
+            try:
+                course = Course.objects.get(pk=cid)
+
+                obj, created = TakenCourse.objects.get_or_create(
+                    student=student,
+                    course=course
+                )
+
+                print(f"➕ Course processed: {course} | Created: {created}")
+
+            except Course.DoesNotExist:
+                print(f"❌ Course not found: {cid}")
+
+        print("✅ Registration complete → redirecting\n")
         messages.success(request, "Courses registered successfully!")
         return redirect("course_registration")
-    else:
-        current_semester = Semester.objects.filter(is_current_semester=True).first()
-        if not current_semester:
-            messages.error(request, "No active semester found.")
-            return render(request, "course/course_registration.html")
 
-        # student = Student.objects.get(student__pk=request.user.id)
-        student = get_object_or_404(Student, student__id=request.user.id)
-        taken_courses = TakenCourse.objects.filter(student__student__id=request.user.id)
-        t = ()
-        for i in taken_courses:
-            t += (i.course.pk,)
+    # ─────────────────────────────
+    # GET: PAGE LOAD
+    # ─────────────────────────────
+    print("\n📄 GET REQUEST - loading page data")
 
-        courses = (
-            Course.objects.filter(
-                program__pk=student.program.id,
-                level=student.level,
-                semester=current_semester,
-            )
-            .exclude(id__in=t)
-            .order_by("year")
-        )
-        all_courses = Course.objects.filter(
-            level=student.level, program__pk=student.program.id
-        )
+    current_semester = Semester.objects.filter(is_current_semester=True).first()
 
-        no_course_is_registered = False  # Check if no course is registered
-        all_courses_are_registered = False
+    print(f"📆 Current semester: {current_semester}")
 
-        registered_courses = Course.objects.filter(level=student.level).filter(id__in=t)
-        if (
-            registered_courses.count() == 0
-        ):  # Check if number of registered courses is 0
-            no_course_is_registered = True
+    if not current_semester:
+        print("❌ No active semester found!")
+        messages.error(request, "No active semester found.")
+        return render(request, "course/course_registration.html", {})
 
-        if registered_courses.count() == all_courses.count():
-            all_courses_are_registered = True
+    print(f"📆 Semester VALUE: {current_semester.semester}")
 
-        total_first_semester_credit = 0
-        total_sec_semester_credit = 0
-        total_registered_credit = 0
-        for i in courses:
-            if i.semester == "First":
-                total_first_semester_credit += int(i.credit)
-            if i.semester == "Second":
-                total_sec_semester_credit += int(i.credit)
-        for i in registered_courses:
-            total_registered_credit += int(i.credit)
-        context = {
-            "is_calender_on": True,
-            "all_courses_are_registered": all_courses_are_registered,
-            "no_course_is_registered": no_course_is_registered,
-            "current_semester": current_semester,
-            "courses": courses,
-            "total_first_semester_credit": total_first_semester_credit,
-            "total_sec_semester_credit": total_sec_semester_credit,
-            "registered_courses": registered_courses,
-            "total_registered_credit": total_registered_credit,
-            "student": student,
-        }
-        return render(request, "course/course_registration.html", context)
+    # ─────────────────────────────
+    # TAKEN COURSES
+    # ─────────────────────────────
+    taken_ids = TakenCourse.objects.filter(
+        student__student__id=request.user.id
+    ).values_list("course_id", flat=True)
 
+    print(f"📌 Taken course IDs: {list(taken_ids)}")
+
+    # ─────────────────────────────
+    # COURSE FILTER (LEVEL REMOVED)
+    # ─────────────────────────────
+    print("\n🔍 APPLYING FILTER (NO LEVEL)")
+
+    courses = Course.objects.filter(
+        program=student.program,
+        semester=current_semester.semester
+    ).exclude(id__in=taken_ids).order_by("year")
+
+    print(f"📚 Available courses count: {courses.count()}")
+
+    for c in courses:
+        print(f"   ➜ {c.code} | {c.title} | {c.credit}cr")
+
+    # ─────────────────────────────
+    # REGISTERED COURSES
+    # ─────────────────────────────
+    registered_courses = Course.objects.filter(id__in=taken_ids)
+
+    print(f"\n🧾 Registered courses count: {registered_courses.count()}")
+
+    for c in registered_courses:
+        print(f"   ✔ {c.code} | {c.title} | {c.credit}cr")
+
+    # ─────────────────────────────
+    # CALCULATIONS
+    # ─────────────────────────────
+    total_registered_credit = sum(c.credit for c in registered_courses)
+    total_all = sum(c.credit for c in courses)
+
+    print("\n📊 CREDIT SUMMARY")
+    print(f"   Registered credits: {total_registered_credit}")
+    print(f"   Available credits: {total_all}")
+
+    # ─────────────────────────────
+    # FLAGS
+    # ─────────────────────────────
+    no_course_is_registered = registered_courses.count() == 0
+    all_courses_are_registered = courses.count() == 0
+
+    print("\n🚩 FLAGS")
+    print(f"   No courses registered: {no_course_is_registered}")
+    print(f"   All courses taken: {all_courses_are_registered}")
+
+    # ─────────────────────────────
+    # CONTEXT
+    # ─────────────────────────────
+    context = {
+        "student": student,
+        "current_semester": current_semester,
+        "courses": courses,
+        "registered_courses": registered_courses,
+        "total_registered_credit": total_registered_credit,
+        "total_all": total_all,
+        "no_course_is_registered": no_course_is_registered,
+        "all_courses_are_registered": all_courses_are_registered,
+    }
+
+    print("\n📤 Rendering template...")
+    print("=" * 60 + "\n")
+
+    return render(request, "course/course_registration.html", context)
 
 @login_required
 @student_required
@@ -487,18 +539,60 @@ def course_drop(request):
 
 @login_required
 def user_course_list(request):
-    if request.user.is_lecturer:
-        courses = Course.objects.filter(allocated_course__lecturer__pk=request.user.id)
-        return render(request, "course/user_course_list.html", {"courses": courses})
 
-    if request.user.is_student:
-        student = get_object_or_404(Student, student__pk=request.user.id)
-        taken_courses = TakenCourse.objects.filter(student=student)
+    print("\n" + "=" * 60)
+    print("📍 USER COURSE LIST VIEW HIT")
+    print("=" * 60)
+
+    # ─────────────────────────────
+    # LECTURER
+    # ─────────────────────────────
+    if request.user.is_lecturer:
+
+        print("👨‍🏫 Lecturer view")
+
+        courses = Course.objects.filter(
+            allocated_course__lecturer__pk=request.user.id
+        ).distinct()
+
+        print(f"📚 Lecturer courses count: {courses.count()}")
+
         return render(
             request,
             "course/user_course_list.html",
-            {"student": student, "taken_courses": taken_courses},
+            {"courses": courses},
         )
 
-    # For other users
+    # ─────────────────────────────
+    # STUDENT
+    # ─────────────────────────────
+    if request.user.is_student:
+
+        print("🎓 Student view")
+
+        student = get_object_or_404(Student, student__pk=request.user.id)
+
+        print(f"👤 Student: {student}")
+
+        taken_courses = TakenCourse.objects.filter(student=student)
+
+        print(f"📌 Taken courses count: {taken_courses.count()}")
+
+        for tc in taken_courses:
+            print(f"   ➜ {tc.course.code} | {tc.course.title}")
+
+        return render(
+            request,
+            "course/user_course_list.html",
+            {
+                "student": student,
+                "taken_courses": taken_courses,  # keep original structure
+            },
+        )
+
+    # ─────────────────────────────
+    # FALLBACK
+    # ─────────────────────────────
+    print("⚠️ No role matched")
+
     return render(request, "course/user_course_list.html")
