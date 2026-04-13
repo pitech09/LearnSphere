@@ -5,7 +5,7 @@ from django.contrib.auth.forms import (
     UserChangeForm,
 )
 from django.contrib.auth.forms import PasswordResetForm
-from course.models import Program
+
 from .models import User, Student, Parent, RELATION_SHIP, LEVEL, GENDERS
 
 
@@ -200,14 +200,6 @@ class StudentAddForm(UserCreationForm):
         ),
     )
 
-    program = forms.ModelChoiceField(
-        queryset=Program.objects.all(),
-        widget=forms.Select(
-            attrs={"class": "browser-default custom-select form-control"}
-        ),
-        label="Program",
-    )
-
     email = forms.EmailField(
         widget=forms.TextInput(
             attrs={
@@ -267,7 +259,6 @@ class StudentAddForm(UserCreationForm):
             Student.objects.create(
                 student=user,
                 level=self.cleaned_data.get("level"),
-                program=self.cleaned_data.get("program"),
             )
 
         return user
@@ -344,20 +335,6 @@ class ProfileUpdateForm(UserChangeForm):
             "address",
             "picture",
         ]
-
-
-class ProgramUpdateForm(UserChangeForm):
-    program = forms.ModelChoiceField(
-        queryset=Program.objects.all(),
-        widget=forms.Select(
-            attrs={"class": "browser-default custom-select form-control"}
-        ),
-        label="Program",
-    )
-
-    class Meta:
-        model = Student
-        fields = ["program"]
 
 
 class EmailValidationOnForgotPassword(PasswordResetForm):

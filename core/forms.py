@@ -1,78 +1,122 @@
 from django import forms
-from .models import NewsAndEvents, Session, Semester, SEMESTER
+from .models import NewsAndEvents, Session, Term
+
+from django import forms
+from .models import SchoolClass
+from accounts.models import User
 
 
-# news and events
-class NewsAndEventsForm(forms.ModelForm):
-    class Meta:
-        model = NewsAndEvents
-        fields = (
-            "title",
-            "summary",
-            "posted_as",
-        )
+class SchoolClassForm(forms.ModelForm):
+
+
+    class_teacher = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        required=True,
+        label="Class Teacher"
+    )
+    LEVELS = [
+        ("F1", "Grade 8"),
+        ("F2", "Grade 9"),
+        ("F3", "Grade 10"),
+        ("F4", "Grade 11"),
+        ("F5", "Grade 12"),
+    ]
+
+    level = forms.ChoiceField(choices=LEVELS)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["title"].widget.attrs.update({"class": "form-control"})
-        self.fields["summary"].widget.attrs.update({"class": "form-control"})
-        self.fields["posted_as"].widget.attrs.update({"class": "form-control"})
+
+        lecturers = User.objects.filter(is_lecturer=True)
+
+        print(" LECTURERS IN SYSTEM:")
+        for u in lecturers:
+            print(u.id, u.username, u.is_lecturer)
+
+        self.fields['class_teacher'].queryset = lecturers
+
+        # optional styling consistency
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                "class": "form-control"
+            })
+
+    class Meta:
+        model = SchoolClass
+        fields = ['name', 'level', 'class_teacher']
 
 
+
+# =========================================================
+# 📢 NEWS & EVENTS FORM
+# =========================================================
+class NewsAndEventsForm(forms.ModelForm):
+    class Meta:
+        model = NewsAndEvents
+        fields = ("title", "summary", "posted_as")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
+
+
+# =========================================================
+# 📅 SESSION FORM
+# =========================================================
 class SessionForm(forms.ModelForm):
-    next_session_begins = forms.DateTimeField(
-        widget=forms.TextInput(
+    next_begins = forms.DateField(
+        widget=forms.DateInput(
             attrs={
                 "type": "date",
+                "class": "form-control"
             }
         ),
-        required=True,
+        required=False
     )
 
     class Meta:
         model = Session
-        fields = ["session", "is_current_session", "next_session_begins"]
+        fields = ["session", "is_current", "next_begins"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
 
 
-class SemesterForm(forms.ModelForm):
-    semester = forms.CharField(
-        widget=forms.Select(
-            choices=SEMESTER,
-            attrs={
-                "class": "browser-default custom-select",
-            },
-        ),
-        label="semester",
-    )
-    is_current_semester = forms.CharField(
-        widget=forms.Select(
-            choices=((True, "Yes"), (False, "No")),
-            attrs={
-                "class": "browser-default custom-select",
-            },
-        ),
-        label="is current semester ?",
-    )
-    session = forms.ModelChoiceField(
-        queryset=Session.objects.all(),
-        widget=forms.Select(
-            attrs={
-                "class": "browser-default custom-select",
-            }
-        ),
-        required=True,
+# =========================================================
+# 📆 TERM FORM (UPDATED - replaces SemesterForm)
+# =========================================================
+class TermForm(forms.ModelForm):
+
+    name = forms.ChoiceField(
+        choices=Term._meta.get_field("name").choices,
+        widget=forms.Select(attrs={"class": "form-control"})
     )
 
-    next_semester_begins = forms.DateTimeField(
-        widget=forms.TextInput(
+    is_current = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput()
+    )
+
+    next_begins = forms.DateField(
+        widget=forms.DateInput(
             attrs={
                 "type": "date",
-                "class": "form-control",
+                "class": "form-control"
             }
         ),
-        required=True,
+        required=False
     )
 
     class Meta:
-        model = Semester
-        fields = ["semester", "is_current_semester", "session", "next_semester_begins"]
+        model = Term
+        fields = ["session", "name", "is_current", "next_begins"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["session"].widget.attrs.update({
+            "class": "form-control"
+        })

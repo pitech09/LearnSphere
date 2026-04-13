@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Subjects" %}{% endblock %}
+
+{% block content %}
+
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Subjects' %}</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="title-1">
+    <i class="fas fa-book"></i> {% trans "Subjects" %}
+  </div>
+
+  <a href="{% url 'add_subject' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> {% trans "Add Subject" %}
+  </a>
+</div>
+
+{% include 'snippets/messages.html' %}
+
+<div class="card p-3">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>{% trans "Name" %}</th>
+          <th>{% trans "Class" %}</th>
+          <th>{% trans "Teacher" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for subject in subjects %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><strong>{{ subject.name }}</strong></td>
+          <td>{{ subject.code }}</td>
+          <td>{{ subject.teacher }}</td>
+
+          <td class="text-center">
+            <a href="{% url 'edit_subject' subject.id %}" class="btn btn-sm btn-warning">
+              <i class="fas fa-edit"></i>
+            </a>
+
+            <a href="{% url 'delete_subject' subject.id %}" class="btn btn-sm btn-danger">
+              <i class="fas fa-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            {% trans "No subjects available." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -40,7 +40,7 @@
                 <td>{{ forloop.counter }}.</td>
                 <td>{{ session.session }}</td>
                 <th>
-                    {% if session.is_current_session == True %}
+                    {% if session.is_current == True %}
                     <i class="fas fa-check-circle fa-1-5x"></i>
                     {% else %}
                     <i class="fas fa-times-circle fa-1-5x danger"></i>

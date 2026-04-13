@@ -1,184 +1,150 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Learning management system' %}{% endblock title %}
+
+{% block title %}
+{{ title }} | {% trans "Assessment Results" %}
+{% endblock %}
 
 {% block content %}
 
-<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
-  <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{% trans 'Grade Results' %}</li>
-  </ol>
-</nav>
+<div class="container mt-4">
 
-{% include 'snippets/messages.html' %}
+  <!-- HEADER -->
+  <div class="text-center mb-4">
+    <h2 class="fw-bold">
+      {% trans "Student Assessment Report" %}
+    </h2>
+    <p class="text-muted">
+      {{ student.user.get_full_name }} — {{ student.level }}
+    </p>
+  </div>
 
-<div class="title-1"><i class="fas fa-table"></i>{% trans 'Grade Results' %}</div>
-<p>{{ student.level }} {% trans 'Result' %}</p>
+  {% include 'snippets/messages.html' %}
 
-<div class="table-responsive">
-  <div class="table-title"><u>{% trans 'First Semester:' %}</u></div>
-  <table class="table table-light">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>{% trans 'Course Title' %}</th>
-        <th>{% trans 'Course Code' %}</th>
-        <th>{% trans 'Cr.Hr' %}</th>
-        <th>{% trans 'Grade' %}</th>
-        <th>{% trans 'Points' %}</th>
-        <th>{% trans 'Comment' %}</th>
-      </tr>
-    </thead>
-    {% for course in courses %}
-    {% if course.course.semester == "First" %}
-    <tbody>
-      <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray{% endif %}">
-        <th>{{ forloop.counter }}</th>
-        <td><a href="{{ course.course.get_absolute_url }}">{{ course.course.title }}</a></td>
-        <td>{{ course.course.code }}</td>
-        <td>{{ course.course.credit }}</td>
+  <!-- QUARTER LOOP -->
+  {% for q in quarters %}
 
-        <td class="{% if course.grade == 'F' %}danger{% else %}success{% endif %}">{{ course.grade }}</td>
-        <td>{{ course.point }}</td>
+  <div class="card shadow-sm mb-5 border-0">
 
-        {% if course.comment == 'PASS' %}
-          <td class="success"><i class="fas fa-check-circle"></i>{% trans 'PASS' %}</td>
-        {% elif course.comment == 'FAIL' %}
-          <td class="danger"><i class="fas fa-exclamation-circle"></i>{% trans 'FAIL' %}</td>
-        {% else %}
-          <td></td>
+    <!-- QUARTER HEADER -->
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">
+        {% if q == "Q1" %}Quarter 1
+        {% elif q == "Q2" %}Quarter 2
+        {% elif q == "Q3" %}Quarter 3
+        {% else %}Quarter 4
         {% endif %}
+      </h5>
+    </div>
 
-      </tr>
-    </tbody>
-    {% endif %}
-    {% endfor %}
+    <div class="card-body p-0">
 
-    {% for result in results %}
-    {% if result.semester == "First" %}
-    <tr style="background: #f3f2f2;">
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th>{% trans 'Total first semester credit:' %} {{ total_first_semester_credit }}</th>
-    </tr>
-    <tr class="bg-orange text-white">
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th>{% trans 'First Semester GPA:' %} {{ result.gpa }}</th>
-    </tr>
-    {% endif %}
-    {% endfor %}
+      <!-- TABLE -->
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
 
-  </table>
-</div>
-  
-<div class="table-responsive p-0 px-2 mt-3">
-  <div class="table-title"><u>{% trans 'Second Semester:' %}</u></div>
-  <table class="table table-light">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>{% trans 'Course Title' %}</th>
-        <th>{% trans 'Course Code' %}</th>
-        <th>{% trans 'Cr.Hr' %}</th>
-        <th>{% trans 'GRADE' %}</th>
-        <th>{% trans 'Points' %}</th>
-        <th>{% trans 'Comment' %}</th>
-      </tr>
-    </thead>
-    {% for course in courses %}
-    {% if course.course.semester == "Second" %}
-    <tbody>
-      <tr>
-        <th>{{ forloop.counter }}</th>
-        <td><a href="{{ course.course.get_absolute_url }}">{{ course.course.title }}</a></td>
-        <td>{{ course.course.code }}</td>
-        <td>{{ course.course.credit }}</td>
-        
-        <td class="{% if course.grade == 'F' %}danger{% else %}success{% endif %}">{{ course.grade }}</td>
-        <td>{{ course.point }}</td>
-        
-        {% if course.comment == 'PASS' %}
-          <td class="success"><i class="fas fa-check-circle"></i>{% trans 'PASS' %}</td>
-        {% elif course.comment == 'FAIL' %}
-          <td class="danger"><i class="fas fa-exclamation-circle"></i>{% trans 'FAIL' %}</td>
-        {% else %}
-          <td></td>
-        {% endif %}
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Course</th>
+              <th>Code</th>
+              <th>Cr.Hr</th>
+              <th>Assignment</th>
+              <th>Mid</th>
+              <th>Quiz</th>
+              <th>Attendance</th>
+              <th>Final</th>
+              <th>Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
 
-      </tr>
-    </tbody>
-    {% endif %}
-    {% endfor %}
-    
-    {% for result in results %}
-    {% if result.semester == "Second" %}
-    <tr style="background: #f3f2f2;">
-      <th></th>
-      <th>{% trans 'Total second semester credit:' %} {{ total_sec_semester_credit }}</th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th>{% trans 'Total Credit:' %} {{ total_first_and_second_semester_credit }}</th>
-    </tr>
-    <tr style="background: #f3f2f2;">
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th>{% trans 'Second Semester GPA:' %} {{ result.gpa }}</th>
-    </tr>
-    <tr style="background: #fd7e14; color: #fff;">
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th>{% trans 'Previous CGPA:' %} {{ previousCGPA }}</th>
-    </tr>
-    {% endif %}
-    {% endfor %}
+          <tbody>
 
-  </table>
-</div>
+            {% for r in courses %}
+              {% if r.quarter == q %}
+              <tr>
 
-<br>
-<tbody>
-  {% for result in results %}
-  {% if result.semester == "First" %}
-  <tr>
-    <th></th>
-    <th></th>
-    <th><label>{% trans 'First Semester GPA:' %}</label> {{ result.gpa }}</th>
-  </tr>
-  <br>
-  {% elif result.semester == "Second" %}
-    <tr>
-    <th></th>
-    <th></th>
-    <th><label>{% trans 'Second Semester GPA:' %}</label> {{ result.gpa }}</th>
-  </tr>
-  <br>
-  {% endif %}
+                <td>{{ forloop.counter }}</td>
+
+                <td>
+                  <a href="{{ r.course.get_absolute_url }}">
+                    {{ r.course.title }}
+                  </a>
+                </td>
+
+                <td>{{ r.course.code }}</td>
+                <td>{{ r.course.credit }}</td>
+
+                <td>{{ r.assignment }}</td>
+                <td>{{ r.mid_exam }}</td>
+                <td>{{ r.quiz }}</td>
+                <td>{{ r.attendance }}</td>
+                <td>{{ r.final_exam }}</td>
+
+                <td>
+                  <strong>{{ r.total }}</strong>
+                </td>
+
+                {% if r.total >= 45 %}
+                  <td class="text-success fw-bold">
+                    PASS
+                  </td>
+                {% else %}
+                  <td class="text-danger fw-bold">
+                    FAIL
+                  </td>
+                {% endif %}
+
+              </tr>
+              {% endif %}
+            {% endfor %}
+
+          </tbody>
+
+        </table>
+      </div>
+
+    </div>
+
+    <!-- FOOTER SUMMARY -->
+    <div class="card-footer bg-light">
+
+      <div class="row text-center">
+
+        <div class="col">
+          <strong>Average:</strong><br>
+
+          {% if q == "Q1" %}{{ averages.Q1 }}
+          {% elif q == "Q2" %}{{ averages.Q2 }}
+          {% elif q == "Q3" %}{{ averages.Q3 }}
+          {% elif q == "Q4" %}{{ averages.Q4 }}
+          {% endif %}
+
+        </div>
+
+        <div class="col">
+          <strong>Total Students:</strong><br>
+          {{ courses|length }}
+        </div>
+
+        <div class="col">
+          <strong>Status:</strong><br>
+          {% if averages.Q1 >= 45 and q == "Q1" %}
+            <span class="text-success">Good</span>
+          {% elif q == "Q1" %}
+            <span class="text-danger">Needs Support</span>
+          {% endif %}
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
   {% endfor %}
-  <tr>
-    <th></th>
-    <th></th>
-    <th><label>{% trans 'Previous CGPA:' %}</label> {{ previousCGPA }}</th>
-  </tr>
-</tbody>
-<br>
+
+</div>
+
 {% endblock %}

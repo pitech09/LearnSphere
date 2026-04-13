@@ -3,36 +3,13 @@ from . import views
 
 
 urlpatterns = [
-    # Program urls
-    path("", views.ProgramFilterView.as_view(), name="programs"),
-    path("<int:pk>/detail/", views.program_detail, name="program_detail"),
-    path("add/", views.program_add, name="add_program"),
-    path("<int:pk>/edit/", views.program_edit, name="edit_program"),
-    path("<int:pk>/delete/", views.program_delete, name="program_delete"),
+
     # Course urls
     path("course/<slug>/detail/", views.course_single, name="course_detail"),
-    path("<int:pk>/course/add/", views.course_add, name="course_add"),
+    path("<int:pk>/course/add/", views.subject_add_view, name="course_add"),
     path("course/<slug>/edit/", views.course_edit, name="edit_course"),
-    path("course/delete/<slug>/", views.course_delete, name="delete_course"),
-    # CourseAllocation urls
-    path(
-        "course/assign/",
-        views.CourseAllocationFormView.as_view(),
-        name="course_allocation",
-    ),
-    path(
-        "course/allocated/",
-        views.CourseAllocationFilterView.as_view(),
-        name="course_allocation_view",
-    ),
-    path(
-        "allocated_course/<int:pk>/edit/",
-        views.edit_allocated_course,
-        name="edit_allocated_course",
-    ),
-    path(
-        "course/<int:pk>/deallocate/", views.deallocate_course, name="course_deallocate"
-    ),
+    path("course/delete/<slug>/", views.subject_delete_view, name="delete_course"),
+    
     # File uploads urls
     path(
         "course/<slug>/documentations/upload/",

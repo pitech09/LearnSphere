@@ -17,13 +17,12 @@ from accounts.filters import LecturerFilter, StudentFilter
 from accounts.forms import (
     ParentAddForm,
     ProfileUpdateForm,
-    ProgramUpdateForm,
     StaffAddForm,
     StudentAddForm,
 )
 from accounts.models import Parent, Student, User
-from core.models import Semester, Session
-from course.models import Course
+from core.models import Session, Term
+from course.models import Subject as Course
 from result.models import TakenCourse
 
 # ########################################################
@@ -80,9 +79,9 @@ def register(request):
 @login_required
 def profile(request):
     """Show profile of the current user."""
-    current_session = Session.objects.filter(is_current_session=True).first()
-    current_semester = Semester.objects.filter(
-        is_current_semester=True, session=current_session
+    current_session = Session.objects.filter(is_current=True).first()
+    current_semester = Term.objects.filter(
+        is_current=True, session=current_session
     ).first()
 
     context = {
@@ -93,7 +92,7 @@ def profile(request):
 
     if request.user.is_lecturer:
         courses = Course.objects.filter(
-            allocated_course__lecturer__pk=request.user.id, semester=current_semester
+            allocated_subjects__teacher=request.user.id, semester=current_semester
         )
         context["courses"] = courses
         return render(request, "accounts/profile.html", context)
@@ -102,7 +101,7 @@ def profile(request):
         student = get_object_or_404(Student, student__pk=request.user.id)
         parent = Parent.objects.filter(student=student).first()
         courses = TakenCourse.objects.filter(
-            student__student__id=request.user.id, course__level=student.level
+            student__student__id=request.user.id
         )
         context.update(
             {
@@ -126,9 +125,9 @@ def profile_single(request, user_id):
     if request.user.id == user_id:
         return redirect("profile")
 
-    current_session = Session.objects.filter(is_current_session=True).first()
-    current_semester = Semester.objects.filter(
-        is_current_semester=True, session=current_session
+    current_session = Session.objects.filter(is_current=True).first()
+    current_semester = Term.objects.filter(
+        is_current=True, session=current_session
     ).first()
     user = get_object_or_404(User, pk=user_id)
 
@@ -152,7 +151,7 @@ def profile_single(request, user_id):
     elif user.is_student:
         student = get_object_or_404(Student, student__pk=user_id)
         courses = TakenCourse.objects.filter(
-            student__student__id=user_id, course__level=student.level
+            student__student__id=user_id
         )
         context.update(
             {
@@ -379,28 +378,6 @@ def delete_student(request, pk):
     student.delete()
     messages.success(request, f"Student {full_name} has been deleted.")
     return redirect("student_list")
-
-
-@login_required
-@admin_required
-def edit_student_program(request, pk):
-    student = get_object_or_404(Student, student_id=pk)
-    user = get_object_or_404(User, pk=pk)
-    if request.method == "POST":
-        form = ProgramUpdateForm(request.POST, request.FILES, instance=student)
-        if form.is_valid():
-            form.save()
-            full_name = user.get_full_name
-            messages.success(request, f"{full_name}'s program has been updated.")
-            return redirect("profile_single", user_id=pk)
-        messages.error(request, "Please correct the error(s) below.")
-    else:
-        form = ProgramUpdateForm(instance=student)
-    return render(
-        request,
-        "accounts/edit_student_program.html",
-        {"title": "Edit Program", "form": form, "student": student},
-    )
 
 
 # ########################################################

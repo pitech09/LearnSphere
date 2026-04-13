@@ -1,96 +1,184 @@
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.utils import timezone
+from django.contrib.auth.models import AbstractUser, UserManager
+from django.urls import reverse
+
+from accounts.models import User
 
 
-NEWS = _("News")
-EVENTS = _("Event")
+# =========================================================
+#  NEWS & EVENTS
+# =========================================================
 
-POST = (
-    (NEWS, _("News")),
-    (EVENTS, _("Event")),
+POST_NEWS = "news"
+POST_EVENT = "event"
+
+POST_CHOICES = (
+    (POST_NEWS, _("News")),
+    (POST_EVENT, _("Event")),
 )
 
-FIRST = _("1st Quarter")
-SECOND = _("2nd Quarter")
-THIRD = _("3rd Quarter")
-FOURTH=_("4th Quarter")
 
+class NewsAndEventsQuerySet(models.QuerySet):
+    def search(self, query=None):
+        if not query:
+            return self
 
-SEMESTER = (
-    (FIRST, _("1st Quarter")),
-    (SECOND, _("2nd Quarter")),
-    (THIRD, _("3rd Quarter")),
-    (FOURTH, _("4th Quarter"))
-)
-
-
-class NewsAndEventsQuerySet(models.query.QuerySet):
-    def search(self, query):
-        lookups = (
-            Q(title__icontains=query)
-            | Q(summary__icontains=query)
-            | Q(posted_as__icontains=query)
-        )
-        return self.filter(lookups).distinct()
+        return self.filter(
+            Q(title__icontains=query) |
+            Q(summary__icontains=query) |
+            Q(posted_as__icontains=query)
+        ).distinct()
 
 
 class NewsAndEventsManager(models.Manager):
     def get_queryset(self):
         return NewsAndEventsQuerySet(self.model, using=self._db)
 
-    def all(self):
-        return self.get_queryset()
-
-    def get_by_id(self, id):
-        qs = self.get_queryset().filter(
-            id=id
-        )  # NewsAndEvents.objects == self.get_queryset()
-        if qs.count() == 1:
-            return qs.first()
-        return None
-
-    def search(self, query):
+    def search(self, query=None):
         return self.get_queryset().search(query)
 
 
 class NewsAndEvents(models.Model):
-    title = models.CharField(max_length=200, null=True)
-    summary = models.TextField(max_length=200, blank=True, null=True)
-    posted_as = models.CharField(choices=POST, max_length=10)
-    updated_date = models.DateTimeField(auto_now=True, auto_now_add=False, null=True)
-    upload_time = models.DateTimeField(auto_now=False, auto_now_add=True, null=True)
+    title = models.CharField(max_length=200)
+    summary = models.TextField(blank=True)
+    posted_as = models.CharField(max_length=10, choices=POST_CHOICES)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     objects = NewsAndEventsManager()
 
     def __str__(self):
-        return f"{self.title}"
+        return self.title
 
+
+# =========================================================
+# 📅 SESSION (ACADEMIC YEAR)
+# =========================================================
 
 class Session(models.Model):
+    """
+    Represents academic year (e.g. 2026)
+    """
     session = models.CharField(max_length=200, unique=True)
-    is_current_session = models.BooleanField(default=False, blank=True, null=True)
-    next_session_begins = models.DateField(blank=True, null=True)
+    is_current = models.BooleanField(default=False)
+    next_session_begins = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.session}"
+        return self.session
 
 
-class Semester(models.Model):
-    semester = models.CharField(max_length=12, choices=SEMESTER, blank=True)
-    is_current_semester = models.BooleanField(default=False, blank=True, null=True)
-    session = models.ForeignKey(
-        Session, on_delete=models.CASCADE, blank=True, null=True
-    )
-    next_semester_begins = models.DateField(null=True, blank=True)
+# =========================================================
+# 📆 TERM (HIGH SCHOOL STRUCTURE)
+# =========================================================
+
+TERM_CHOICES = (
+    ("T1", _("Term 1")),
+    ("T2", _("Term 2")),
+    ("T3", _("Term 3")),
+    ("T4", _("Term 4")),
+)
+
+
+class Term(models.Model):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE)
+    name = models.CharField(max_length=2, choices=TERM_CHOICES)
+    is_current = models.BooleanField(default=False)
+    next_begins = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.semester}"
+        return f"{self.name} - {self.session.session}"
 
+
+# =========================================================
+# 🧾 ACTIVITY LOG
+# =========================================================
 
 class ActivityLog(models.Model):
     message = models.TextField()
-    created_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
-        return f"[{self.created_at}]{self.message}"
+        return self.message[:60]
+
+
+# =========================================================
+# 👤 USER SYSTEM
+# =========================================================
+
+class CustomUserManager(UserManager):
+    def search(self, query=None):
+        qs = self.get_queryset()
+        if query:
+            qs = qs.filter(
+                Q(username__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query)
+            )
+        return qs
+
+
+
+
+# =========================================================
+# 🔔 SIGNALS
+# =========================================================
+
+@receiver(post_save, sender=NewsAndEvents)
+def log_news_save(sender, instance, created, **kwargs):
+    ActivityLog.objects.create(
+        message=f"News/Event '{instance.title}' was {'created' if created else 'updated'}."
+    )
+
+
+@receiver(post_delete, sender=NewsAndEvents)
+def log_news_delete(sender, instance, **kwargs):
+    ActivityLog.objects.create(
+        message=f"News/Event '{instance.title}' was deleted."
+    )
+
+
+@receiver(post_save, sender=Session)
+def log_session_save(sender, instance, created, **kwargs):
+    ActivityLog.objects.create(
+        message=f"Session '{instance.session}' was {'created' if created else 'updated'}."
+    )
+
+
+@receiver(post_save, sender=Term)
+def log_term_save(sender, instance, created, **kwargs):
+    ActivityLog.objects.create(
+        message=f"Term '{instance}' was {'created' if created else 'updated'}."
+    )
+
+# =========================================================
+#  SCHOOL CLASS (FORM 1A, FORM 2B, etc.)
+# =========================================================
+class SchoolClass(models.Model):
+    name = models.CharField(max_length=50, unique=True)  # e.g. F1A, F2B
+    level = models.CharField(max_length=10)  # e.g. F1, F2, F3
+    class_teacher = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        limit_choices_to={'is_lecturer': True}
+    )
+    is_active = models.BooleanField(default=True)
+
+
+    def __str__(self):
+        return self.name
+
+
+
+
+   

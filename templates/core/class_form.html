@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}{{ title }} | {% trans "Learning management system" %}{% endblock %}
+
+{% block content %}
+
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'class_list' %}">{% trans 'Classes' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Class Form' %}</li>
+  </ol>
+</nav>
+
+<div class="d-flex align-items-center mb-3">
+  <i class="fas fa-school me-2"></i>
+  <h4 class="fw-bold m-0">{% trans "Class Form" %}</h4>
+</div>
+
+{% include 'snippets/messages.html' %}
+
+<form method="POST">
+  {% csrf_token %}
+
+  <div class="row g-3">
+
+    <!-- MAIN INFO -->
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <strong>{% trans "Class Information" %}</strong>
+        </div>
+
+        <div class="card-body">
+          {{ form.name|as_crispy_field }}
+          {{ form.level|as_crispy_field }}
+          {{ form.class_teacher|as_crispy_field }}
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDE INFO / FUTURE EXPANSION -->
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <strong>{% trans "Summary" %}</strong>
+        </div>
+
+        <div class="card-body text-muted">
+          <p class="mb-2">
+            {% trans "Create or update a class. Ensure the level and teacher are correctly assigned." %}
+          </p>
+
+          <ul class="small">
+            <li>{% trans "Class name should be unique" %}</li>
+            <li>{% trans "Teacher must exist in system" %}</li>
+            <li>{% trans "Level defines academic stage" %}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ACTION BAR -->
+  <div class="mt-3">
+    <button type="submit" class="btn btn-primary">
+      {% trans "Save Class" %}
+    </button>
+
+    <a href="{% url 'class_list' %}" class="btn btn-secondary">
+      {% trans "Cancel" %}
+    </a>
+  </div>
+
+</form>
+
+{% endblock %}

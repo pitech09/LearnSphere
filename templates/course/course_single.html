@@ -10,10 +10,7 @@
         <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
         {% if request.user.is_student %}
         <li class="breadcrumb-item"><a href="{% url 'user_course_list' %}">{% trans 'My courses' %}</a></li>
-        {% else %}
-        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Programs' %}</a></li>
         {% endif %}
-        <li class="breadcrumb-item"><a href="{% url 'program_detail' course.program.id %}">{{ course.program }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">{{ course }}</li>
     </ol>
 </nav>
@@ -218,7 +215,7 @@
                         {% if lecturer.lecturer.picture %}
                         <img class="avatar avatar-lg" src="{{ lecturer.lecturer.picture.url }}" alt="">
                         {% endif %}
-                        <h5 class="fw-bold mb-0">{{ lecturer|title }}</h5>
+                        <h5 class="fw-bold mb-0">{{ lecturer.lecturer.get_full_name }}</h5>
                         <p class="mb-0">{{ lecturer.lecturer.email }}</p>
                         <p class="text-muted small">Donec sed odio dui. Etiam porta sem malesuada magna mollis euismod.</p>
                         <p>
