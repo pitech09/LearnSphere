@@ -6,18 +6,13 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 from PIL import Image
 
-from course.models import Program
 from .validators import ASCIIUsernameValidator
-
-
-# LEVEL_COURSE = "Level course"
-BACHELOR_DEGREE = _("Bachelor")
-MASTER_DEGREE = _("Master")
-
 LEVEL = (
-    # (LEVEL_COURSE, "Level course"),
-    (BACHELOR_DEGREE, _("Bachelor Degree")),
-    (MASTER_DEGREE, _("Master Degree")),
+    ("F1", _("Form 1 (Year 1)")),
+    ("F2", _("Form 2 (Year 2)")),
+    ("F3", _("Form 3 (Year 3)")),
+    ("F4", _("Form 4 (Year 4)")),
+    ("F5", _("Form 5 (Year 5)")),
 )
 
 FATHER = _("Father")
@@ -71,7 +66,6 @@ class User(AbstractUser):
     is_student = models.BooleanField(default=False)
     is_lecturer = models.BooleanField(default=False)
     is_parent = models.BooleanField(default=False)
-    is_dep_head = models.BooleanField(default=False)
     gender = models.CharField(max_length=1, choices=GENDERS, blank=True, null=True)
     phone = models.CharField(max_length=60, blank=True, null=True)
     address = models.CharField(max_length=60, blank=True, null=True)
@@ -152,7 +146,7 @@ class Student(models.Model):
     student = models.OneToOneField(User, on_delete=models.CASCADE)
     # id_number = models.CharField(max_length=20, unique=True, blank=True)
     level = models.CharField(max_length=25, choices=LEVEL, null=True)
-    program = models.ForeignKey(Program, on_delete=models.CASCADE, null=True)
+    
 
     objects = StudentManager()
 
@@ -203,7 +197,6 @@ class Parent(models.Model):
 
 class DepartmentHead(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    department = models.ForeignKey(Program, on_delete=models.CASCADE, null=True)
 
     class Meta:
         ordering = ("-user__date_joined",)

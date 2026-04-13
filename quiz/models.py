@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from django.dispatch import receiver
 from model_utils.managers import InheritanceManager
 
-from course.models import Course
+from course.models import Subject as Course
 from core.utils import unique_slug_generator
 
 CHOICE_ORDER_OPTIONS = (
