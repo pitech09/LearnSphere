@@ -4,9 +4,10 @@ from django.contrib.auth.decorators import login_required
 
 from accounts.decorators import admin_required, lecturer_required
 from accounts.models import User, Student
+from course.forms import SubjectAddForm
 from course.models import Subject, SubjectAllocation
 
-from .forms import SessionForm, NewsAndEventsForm
+from .forms import SessionForm, NewsAndEventsForm, SubjectForm
 from .models import NewsAndEvents, ActivityLog, Session, SchoolClass
 
 
@@ -169,10 +170,57 @@ def session_delete_view(request, pk):
 
     return redirect("session_list")
 
-
+@login_required
+@lecturer_required
 def subject_list_view(request):
     subjects = Subject.objects.all()
     return render(request, "core/subject_list.html", {"subjects": subjects})
+
+
+@login_required
+@lecturer_required
+def subject_add_view(request):
+    if request.method == "POST":
+        form = SubjectAddForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Subject added.")
+            return redirect("subject_list_view")
+    else:
+        form = SubjectAddForm()
+
+    return render(request, "core/subject_form.html", {"form": form})
+
+@login_required
+@lecturer_required
+def subject_update_view(request, pk):
+    subject = get_object_or_404(Subject, pk=pk)
+
+    if request.method == "POST":
+        form = SubjectAddForm(request.POST, instance=subject)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Subject updated.")
+            return redirect("subject_list_view")
+
+    else:
+        form = SubjectAddForm(instance=subject)
+
+    return render(request, "core/subject_form.html", {"form": form})
+
+@login_required
+@lecturer_required
+def subject_delete_view(request, pk):
+    subject = get_object_or_404(Subject, pk=pk)
+
+    if request.method == "POST":
+        subject.delete()
+        messages.success(request, "Subject deleted.")
+        return redirect("subject_list_view")
+
+    return render(request, "core/confirm_delete.html", {"object": subject})
 
 from .models import SchoolClass
 from .forms import (

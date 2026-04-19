@@ -10,6 +10,7 @@ from django.template.loader import get_template, render_to_string
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
 from django_filters.views import FilterView
+from urllib3 import request
 from xhtml2pdf import pisa
 
 from accounts.decorators import admin_required
@@ -22,7 +23,7 @@ from accounts.forms import (
 )
 from accounts.models import Parent, Student, User
 from core.models import Session, Term
-from course.models import Subject as Course
+from course.models import Subject
 from result.models import TakenCourse
 
 # ########################################################
@@ -91,11 +92,16 @@ def profile(request):
     }
 
     if request.user.is_lecturer:
-        courses = Course.objects.filter(
-            allocated_subjects__teacher=request.user.id, semester=current_semester
-        )
-        context["courses"] = courses
-        return render(request, "accounts/profile.html", context)
+
+        courses = Subject.objects.filter(teacher_id=request.user.id)
+
+        print(courses)
+        print(type(request.user))
+        print(request.user.__class__) 
+        context.update({
+            "user_type": "Lecturer",
+            "courses": courses,
+        })
 
     if request.user.is_student:
         student = get_object_or_404(Student, student__pk=request.user.id)
@@ -139,8 +145,8 @@ def profile_single(request, user_id):
     }
 
     if user.is_lecturer:
-        courses = Course.objects.filter(
-            allocated_course__lecturer__pk=user_id, semester=current_semester
+        courses = Subject.objects.filter(
+            allocated_subjects__teacher__pk=user_id
         )
         context.update(
             {

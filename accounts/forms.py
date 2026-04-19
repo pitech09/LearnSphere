@@ -6,6 +6,8 @@ from django.contrib.auth.forms import (
 )
 from django.contrib.auth.forms import PasswordResetForm
 
+from core.models import SchoolClass
+
 from .models import User, Student, Parent, RELATION_SHIP, LEVEL, GENDERS
 
 
@@ -200,6 +202,12 @@ class StudentAddForm(UserCreationForm):
         ),
     )
 
+    class_assigned = forms.ModelChoiceField(
+        queryset=SchoolClass.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={"class": "form-control"})
+    )
+
     email = forms.EmailField(
         widget=forms.TextInput(
             attrs={
@@ -219,7 +227,7 @@ class StudentAddForm(UserCreationForm):
             }
         ),
         label="Password",
-        required=False,
+        required=True,
     )
 
     password2 = forms.CharField(
@@ -231,7 +239,7 @@ class StudentAddForm(UserCreationForm):
             }
         ),
         label="Password Confirmation",
-        required=False,
+        required=True,
     )
 
     # def validate_email(self):
@@ -251,8 +259,8 @@ class StudentAddForm(UserCreationForm):
         user.gender = self.cleaned_data.get("gender")
         user.address = self.cleaned_data.get("address")
         user.phone = self.cleaned_data.get("phone")
-        user.address = self.cleaned_data.get("address")
         user.email = self.cleaned_data.get("email")
+        user.class_assigned = self.cleaned_data.get("class_assigned")
 
         if commit:
             user.save()

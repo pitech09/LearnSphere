@@ -6,7 +6,8 @@ from django.db.models.signals import pre_save, post_delete, post_save
 from django.dispatch import receiver
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-
+from django.utils.text import slugify
+from accounts.models import User
 from core.models import ActivityLog, Session
 from core.utils import unique_slug_generator
 
@@ -35,19 +36,20 @@ class Subject(models.Model):
     slug = models.SlugField(unique=True, blank=True)
     title = models.CharField(max_length=200)
     code = models.CharField(max_length=200, unique=True)
-    credit = models.IntegerField(default=0)
     summary = models.TextField(max_length=200, blank=True)
-    semester = models.CharField(
-        choices=settings.SEMESTER_CHOICES,
-        max_length=200
-    )
 
-    is_elective = models.BooleanField(default=False)
+    class_assigned = models.ForeignKey('core.SchoolClass', on_delete=models.CASCADE, null=True, blank=True)
+    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     objects = CourseManager()
 
     def __str__(self):
         return f"{self.title} ({self.code})"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(f"{self.title}-{self.code}")
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         return reverse("course_detail", kwargs={"slug": self.slug})
@@ -55,8 +57,7 @@ class Subject(models.Model):
     @property
     def is_current(self):
         current = Session.objects.filter(is_current=True).first()
-        return bool(current)
-
+        return bool(current) 
 
 # =========================================================
 # SIGNALS
@@ -153,7 +154,6 @@ class UploadVideo(models.Model):
     title = models.CharField(max_length=100)
     slug = models.SlugField(unique=True, blank=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
-
     video = models.FileField(
         upload_to="course_videos/",
         validators=[
@@ -172,7 +172,7 @@ class UploadVideo(models.Model):
     def get_absolute_url(self):
         return reverse(
             "video_single",
-            kwargs={"slug": self.course.slug, "video_slug": self.slug},
+            kwargs={"slug": self.subject.slug, "video_slug": self.slug},
         )
 
 
@@ -186,13 +186,13 @@ def video_pre_save_receiver(sender, instance, **kwargs):
 def log_uploadvideo_save(sender, instance, created, **kwargs):
     action = "uploaded" if created else "updated"
     ActivityLog.objects.create(
-        message=_(f"The video '{instance.title}' has been {action} in '{instance.course}'.")
+        message=_(f"The video '{instance.title}' has been {action} in '{instance.subject}'.")
     )
 
 @receiver(post_delete, sender=UploadVideo)
 def log_uploadvideo_delete(sender, instance, **kwargs):
     ActivityLog.objects.create(
-        message=_(f"The video '{instance.title}' was deleted from '{instance.course}'.")
+        message=_(f"The video '{instance.title}' was deleted from '{instance.subject}'.")
     )
 
 # =========================================================

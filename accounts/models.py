@@ -146,8 +146,8 @@ class Student(models.Model):
     student = models.OneToOneField(User, on_delete=models.CASCADE)
     # id_number = models.CharField(max_length=20, unique=True, blank=True)
     level = models.CharField(max_length=25, choices=LEVEL, null=True)
+    student_class = models.ForeignKey('core.SchoolClass', on_delete=models.SET_NULL, null=True)
     
-
     objects = StudentManager()
 
     class Meta:

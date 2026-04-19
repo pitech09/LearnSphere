@@ -18,8 +18,6 @@
 
 {% include 'snippets/messages.html' %}
 
-{% if current_semester %}
-
 {% if not all_courses_are_registered %}
 
 <form action="{% url 'course_registration' %}" method="POST">
@@ -153,8 +151,6 @@
 <a class="btn btn-sm btn-secondary mt-3" href="{% url 'course_registration_form' %}" target="_blank">
     <i class="fas fa-print"></i> Print Registered Courses
 </a>
-
-{% endif %}
 
 {% endif %}
 

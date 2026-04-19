@@ -1,4 +1,6 @@
 from django import forms
+
+from course.models import Subject
 from .models import NewsAndEvents, Session, Term
 
 from django import forms
@@ -120,3 +122,13 @@ class TermForm(forms.ModelForm):
         self.fields["session"].widget.attrs.update({
             "class": "form-control"
         })
+
+class SubjectForm(forms.ModelForm):
+    class Meta:
+        model = Subject
+        fields = ['title', 'code', 'summary', 'class_assigned', 'teacher']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
