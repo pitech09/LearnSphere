@@ -36,7 +36,7 @@
                 <th>{% trans 'ID No.' %} </th>
                 <th> {% trans 'Full Name' %} </th>
                 <th> {% trans 'Email' %} </th>
-                <th> {% trans 'Program' %} </th>
+                <th> {% trans 'Class' %} </th>
                 {% if request.user.is_superuser %}
                 <th> {% trans 'Action' %} </th>
                 {% endif %}
@@ -49,7 +49,7 @@
                 <td>{{ student.student.username }} </td>
                 <td><a href="{% url 'profile_single' student.student.id %}">{{ student.student.get_full_name }}</a></td>
                 <td>{{ student.student.email }} </td>
-                <td>{{ student.program }}</td>
+                <td>{{ student.student_class }}</td>
 
                 {% if request.user.is_superuser %}
                 <td>
@@ -58,9 +58,33 @@
                             <i class="fa fa-ellipsis-vertical"></i>
                         </button>
                         <ul class="dropdown-menu">
-                          <li><a class="dropdown-item" href="{% url 'student_edit' student.student.pk %}"><i class="unstyled me-2 fas fa-edit"></i>{% trans 'Update' %}</a></li>
-                          <li><a class="dropdown-item" target="_blank" href="{% url 'profile_single' student.student.id %}?download_pdf=1"><i class="unstyled me-2 fas fa-download"></i>{% trans 'Download PDF' %}</a></li>
-                          <li><a class="dropdown-item text-danger" href="{% url 'student_delete' student.pk %}"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Delete' %}</a></li>
+
+                        <li>
+                            <a class="dropdown-item" href="{% url 'student_edit' student.id %}">
+                            <i class="fas fa-edit me-2"></i> {% trans 'Update' %}
+                            </a>
+                        </li>
+
+                        <li>
+                            <a class="dropdown-item" href="{% url 'assign_class_view' student.id %}">
+                            <i class="fas fa-school me-2"></i> {% trans 'Assign Class' %}
+                            </a>
+                        </li>
+
+                        <li>
+                            <a class="dropdown-item" target="_blank"
+                            href="{% url 'profile_single' student.student.id %}?download_pdf=1">
+                            <i class="fas fa-download me-2"></i> {% trans 'Download PDF' %}
+                            </a>
+                        </li>
+
+                        <li>
+                            <a class="dropdown-item text-danger"
+                            href="{% url 'student_delete' student.student.id %}">
+                            <i class="fas fa-trash-alt me-2"></i> {% trans 'Delete' %}
+                            </a>
+                        </li>
+
                         </ul>
                       </div>
                 </td>

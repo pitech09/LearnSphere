@@ -14,7 +14,10 @@ from .views import (
     class_add_view,
     class_update_view,
     class_delete_view,
-
+    subject_list_view,
+    subject_add_view,
+    subject_update_view,
+    subject_delete_view
 )
 
 
@@ -33,4 +36,9 @@ urlpatterns = [
     path("class/add/", class_add_view, name="add_class"),
     path("class/<int:pk>/edit/", class_update_view, name="edit_class"),
     path("class/<int:pk>/delete/", class_delete_view, name="delete_class"),
+    path('subjects/', subject_list_view, name='subject_list_view'),
+    path('add_subject/', subject_add_view, name='add_subject_view'),
+    path('edit_subject/<int:pk>', subject_update_view, name='edit_subject_view'),
+    path('delete_subject/<int:pk>', subject_delete_view, name='delete_subject_view'),
+
 ]

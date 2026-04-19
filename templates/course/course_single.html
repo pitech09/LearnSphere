@@ -202,39 +202,6 @@
 
 </div>
 
-<div class="site-section mb-5 mt-4">
-    <div class="title-1">{% trans 'Lecturer(s)' %}</div>
-    <br>
-    <br>
-    <div class="container-fluid">
-        <div class="row">
-            {% for lecturer in lecturers %}
-            <div class="col-lg-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        {% if lecturer.lecturer.picture %}
-                        <img class="avatar avatar-lg" src="{{ lecturer.lecturer.picture.url }}" alt="">
-                        {% endif %}
-                        <h5 class="fw-bold mb-0">{{ lecturer.lecturer.get_full_name }}</h5>
-                        <p class="mb-0">{{ lecturer.lecturer.email }}</p>
-                        <p class="text-muted small">Donec sed odio dui. Etiam porta sem malesuada magna mollis euismod.</p>
-                        <p>
-                            <a class="btn btn-sm btn-secondary" href="#" role="button"><i
-                                    class="fab fa-twitter"></i></a>
-                            <a class="btn btn-sm btn-secondary" href="#" role="button"><i
-                                    class="fab fa-facebook-f"></i></a>
-                            <a class="btn btn-sm btn-secondary" href="#" role="button"><i
-                                    class="fab fa-linkedin-in"></i></a>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <h6 class="text-muted mt-3">{% trans 'No lecturer assigned for this course' %}</h6>
-            {% endfor %}
 
-        </div>
-    </div>
-</div>
 
 {% endblock content %}

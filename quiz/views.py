@@ -224,15 +224,28 @@ class QuizTake(FormView):
             return redirect("quiz_index", slug=self.course.slug)
 
         self.sitting = Sitting.objects.user_sitting(request.user, self.quiz, self.course)
-
+        print("SITTING:", self.sitting)
         if not self.sitting:
             messages.info(request, "You already completed this quiz.")
             return redirect("quiz_index", slug=self.course.slug)
 
         self.question = self.sitting.get_first_question()
+        print("QUESTION:", self.question)
         self.progress = self.sitting.progress()
-
+        print("PROGRESS:", self.progress)
         return super().dispatch(request, *args, **kwargs)
+
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["quiz"] = self.quiz
+        context["course"] = self.course
+        context["question"] = self.question
+        context["progress"] = self.progress
+        context["sitting"] = self.sitting
+
+        return context
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

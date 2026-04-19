@@ -91,10 +91,10 @@
                 </div>
                 {% if user.is_student %}
                 <hr>
-                <p class="fw-bold"><i class="me-2 fas fa-graduation-cap"></i> {% trans 'Applicant Info' %}</p>
+                <p class="fw-bold"><i class="me-2 fas fa-graduation-cap"></i> {% trans 'Student Info' %}</p>
                 <div class="dashboard-description">
                     <p><strong>{% trans 'School' %}: </strong>Maboee Archbishop High School</p>
-                    <p><strong>{% trans 'Level' %}: </strong>{{ level.level }}</p>
+                    <p><strong>{% trans 'Class' %}: </strong>{{ user.student_class }}</p>
                 </div>
                 {% endif %}
     

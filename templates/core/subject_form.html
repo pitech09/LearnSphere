@@ -26,9 +26,9 @@
         </div>
 
         <div class="card-body">
-          {{ form.name|as_crispy_field }}
+          {{ form.title|as_crispy_field }}
           {{ form.code|as_crispy_field }}
-          {{ form.class_assigned|as_crispy_field }}  <!-- ✅ ADDED -->
+          {{ form.class_assigned|as_crispy_field }}  
           {{ form.teacher|as_crispy_field }}
         </div>
 
@@ -58,13 +58,13 @@
 
   </div>
 
-  <!-- ACTION BAR (NOW INSIDE FORM ✅) -->
+  <!-- ACTION BAR -->
   <div class="mt-3">
     <button type="submit" class="btn btn-primary">
       {% trans "Save Subject" %}
     </button>
 
-    <a href="{% url 'subject_list' %}" class="btn btn-secondary">
+    <a href="{% url 'subject_list_view' %}" class="btn btn-secondary">
       {% trans "Cancel" %}
     </a>
   </div>
