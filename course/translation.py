@@ -1,13 +1,9 @@
 from modeltranslation.translator import register, TranslationOptions
-from .models import Program, Course, Upload, UploadVideo
+from .models import Subject, Upload, UploadVideo
 
-@register(Program)
-class ProgramTranslationOptions(TranslationOptions):
-    fields = ('title', 'summary',)
-    empty_values=None
 
-@register(Course)
-class CourseTranslationOptions(TranslationOptions):
+@register(Subject)
+class SubjectTranslationOptions(TranslationOptions):
     fields = ('title', 'summary',)
     empty_values=None
 

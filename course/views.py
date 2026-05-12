@@ -95,7 +95,7 @@ def course_edit(request, slug):
             messages.success(
                 request, f"{course.title} ({course.code}) has been updated."
             )
-            return redirect("program_detail", pk=course.program.pk)
+            return redirect("course_detail", slug=course.slug)
         messages.error(request, "Correct the error(s) below.")
     else:
         form = SubjectAddForm(instance=course)
@@ -330,6 +330,17 @@ def handle_video_delete(request, slug, video_slug):
 def course_registration(request):
 
     student = get_object_or_404(Student, student__id=request.user.id)
+    current_term = Term.objects.filter(is_current=True).first()
+    term_to_quarter = {
+        "T1": "Q1",
+        "T2": "Q2",
+        "T3": "Q3",
+        "T4": "Q4",
+    }
+    current_quarter = term_to_quarter.get(
+        current_term.name,
+        "Q1",
+    ) if current_term else "Q1"
 
     if request.method == "POST":
         course_ids = request.POST.getlist("course_ids")
@@ -340,7 +351,8 @@ def course_registration(request):
 
                 TakenCourse.objects.get_or_create(
                     student=student,
-                    course=course
+                    course=course,
+                    quarter=current_quarter,
                 )
 
             except Subject.DoesNotExist:
@@ -348,8 +360,6 @@ def course_registration(request):
 
         messages.success(request, "Courses registered successfully!")
         return redirect("course_registration")
-
-    current_term = Term.objects.filter(is_current=True).first()
 
     if not current_term:
         messages.error(request, "No active term found.")
@@ -360,7 +370,7 @@ def course_registration(request):
     ).values_list("course_id", flat=True)
 
     courses = Subject.objects.filter(
-        semester=current_term.term
+        class_assigned=student.student_class
     ).exclude(id__in=taken_ids)
 
     registered_courses = Subject.objects.filter(id__in=taken_ids)

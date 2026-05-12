@@ -6,6 +6,7 @@ from .views import (
     assessment_result,
     course_registration_form,
     result_sheet_pdf_view,
+    student_result_pdf_view,
 )
 
 
@@ -15,6 +16,7 @@ urlpatterns = [
     path("grade/", grade_result, name="grade_results"),
     path("assessment/", assessment_result, name="ass_results"),
     path("result/print/<int:id>/", result_sheet_pdf_view, name="result_sheet_pdf_view"),
+    path("result/print/", student_result_pdf_view, name="student_result_pdf_view"),
     path(
         "registration/form/", course_registration_form, name="course_registration_form"
     ),

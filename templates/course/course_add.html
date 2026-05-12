@@ -9,7 +9,6 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'programs' %}">{% trans 'Programs' %}</a></li>
         <li class="breadcrumb-item active" aria-current="page">{% trans 'Course Form' %}</li>
     </ol>
 </nav>
@@ -34,14 +33,10 @@
         </div>
         <div class="col-md-6">
             <div class="card">
-                <p class="form-title">{% trans 'Other Info' %}</p>
+                <p class="form-title">{% trans 'Class and Teacher' %}</p>
                 <div class="p-3">
-                    {{ form.program|as_crispy_field }}
-                    {{ form.credit|as_crispy_field }}
-                    {{ form.year|as_crispy_field }}
-                    {{ form.semester|as_crispy_field }}
-                    {{ form.level|as_crispy_field }}
-                    {{ form.is_elective|as_crispy_field }}
+                    {{ form.class_assigned|as_crispy_field }}
+                    {{ form.teacher|as_crispy_field }}
                 </div>
             </div>
         </div>

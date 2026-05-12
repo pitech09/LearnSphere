@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import (
@@ -13,7 +14,9 @@ from django.views.generic import (
 )
 
 from accounts.decorators import lecturer_required
+from accounts.models import Student
 from course.models import Subject as Course
+from result.views import get_current_quarter, save_assessment_mark
 from .forms import (
     EssayForm,
     MCQuestionForm,
@@ -22,6 +25,7 @@ from .forms import (
     QuizAddForm,
 )
 from .models import (
+    EXAM_CATEGORY,
     EssayQuestion,
     MCQuestion,
     Progress,
@@ -29,6 +33,12 @@ from .models import (
     Quiz,
     Sitting,
 )
+
+QUIZ_RESULT_FIELDS = {
+    "assignment": "assignment",
+    EXAM_CATEGORY: "final_exam",
+    "practice": "quiz",
+}
 
 
 # ========================================================
@@ -81,9 +91,21 @@ def quiz_delete(request, slug, pk):
 def quiz_list(request, slug):
     course = get_object_or_404(Course, slug=slug)
     quizzes = Quiz.objects.filter(course=course).order_by("-timestamp")
+    completed_exam_ids = []
+    if request.user.is_authenticated and request.user.is_student:
+        completed_exam_ids = list(
+            Sitting.objects.filter(
+                user=request.user,
+                course=course,
+                quiz__category=EXAM_CATEGORY,
+                complete=True,
+            ).values_list("quiz_id", flat=True)
+        )
+
     return render(request, "quiz/quiz_list.html", {
         "quizzes": quizzes,
-        "course": course
+        "course": course,
+        "completed_exam_ids": completed_exam_ids,
     })
 
 
@@ -159,14 +181,17 @@ class QuizUserProgressView(TemplateView):
 @method_decorator([login_required, lecturer_required], name="dispatch")
 class QuizMarkingList(ListView):
     model = Sitting
-    template_name = "quiz/quiz_marking_list.html"
+    template_name = "quiz/sitting_list.html"
 
     def get_queryset(self):
         qs = Sitting.objects.filter(complete=True)
 
         if not self.request.user.is_superuser:
             qs = qs.filter(
-                quiz__course__allocated_subjects__teacher=self.request.user
+                Q(course__teacher=self.request.user)
+                | Q(course__allocated_subjects__teacher=self.request.user)
+                | Q(quiz__course__teacher=self.request.user)
+                | Q(quiz__course__allocated_subjects__teacher=self.request.user)
             ).distinct()
 
         quiz_filter = self.request.GET.get("quiz_filter")
@@ -224,15 +249,12 @@ class QuizTake(FormView):
             return redirect("quiz_index", slug=self.course.slug)
 
         self.sitting = Sitting.objects.user_sitting(request.user, self.quiz, self.course)
-        print("SITTING:", self.sitting)
         if not self.sitting:
-            messages.info(request, "You already completed this quiz.")
+            messages.info(request, "You already completed this exam.")
             return redirect("quiz_index", slug=self.course.slug)
 
         self.question = self.sitting.get_first_question()
-        print("QUESTION:", self.question)
         self.progress = self.sitting.progress()
-        print("PROGRESS:", self.progress)
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -284,6 +306,7 @@ class QuizTake(FormView):
 
     def _final_result(self):
         self.sitting.mark_quiz_complete()
+        self._sync_result_mark()
 
         result = {
             "course": self.course,
@@ -297,7 +320,23 @@ class QuizTake(FormView):
         if self.quiz.answers_at_end:
             result["questions"] = self.sitting.get_questions(with_answers=True)
 
-        if not self.quiz.exam_paper or self.request.user.is_superuser:
+        if self.request.user.is_superuser or (
+            not self.quiz.exam_paper and self.quiz.category != EXAM_CATEGORY
+        ):
             self.sitting.delete()
 
         return render(self.request, self.result_template_name, result)
+
+    def _sync_result_mark(self):
+        if not self.request.user.is_student:
+            return
+
+        field_name = QUIZ_RESULT_FIELDS.get(self.quiz.category, "quiz")
+        student = get_object_or_404(Student, student=self.request.user)
+        save_assessment_mark(
+            student=student,
+            course=self.course,
+            quarter=get_current_quarter(),
+            field_name=field_name,
+            mark=self.sitting.get_percent_correct,
+        )

@@ -12,16 +12,16 @@ admin.site.site_header = "LearnSphere"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
+    path("", include("django.contrib.auth.urls")),
     path("", include("core.urls")),
 ]
 
 urlpatterns += i18n_patterns(
     path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
 
-    path("", include("django.contrib.auth.urls")),
     path("", include("core.urls")),
     path("accounts/", include("accounts.urls")),
-    path("programs/", include("course.urls")),
+    path("subjects/", include("course.urls")),
     path("result/", include("result.urls")),
     path("search/", include("search.urls")),
     path("quiz/", include("quiz.urls")),

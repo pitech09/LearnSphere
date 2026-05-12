@@ -12,7 +12,7 @@ from django.views.generic import CreateView
 from django_filters.views import FilterView
 from urllib3 import request
 from xhtml2pdf import pisa
-
+from django.contrib.auth import authenticate, login
 from accounts.decorators import admin_required
 from accounts.filters import LecturerFilter, StudentFilter
 from accounts.forms import (
@@ -55,6 +55,28 @@ def validate_username(request):
 def logout_view(request):
     logout(request)
     return redirect("login")
+
+def custom_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+
+            # 🔀 Redirect based on role
+            if user.is_superuser:
+                return redirect('admin:index')
+            elif hasattr(user, 'profile') and user.profile.role == 'teacher':
+                return redirect('dashboard')
+            else:
+                return redirect('home')
+        else:
+            return render(request, 'login.html', {'error': 'Invalid credentials'})
+
+    return render(request, 'login.html')
 
 
 def register(request):

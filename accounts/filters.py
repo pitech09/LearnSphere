@@ -42,8 +42,8 @@ class StudentFilter(django_filters.FilterSet):
     email = django_filters.CharFilter(
         field_name="student__email", lookup_expr="icontains", label=""
     )
-    program = django_filters.CharFilter(
-        field_name="program__title", lookup_expr="icontains", label=""
+    student_class = django_filters.CharFilter(
+        field_name="student_class__name", lookup_expr="icontains", label=""
     )
 
     class Meta:
@@ -52,7 +52,7 @@ class StudentFilter(django_filters.FilterSet):
             "id_no",
             "name",
             "email",
-            "program",
+            "student_class",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -68,8 +68,8 @@ class StudentFilter(django_filters.FilterSet):
         self.filters["email"].field.widget.attrs.update(
             {"class": "au-input", "placeholder": "Email"}
         )
-        self.filters["program"].field.widget.attrs.update(
-            {"class": "au-input", "placeholder": "Program"}
+        self.filters["student_class"].field.widget.attrs.update(
+            {"class": "au-input", "placeholder": "Class"}
         )
 
     def filter_by_name(self, queryset, name, value):

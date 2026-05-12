@@ -135,7 +135,11 @@ class StudentManager(models.Manager):
     def search(self, query=None):
         qs = self.get_queryset()
         if query is not None:
-            or_lookup = Q(level__icontains=query) | Q(program__icontains=query)
+            or_lookup = (
+                Q(level__icontains=query)
+                | Q(student_class__name__icontains=query)
+                | Q(student_class__level__icontains=query)
+            )
             qs = qs.filter(
                 or_lookup
             ).distinct()  # distinct() is often necessary with Q lookups
