@@ -1,150 +1,74 @@
 {% extends 'base.html' %}
 {% load i18n %}
 
-{% block title %}
-{{ title }} | {% trans "Assessment Results" %}
-{% endblock %}
+{% block title %}{{ title }} | {% trans 'Grade Results' %}{% endblock title %}
 
 {% block content %}
 
-<div class="container mt-4">
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% trans 'Grade Results' %}</li>
+  </ol>
+</nav>
 
-  <!-- HEADER -->
-  <div class="text-center mb-4">
-    <h2 class="fw-bold">
-      {% trans "Student Assessment Report" %}
-    </h2>
-    <p class="text-muted">
-      {{ student.user.get_full_name }} — {{ student.level }}
-    </p>
-  </div>
+{% include 'snippets/messages.html' %}
 
-  {% include 'snippets/messages.html' %}
+<div class="title-1"><i class="fa fa-spell-check"></i>{% trans 'Grade Results' %}</div>
+<p>{{ student.level }} {% trans 'Result' %}</p>
+<a class="btn btn-sm btn-secondary mb-3" href="{% url 'student_result_pdf_view' %}" target="_blank">
+  <i class="fas fa-print"></i> {% trans 'Print Results' %}
+</a>
 
-  <!-- QUARTER LOOP -->
-  {% for q in quarters %}
-
-  <div class="card shadow-sm mb-5 border-0">
-
-    <!-- QUARTER HEADER -->
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">
-        {% if q == "Q1" %}Quarter 1
-        {% elif q == "Q2" %}Quarter 2
-        {% elif q == "Q3" %}Quarter 3
-        {% else %}Quarter 4
-        {% endif %}
-      </h5>
-    </div>
-
-    <div class="card-body p-0">
-
-      <!-- TABLE -->
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-
-          <thead class="table-light">
-            <tr>
-              <th>#</th>
-              <th>Course</th>
-              <th>Code</th>
-              <th>Cr.Hr</th>
-              <th>Assignment</th>
-              <th>Mid</th>
-              <th>Quiz</th>
-              <th>Attendance</th>
-              <th>Final</th>
-              <th>Total</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {% for r in courses %}
-              {% if r.quarter == q %}
-              <tr>
-
-                <td>{{ forloop.counter }}</td>
-
-                <td>
-                  <a href="{{ r.course.get_absolute_url }}">
-                    {{ r.course.title }}
-                  </a>
-                </td>
-
-                <td>{{ r.course.code }}</td>
-                <td>{{ r.course.credit }}</td>
-
-                <td>{{ r.assignment }}</td>
-                <td>{{ r.mid_exam }}</td>
-                <td>{{ r.quiz }}</td>
-                <td>{{ r.attendance }}</td>
-                <td>{{ r.final_exam }}</td>
-
-                <td>
-                  <strong>{{ r.total }}</strong>
-                </td>
-
-                {% if r.total >= 45 %}
-                  <td class="text-success fw-bold">
-                    PASS
-                  </td>
-                {% else %}
-                  <td class="text-danger fw-bold">
-                    FAIL
-                  </td>
-                {% endif %}
-
-              </tr>
-              {% endif %}
-            {% endfor %}
-
-          </tbody>
-
-        </table>
-      </div>
-
-    </div>
-
-    <!-- FOOTER SUMMARY -->
-    <div class="card-footer bg-light">
-
-      <div class="row text-center">
-
-        <div class="col">
-          <strong>Average:</strong><br>
-
-          {% if q == "Q1" %}{{ averages.Q1 }}
-          {% elif q == "Q2" %}{{ averages.Q2 }}
-          {% elif q == "Q3" %}{{ averages.Q3 }}
-          {% elif q == "Q4" %}{{ averages.Q4 }}
-          {% endif %}
-
-        </div>
-
-        <div class="col">
-          <strong>Total Students:</strong><br>
-          {{ courses|length }}
-        </div>
-
-        <div class="col">
-          <strong>Status:</strong><br>
-          {% if averages.Q1 >= 45 and q == "Q1" %}
-            <span class="text-success">Good</span>
-          {% elif q == "Q1" %}
-            <span class="text-danger">Needs Support</span>
-          {% endif %}
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-  {% endfor %}
-
+{% for section in quarter_sections %}
+<div class="table-responsive p-0 px-2 mt-4">
+  <div class="table-title"><u>{{ section.label }}</u></div>
+  <table class="table table-light">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{% trans 'Course Title' %}</th>
+        <th>{% trans 'Course Code' %}</th>
+        <th>{% trans 'Tests Avg' %}</th>
+        <th>{% trans 'Final Mark' %}</th>
+        <th>{% trans 'Grade' %}</th>
+        <th>{% trans 'Comment' %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in section.courses %}
+      <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray{% endif %}">
+        <th scope="row">{{ forloop.counter }}</th>
+        <td><a href="{{ course.course.get_absolute_url }}">{{ course.course.title }}</a></td>
+        <td>{{ course.course.code }}</td>
+        <td>{{ course.get_test_average }}</td>
+        <td>{{ course.total }}</td>
+        <td class="{% if course.grade == 'F' or course.grade == 'NG' %}text-danger{% else %}text-success{% endif %}">
+          {{ course.grade }}
+        </td>
+        <td class="{% if course.comment == 'PASS' %}text-success{% else %}text-danger{% endif %}">
+          {{ course.comment }}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center text-muted">{% trans 'No result recorded for this quarter.' %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="fw-bold">
+        <td colspan="3">{% trans 'Quarter Summary' %}</td>
+        <td>{% trans 'Tests Avg' %}: {{ section.test_average }}</td>
+        <td>{% trans 'Final Avg' %}: {{ section.average }}</td>
+        <td>{% trans 'Subjects' %}: {{ section.total_subjects }}</td>
+        <td class="{% if section.comment == 'PASS' %}text-success{% else %}text-danger{% endif %}">
+          {{ section.comment }}
+        </td>
+      </tr>
+    </tfoot>
+  </table>
 </div>
+{% endfor %}
 
 {% endblock %}

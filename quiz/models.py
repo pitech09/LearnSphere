@@ -31,6 +31,8 @@ CATEGORY_OPTIONS = (
     ("practice", _("Practice Quiz")),
 )
 
+EXAM_CATEGORY = "exam"
+
 
 class QuizManager(models.Manager):
     def search(self, query=None):
@@ -105,6 +107,9 @@ class Quiz(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
+        if self.category == EXAM_CATEGORY:
+            self.single_attempt = True
+
         if self.single_attempt:
             self.exam_paper = True
 
@@ -217,7 +222,7 @@ class SittingManager(models.Manager):
 
     def user_sitting(self, user, quiz, course):
         if (
-            quiz.single_attempt
+            (quiz.single_attempt or quiz.category == EXAM_CATEGORY)
             and self.filter(user=user, quiz=quiz, course=course, complete=True).exists()
         ):
             return False

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import models
 
 from accounts.models import Student
@@ -44,6 +44,18 @@ COMMENT_CHOICES = (
     (FAIL, "FAIL"),
 )
 
+Q1 = "Q1"
+Q2 = "Q2"
+Q3 = "Q3"
+Q4 = "Q4"
+
+QUARTER_CHOICES = (
+    (Q1, "Quarter 1"),
+    (Q2, "Quarter 2"),
+    (Q3, "Quarter 3"),
+    (Q4, "Quarter 4"),
+)
+
 GRADE_BOUNDARIES = [
     (90, A_PLUS),
     (85, A),
@@ -73,6 +85,8 @@ GRADE_POINT_MAPPING = {
     NG: 0.0,
 }
 
+TEST_FIELDS = ("assignment", "mid_exam", "quiz")
+
 
 # =========================================================
 # TAKEN COURSE (SUBJECT RESULT)
@@ -84,6 +98,7 @@ class TakenCourse(models.Model):
         on_delete=models.CASCADE,
         related_name="taken_courses"
     )
+    quarter = models.CharField(max_length=2, choices=QUARTER_CHOICES, default=Q1)
 
     assignment = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     mid_exam = models.DecimalField(max_digits=5, decimal_places=2, default=0)
@@ -100,23 +115,31 @@ class TakenCourse(models.Model):
         return f"{self.course.title} - {self.student}"
 
     # =====================================================
-    # TOTAL MARKS
+    # TEST AVERAGE
+    # =====================================================
+    def get_test_average(self):
+        test_total = sum(Decimal(getattr(self, field)) for field in TEST_FIELDS)
+        return (test_total / Decimal(len(TEST_FIELDS))).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+    # =====================================================
+    # FINAL MARK: 40% TESTS + 60% EXAM
     # =====================================================
     def get_total(self):
-        return (
-            Decimal(self.assignment)
-            + Decimal(self.mid_exam)
-            + Decimal(self.quiz)
-            + Decimal(self.attendance)
-            + Decimal(self.final_exam)
+        weighted_mark = (
+            self.get_test_average() * Decimal("0.40")
+            + Decimal(self.final_exam) * Decimal("0.60")
         )
+        return weighted_mark.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     # =====================================================
     # GRADE CALCULATION
     # =====================================================
     def get_grade(self):
         for boundary, grade in GRADE_BOUNDARIES:
-            if self.total >= boundary:
+            if self.total >= Decimal(boundary):
                 return grade
         return NG
 
@@ -127,11 +150,10 @@ class TakenCourse(models.Model):
         return PASS if self.grade not in [F, NG] else FAIL
 
     # =====================================================
-    # POINT SYSTEM (PER SUBJECT)
+    # POINTS ARE NOT USED FOR HIGH SCHOOL RESULTS
     # =====================================================
     def get_point(self):
-        credit = self.course.credit or 1
-        return Decimal(credit) * Decimal(GRADE_POINT_MAPPING.get(self.grade, 0))
+        return Decimal("0.00")
 
     # =====================================================
     # AUTO CALCULATION ON SAVE
@@ -151,11 +173,12 @@ class Result(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
 
     session = models.CharField(max_length=100, blank=True, null=True)
+    quarter = models.CharField(max_length=2, choices=QUARTER_CHOICES, default=Q1)
 
-    # optional future expansion
     total_subjects = models.IntegerField(default=0)
     total_points = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     average = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    comment = models.CharField(max_length=10, choices=COMMENT_CHOICES, blank=True)
 
     def __str__(self):
-        return f"Result - {self.student} ({self.session})"
+        return f"Result - {self.student} ({self.session}, {self.quarter})"

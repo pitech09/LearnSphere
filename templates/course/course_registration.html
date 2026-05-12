@@ -41,9 +41,8 @@
                             <th>Mark</th>
                             <th>Code</th>
                             <th>Title</th>
-                            <th>Credit</th>
-                            <th>Year</th>
-                            <th>Type</th>
+                            <th>Class</th>
+                            <th>Teacher</th>
                         </tr>
                     </thead>
 
@@ -57,27 +56,20 @@
 
                             <td>{{ course.code }}</td>
                             <td>{{ course.title }}</td>
-                            <td>{{ course.credit }}</td>
-                            <td>{{ course.year }}</td>
-                            <td>
-                                {% if course.is_elective %}
-                                    Elective
-                                {% else %}
-                                    Core
-                                {% endif %}
-                            </td>
+                            <td>{{ course.class_assigned }}</td>
+                            <td>{{ course.teacher }}</td>
                         </tr>
 
                         {% empty %}
                         <tr>
-                            <td colspan="6">No courses available for this semester</td>
+                            <td colspan="5">No subjects available for this class</td>
                         </tr>
                         {% endfor %}
 
                         <tr>
-                            <td colspan="5"></td>
+                            <td colspan="4"></td>
                             <td>
-                                <b>{% trans 'Semester Total Credit:' %}</b> {{ total_all }}
+                                <b>{% trans 'Available Subjects:' %}</b> {{ courses|length }}
                             </td>
                         </tr>
                     </tbody>
@@ -110,8 +102,8 @@
                         <th>Mark</th>
                         <th>Code</th>
                         <th>Title</th>
-                        <th>Credit</th>
-                        <th>Year</th>
+                        <th>Class</th>
+                        <th>Teacher</th>
                     </tr>
                 </thead>
 
@@ -124,8 +116,8 @@
 
                         <td>{{ course.code }}</td>
                         <td>{{ course.title }}</td>
-                        <td>{{ course.credit }}</td>
-                        <td>{{ course.year }}</td>
+                        <td>{{ course.class_assigned }}</td>
+                        <td>{{ course.teacher }}</td>
                     </tr>
 
                     {% empty %}
@@ -137,7 +129,7 @@
                     <tr>
                         <td colspan="4"></td>
                         <td>
-                            <b>{% trans 'Total Registered Credits:' %}</b> {{ total_registered_credit }}
+                            <b>{% trans 'Total Registered Subjects:' %}</b> {{ registered_courses|length }}
                         </td>
                     </tr>
                 </tbody>

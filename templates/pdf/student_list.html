@@ -10,8 +10,8 @@
         <th>{% trans 'ID No.' %}</th>
         <th>{% trans 'Full Name' %}</th>
         <th>{% trans 'Email' %}</th>
-        <th>{% trans 'Mob No.' %}</th>
-        <th>{% trans 'Program' %}</th>
+        <th>{% trans 'Email' %}</th>
+        <th>{% trans 'Class' %}</th>
       </tr>
     </thead>
     <tbody>
@@ -21,7 +21,7 @@
         <td>{{ student.student.username }}</td>
         <td><a href="{% url 'profile_single' student.id %}">{{ student.student.get_full_name }}</a></td>
         <td>{{ student.student.email }}</td>
-        <td>{{ student.program }}</td>
+        <td>{{ student.student_class }}</td>
       </tr>
       {% empty %}
       <tr>

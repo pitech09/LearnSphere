@@ -29,6 +29,7 @@ from .views import (
     logout_view,
     render_lecturer_pdf_list,  # new
     render_student_pdf_list,  # new
+    custom_login,
 )
 
 # from .forms import EmailValidationOnForgotPassword
@@ -53,7 +54,7 @@ urlpatterns = [
     path("parents/add/", ParentAdd.as_view(), name="add_parent"),
     path("ajax/validate-username/", validate_username, name="validate_username"),
     path("register/", register, name="register"),
-
+    path('login/', custom_login, name='login'),
 
     path('accounts/logout/', LogoutView.as_view(next_page='login'), name='logout'),
     # paths to pdf
@@ -64,12 +65,11 @@ urlpatterns = [
         "create_students_pdf_list/", render_student_pdf_list, name="student_list_pdf"
     ),  # new
     # path('add-student/', StudentAddView.as_view(), name='add_student'),
-    # path('programs/course/delete/<int:pk>/', course_delete, name='delete_course'),
     # Setting urls
     # path('profile/<int:pk>/edit/', profileUpdateView, name='edit_profile'),
     # path('profile/<int:pk>/change-password/', changePasswordView, name='change_password'),
     # ################################################################
-    # path('login/', LoginView.as_view(), name='login'),
+    #path('login/', LoginView.as_view(), name='login'),
     #path('logout/', LogoutView.as_view(), name='logout', kwargs={'next_page': '/'}),
     # path('password-reset/', PasswordResetView.as_view(
     #     form_class=EmailValidationOnForgotPassword,
