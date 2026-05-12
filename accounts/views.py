@@ -310,6 +310,7 @@ def delete_staff(request, pk):
 def student_add_view(request):
     if request.method == "POST":
         form = StudentAddForm(request.POST)
+        print(form)
         if form.is_valid():
             student = form.save()
             full_name = student.get_full_name
@@ -321,6 +322,7 @@ def student_add_view(request):
             )
             return redirect("student_list")
         messages.error(request, "Correct the error(s) below.")
+        print("form not valid")
     else:
         form = StudentAddForm()
     return render(

@@ -136,14 +136,14 @@ class Upload(models.Model):
 def log_upload_save(sender, instance, created, **kwargs):
     action = "uploaded" if created else "updated"
     ActivityLog.objects.create(
-        message=_(f"The file '{instance.title}' has been {action} in '{instance.course}'.")
+        message=_(f"The file '{instance.title}' has been {action} in '{instance.subject}'.")
     )
 
 
 @receiver(post_delete, sender=Upload)
 def log_upload_delete(sender, instance, **kwargs):
     ActivityLog.objects.create(
-        message=_(f"The file '{instance.title}' was deleted from '{instance.course}'.")
+        message=_(f"The file '{instance.title}' was deleted from '{instance.subject}'.")
     )
 
 
