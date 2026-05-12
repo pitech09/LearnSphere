@@ -258,6 +258,7 @@ class StudentAddForm(UserCreationForm):
         user.last_name = self.cleaned_data.get("last_name")
         user.gender = self.cleaned_data.get("gender")
         user.address = self.cleaned_data.get("address")
+        user.level = self.cleaned_data.get("level")
         user.phone = self.cleaned_data.get("phone")
         user.email = self.cleaned_data.get("email")
         user.class_assigned = self.cleaned_data.get("class_assigned")
