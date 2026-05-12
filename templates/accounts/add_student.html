@@ -19,7 +19,8 @@
 
 {% include 'snippets/messages.html' %}
 
-<form action="" method="POST">{% csrf_token %}
+<form action="" method="POST">
+    {% csrf_token %}
     <div class="row mb-3">
        
         <div class="col-md-6">
@@ -32,6 +33,9 @@
                     {{ form.email|as_crispy_field }}
                     {{ form.address|as_crispy_field }}
                     {{ form.phone|as_crispy_field }}
+                    {{form.level|as_crispy_field}}
+                    {{form.class_assigned|as_crispy_field}}
+                    
                 </div>
             </div>
         </div>
