@@ -218,29 +218,7 @@ class StudentAddForm(UserCreationForm):
         label="Email Address",
     )
 
-    password1 = forms.CharField(
-        max_length=30,
-        widget=forms.TextInput(
-            attrs={
-                "type": "password",
-                "class": "form-control",
-            }
-        ),
-        label="Password",
-        required=True,
-    )
 
-    password2 = forms.CharField(
-        max_length=30,
-        widget=forms.TextInput(
-            attrs={
-                "type": "password",
-                "class": "form-control",
-            }
-        ),
-        label="Password Confirmation",
-        required=True,
-    )
 
     # def validate_email(self):
     #     email = self.cleaned_data['email']
