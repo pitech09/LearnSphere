@@ -7,6 +7,10 @@ import os
 from decouple import config
 from django.utils.translation import gettext_lazy as _
 
+import course
+import quiz
+import result
+
 # -------------------------------------------------
 # BASE DIRECTORY
 # -------------------------------------------------
@@ -153,7 +157,7 @@ LANGUAGES = (
 )
 
 LOCALE_PATHS = [os.path.join(BASE_DIR, "locale")]
-TRANSLATABLE_MODEL_MODULES = []
+TRANSLATABLE_MODEL_MODULES = [quiz, course, result]  # Add your model modules here for localization support
 
 # -------------------------------------------------
 # STATIC FILES
