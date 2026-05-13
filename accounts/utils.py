@@ -57,6 +57,7 @@ def send_new_account_email(user, password):
         template_name = "accounts/email/new_student_account_confirmation.html"
     else:
         template_name = "accounts/email/new_lecturer_account_confirmation.html"
+    print(f"[ACCOUNT CREATED] {user.username} | {user.email} | password={password}")    
     email = {
         "subject": "Your LearnSphere account confirmation and credentials",
         "recipient_list": [user.email],

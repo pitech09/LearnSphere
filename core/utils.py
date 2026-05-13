@@ -18,24 +18,34 @@ import threading
 
 def send_html_email(subject, recipient_list, template, context):
 
-    html_message = render_to_string(template, context)
-    plain_message = strip_tags(html_message)
+    try:
+        # Ensure recipient list is valid
+        if isinstance(recipient_list, str):
+            recipient_list = [recipient_list]
 
-    message = Mail(
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to_emails=recipient_list,
-        subject=subject,
-        plain_text_content=plain_message,
-        html_content=html_message
-    )
-    print(f"Sending email to {recipient_list} with subject '{subject}' using template '{template}'...")
-    print(settings.SENDGRID_API_KEY)
-    sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
-    response = sg.send(message)
+        html_message = render_to_string(template, context)
+        plain_message = strip_tags(html_message)
 
-    return response.status_code
+        message = Mail(
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to_emails=recipient_list,
+            subject=subject,
+            plain_text_content=plain_message,
+            html_content=html_message
+        )
 
+        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
 
+        response = sg.send(message)
+
+        print(f"[EMAIL SENT] {subject} → {recipient_list} | Status: {response.status_code}")
+
+        return response.status_code
+
+    except Exception as e:
+        print(f"[EMAIL ERROR] {subject} → {recipient_list}")
+        print(str(e))
+        return None
 
 
 

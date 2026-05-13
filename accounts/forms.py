@@ -218,6 +218,22 @@ class StudentAddForm(UserCreationForm):
         label="Email Address",
     )
 
+    password1 = forms.CharField(
+    widget=forms.PasswordInput(attrs={
+        "class": "form-control",
+        "placeholder": "Password"
+    }),
+    label="Password"
+)
+
+    password2 = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "placeholder": "Confirm Password"
+        }),
+        label="Confirm Password"
+    ) 
+
 
 
     # def validate_email(self):
@@ -229,8 +245,10 @@ class StudentAddForm(UserCreationForm):
         model = User
 
     @transaction.atomic()
+
     def save(self, commit=True):
         user = super().save(commit=False)
+
         user.is_student = True
         user.first_name = self.cleaned_data.get("first_name")
         user.last_name = self.cleaned_data.get("last_name")
@@ -240,6 +258,10 @@ class StudentAddForm(UserCreationForm):
         user.phone = self.cleaned_data.get("phone")
         user.email = self.cleaned_data.get("email")
         user.class_assigned = self.cleaned_data.get("class_assigned")
+
+        # 🔐 IMPORTANT: force proper password hashing
+        raw_password = self.cleaned_data.get("password1")
+        user.set_password(raw_password)
 
         if commit:
             user.save()

@@ -22,6 +22,7 @@ from accounts.forms import (
     StudentAddForm,
 )
 from accounts.models import Parent, Student, User
+from accounts.utils import send_new_account_email
 from core.models import Session, Term
 from course.models import Subject
 from result.models import TakenCourse
@@ -56,28 +57,6 @@ def logout_view(request):
     logout(request)
     return redirect("login")
 
-def custom_login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            login(request, user)
-
-            # 🔀 Redirect based on role
-            if user.is_superuser:
-                return redirect('admin:index')
-            elif hasattr(user, 'profile') and user.profile.role == 'teacher':
-                return redirect('dashboard')
-            else:
-                return redirect('home')
-        else:
-            return render(request, 'login.html', {'error': 'Invalid credentials'})
-
-    return render(request, 'login.html')
-
 
 def register(request):
     if request.method == "POST":
@@ -94,9 +73,62 @@ def register(request):
     return render(request, "registration/register.html", {"form": form})
 
 
+from django.contrib.auth import authenticate, login
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from accounts.models import User
+
+
+def custom_login_view(request):
+    if request.method == "POST":
+        identifier = request.POST.get("username")
+        password = request.POST.get("password")
+
+        print("LOGIN INPUT:", identifier)
+
+        user_obj = None
+
+        # 🔥 STEP 1: Try username first
+        try:
+            user_obj = User.objects.get(username=identifier)
+        except User.DoesNotExist:
+            pass
+
+        # 🔥 STEP 2: Try email fallback
+        if not user_obj:
+            try:
+                user_obj = User.objects.get(email=identifier)
+            except User.DoesNotExist:
+                pass
+
+        # 🔥 STEP 3: Resolve to username
+        if user_obj:
+            identifier = user_obj.username
+
+        user = authenticate(request, username=identifier, password=password)
+
+        print("AUTH RESULT:", user)
+
+        if user is not None:
+            login(request, user)
+
+            # role routing
+            if hasattr(user, "is_student") and user.is_student:
+                return redirect("student_dashboard")
+
+            if hasattr(user, "is_lecturer") and user.is_lecturer:
+                return redirect("lecturer_dashboard")
+
+            return redirect("dashboard")
+
+        messages.error(request, "Invalid ID or Password")
+
+    return render(request, "accounts/login.html")
+
 # ########################################################
 # Profile Views
 # ########################################################
+
 
 
 @login_required
@@ -325,32 +357,45 @@ def delete_staff(request, pk):
 # ########################################################
 # Student Views
 # ########################################################
-
-
 @login_required
 @admin_required
 def student_add_view(request):
     if request.method == "POST":
         form = StudentAddForm(request.POST)
-        print(form)
+
         if form.is_valid():
             student = form.save()
+
             full_name = student.get_full_name
             email = student.email
+
+            # 🔐 IMPORTANT: retrieve password ONLY if your form generates it
+            raw_password = request.POST.get("password1", "1234")
+
+            send_new_account_email(student, raw_password)
+
             messages.success(
                 request,
-                f"Account for {full_name} has been created. "
-                f"An email with account credentials will be sent to {email} within a minute.",
+                f"Account for {full_name} created successfully. "
+                f"Login credentials sent to {email}."
             )
+
             return redirect("student_list")
+        print("❌ FORM INVALID")
+        print(form.errors)              # 🔥 THIS IS WHAT YOU NEED
+        print(form.non_field_errors())  # 🔥 extra hidden errors
+
         messages.error(request, "Correct the error(s) below.")
         print("form not valid")
+
     else:
         form = StudentAddForm()
-    return render(
-        request, "accounts/add_student.html", {"title": "Add Student", "form": form}
-    )
 
+    return render(
+        request,
+        "accounts/add_student.html",
+        {"title": "Add Student", "form": form}
+    )
 
 @login_required
 @admin_required

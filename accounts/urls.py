@@ -29,7 +29,7 @@ from .views import (
     logout_view,
     render_lecturer_pdf_list,  # new
     render_student_pdf_list,  # new
-    custom_login,
+    custom_login_view,
 )
 
 # from .forms import EmailValidationOnForgotPassword
@@ -54,7 +54,7 @@ urlpatterns = [
     path("parents/add/", ParentAdd.as_view(), name="add_parent"),
     path("ajax/validate-username/", validate_username, name="validate_username"),
     path("register/", register, name="register"),
-    path('login/', custom_login, name='login'),
+    path('login/', custom_login_view, name='login'),
 
     path('accounts/logout/', LogoutView.as_view(next_page='login'), name='logout'),
     # paths to pdf
