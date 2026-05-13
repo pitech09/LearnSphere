@@ -3,6 +3,17 @@
 import os
 import sys
 
+if not hasattr(sys, '_cuser_patched'):
+    sys._cuser_patched = True
+    try:
+        import cuser.compat
+        from django.utils.functional import lazy
+        from django.contrib.auth import get_user_model
+        # Replace the faulty User with a corrected lazy version
+        cuser.compat.User = lazy(get_user_model, object)
+        cuser.compat.get_user_model = get_user_model
+    except ImportError:
+        pass
 
 def main():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
