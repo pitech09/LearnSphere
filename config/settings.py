@@ -153,7 +153,7 @@ LANGUAGES = (
 )
 
 LOCALE_PATHS = [os.path.join(BASE_DIR, "locale")]
-
+TRANSLATABLE_MODEL_MODULES = []
 
 # -------------------------------------------------
 # STATIC FILES
