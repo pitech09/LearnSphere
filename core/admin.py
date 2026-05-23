@@ -202,4 +202,3 @@ admin.site.register(ActivityLog, ActivityLogAdmin)
 class NewsAndEventsAdmin(admin.ModelAdmin):
     pass
 
-admin.site.register(NewsAndEvents, NewsAndEventsAdmin)
