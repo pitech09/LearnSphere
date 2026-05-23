@@ -43,8 +43,7 @@ class UserAdmin(admin.ModelAdmin):
         verbose_name = "User"
         verbose_name_plural = "Users"
 
-
-@admin.site.register(User, UserAdmin)
+admin.site.register(User, UserAdmin)
 class StudentAdmin(admin.ModelAdmin):
     list_display = ("student", "school", "level", "student_class")
     list_filter = ("student__school", "level", "student_class")
