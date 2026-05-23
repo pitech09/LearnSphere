@@ -1,14 +1,21 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+<<<<<<< HEAD
 from django.db.models import Avg
 
 from accounts.decorators import admin_required, lecturer_required
 from accounts.models import Parent, TeacherProfile, User, Student
+=======
+
+from accounts.decorators import admin_required, lecturer_required
+from accounts.models import User, Student
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 from course.forms import SubjectAddForm
 from course.models import Subject, SubjectAllocation
 
 from .forms import SessionForm, NewsAndEventsForm, SubjectForm
+<<<<<<< HEAD
 from .models import (
     ATTENDANCE_PRESENT,
     AttendanceRecord,
@@ -21,6 +28,9 @@ from .models import (
     SchoolClass,
     TimetableEntry,
 )
+=======
+from .models import NewsAndEvents, ActivityLog, Session, SchoolClass
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 
 # =========================================================
@@ -29,8 +39,11 @@ from .models import (
 @login_required
 def home_view(request):
     items = NewsAndEvents.objects.all().order_by("-updated_at")
+<<<<<<< HEAD
     if request.user.school:
         items = items.filter(school=request.user.school)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     return render(request, "core/index.html", {
         "title": "News & Events",
@@ -44,6 +57,7 @@ def home_view(request):
 @login_required
 @admin_required
 def dashboard_view(request):
+<<<<<<< HEAD
     school = getattr(request.user, "school", None)
     school_filter = {"school": school} if school else {}
     logs = ActivityLog.objects.all().order_by("-created_at")[:10]
@@ -80,6 +94,16 @@ def dashboard_view(request):
         "collected_fees": collected_fees,
         "average_mark": average_mark,
         "upcoming_exams": upcoming_exams,
+=======
+    logs = ActivityLog.objects.all().order_by("-created_at")[:10]
+
+    gender_count = Student.get_gender_count()
+
+    return render(request, "core/dashboard.html", {
+        "student_count": User.objects.get_student_count(),
+        "lecturer_count": User.objects.get_lecturer_count(),
+        "superuser_count": User.objects.get_superuser_count(),
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         "males_count": gender_count.get("M", 0),
         "females_count": gender_count.get("F", 0),
         "logs": logs,
@@ -216,8 +240,11 @@ def session_delete_view(request, pk):
 @lecturer_required
 def subject_list_view(request):
     subjects = Subject.objects.all()
+<<<<<<< HEAD
     if request.user.school:
         subjects = subjects.filter(school=request.user.school)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     return render(request, "core/subject_list.html", {"subjects": subjects})
 
 
@@ -225,6 +252,7 @@ def subject_list_view(request):
 @lecturer_required
 def subject_add_view(request):
     if request.method == "POST":
+<<<<<<< HEAD
         form = SubjectAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
@@ -235,6 +263,16 @@ def subject_add_view(request):
             return redirect("subject_list_view")
     else:
         form = SubjectAddForm(school=request.user.school)
+=======
+        form = SubjectAddForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Subject added.")
+            return redirect("subject_list_view")
+    else:
+        form = SubjectAddForm()
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     return render(request, "core/subject_form.html", {"form": form})
 
@@ -244,7 +282,11 @@ def subject_update_view(request, pk):
     subject = get_object_or_404(Subject, pk=pk)
 
     if request.method == "POST":
+<<<<<<< HEAD
         form = SubjectAddForm(request.POST, instance=subject, school=request.user.school)
+=======
+        form = SubjectAddForm(request.POST, instance=subject)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
         if form.is_valid():
             form.save()
@@ -252,7 +294,11 @@ def subject_update_view(request, pk):
             return redirect("subject_list_view")
 
     else:
+<<<<<<< HEAD
         form = SubjectAddForm(instance=subject, school=request.user.school)
+=======
+        form = SubjectAddForm(instance=subject)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     return render(request, "core/subject_form.html", {"form": form})
 
@@ -277,24 +323,35 @@ from .forms import (
 @lecturer_required
 def class_list_view(request):
     classes = SchoolClass.objects.all()
+<<<<<<< HEAD
     if request.user.school:
         classes = classes.filter(school=request.user.school)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     return render(request, "core/class_list.html", {"classes": classes})
 
 
 @login_required
 @lecturer_required
 def class_add_view(request):
+<<<<<<< HEAD
     form = SchoolClassForm(request.POST or None, school=request.user.school)
+=======
+    form = SchoolClassForm(request.POST or None)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     if request.method == "POST":
             print(" POST DATA:", request.POST)
 
             if form.is_valid():
                 print(" VALID FORM")
+<<<<<<< HEAD
                 school_class = form.save(commit=False)
                 school_class.school = request.user.school
                 school_class.save()
+=======
+                form.save()
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
             else:
                 print(" FORM ERRORS:", form.errors)
 
@@ -304,7 +361,11 @@ def class_add_view(request):
 @lecturer_required
 def class_update_view(request, pk):
     obj = get_object_or_404(SchoolClass, pk=pk)
+<<<<<<< HEAD
     form = SchoolClassForm(request.POST or None, instance=obj, school=request.user.school)
+=======
+    form = SchoolClassForm(request.POST or None, instance=obj)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     if form.is_valid():
         form.save()
@@ -325,3 +386,8 @@ def class_delete_view(request, pk):
         return redirect("class_list")
 
     return render(request, "core/confirm_delete.html", {"object": obj})
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

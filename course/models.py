@@ -33,7 +33,10 @@ class CourseManager(models.Manager):
 # COURSE (HIGH SCHOOL VERSION)
 # =========================================================
 class Subject(models.Model):
+<<<<<<< HEAD
     school = models.ForeignKey("core.School", on_delete=models.CASCADE, null=True, blank=True)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     slug = models.SlugField(unique=True, blank=True)
     title = models.CharField(max_length=200)
     code = models.CharField(max_length=200, unique=True)
@@ -48,11 +51,14 @@ class Subject(models.Model):
         return f"{self.title} ({self.code})"
 
     def save(self, *args, **kwargs):
+<<<<<<< HEAD
         if not self.school_id:
             if self.class_assigned_id:
                 self.school = self.class_assigned.school
             elif self.teacher_id:
                 self.school = self.teacher.school
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         if not self.slug:
             self.slug = slugify(f"{self.title}-{self.code}")
         super().save(*args, **kwargs)
@@ -208,4 +214,8 @@ class CourseOffer(models.Model):
     dep_head = models.ForeignKey("accounts.DepartmentHead", on_delete=models.CASCADE)
 
     def __str__(self):
+<<<<<<< HEAD
         return str(self.dep_head)
+=======
+        return str(self.dep_head)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

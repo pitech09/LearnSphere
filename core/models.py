@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 from decimal import Decimal
 
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MaxValueValidator, MinValueValidator
+=======
+from django.db import models
+from django.db.models import Q
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
@@ -11,7 +16,10 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.urls import reverse
+<<<<<<< HEAD
 from django.utils.text import slugify
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 from accounts.models import User
 
@@ -20,6 +28,7 @@ from accounts.models import User
 #  NEWS & EVENTS
 # =========================================================
 
+<<<<<<< HEAD
 SCHOOL_STATUS_TRIAL = "trial"
 SCHOOL_STATUS_ACTIVE = "active"
 SCHOOL_STATUS_SUSPENDED = "suspended"
@@ -75,6 +84,8 @@ class School(models.Model):
             self.subdomain = self.slug
         super().save(*args, **kwargs)
 
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 POST_NEWS = "news"
 POST_EVENT = "event"
 
@@ -105,7 +116,10 @@ class NewsAndEventsManager(models.Manager):
 
 
 class NewsAndEvents(models.Model):
+<<<<<<< HEAD
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     title = models.CharField(max_length=200)
     summary = models.TextField(blank=True)
     posted_as = models.CharField(max_length=10, choices=POST_CHOICES)
@@ -127,17 +141,24 @@ class Session(models.Model):
     """
     Represents academic year (e.g. 2026)
     """
+<<<<<<< HEAD
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
     session = models.CharField(max_length=200)
+=======
+    session = models.CharField(max_length=200, unique=True)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     is_current = models.BooleanField(default=False)
     next_session_begins = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.session
 
+<<<<<<< HEAD
     class Meta:
         unique_together = ("school", "session")
 
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 # =========================================================
 # 📆 TERM (HIGH SCHOOL STRUCTURE)
@@ -152,7 +173,10 @@ TERM_CHOICES = (
 
 
 class Term(models.Model):
+<<<<<<< HEAD
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     session = models.ForeignKey(Session, on_delete=models.CASCADE)
     name = models.CharField(max_length=2, choices=TERM_CHOICES)
     is_current = models.BooleanField(default=False)
@@ -229,8 +253,12 @@ def log_term_save(sender, instance, created, **kwargs):
 #  SCHOOL CLASS (FORM 1A, FORM 2B, etc.)
 # =========================================================
 class SchoolClass(models.Model):
+<<<<<<< HEAD
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=50)  # e.g. F1A, F2B
+=======
+    name = models.CharField(max_length=50, unique=True)  # e.g. F1A, F2B
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     level = models.CharField(max_length=10)  # e.g. F1, F2, F3
     class_teacher = models.ForeignKey(
         User,
@@ -244,6 +272,7 @@ class SchoolClass(models.Model):
     def __str__(self):
         return self.name
 
+<<<<<<< HEAD
     class Meta:
         unique_together = ("school", "name")
 
@@ -547,3 +576,9 @@ class TimetableEntry(models.Model):
 
 
    
+=======
+
+
+
+   
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

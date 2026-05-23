@@ -1,4 +1,5 @@
 from django.contrib import admin
+<<<<<<< HEAD
 
 from .models import (
     ActivityLog,
@@ -194,3 +195,18 @@ admin.site.register(ExamSchedule, ExamScheduleAdmin)
 admin.site.register(MarkEntry, MarkEntryAdmin)
 admin.site.register(TimetableEntry, TimetableEntryAdmin)
 admin.site.register(ActivityLog, ActivityLogAdmin)
+=======
+from django.contrib import admin
+from .models import Session, NewsAndEvents, SchoolClass
+
+
+class NewsAndEventsAdmin(admin.ModelAdmin):
+    pass
+
+
+
+admin.site.register(SchoolClass)
+
+admin.site.register(Session)
+admin.site.register(NewsAndEvents, NewsAndEventsAdmin)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

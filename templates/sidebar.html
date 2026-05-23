@@ -38,6 +38,7 @@
 
 		{# NEW ROUTES  #}
 		{% url 'class_list' as class_list %}
+<<<<<<< HEAD
 		{% url 'subject_list_view' as subject_list %}
 		{% url 'admin:core_schoolfee_changelist' as fee_admin %}
 		{% url 'admin:core_attendancerecord_changelist' as attendance_admin %}
@@ -46,6 +47,9 @@
 		{% url 'admin:core_markentry_changelist' as marks_admin %}
 		{% url 'admin:accounts_parent_changelist' as parent_admin %}
 		{% url 'admin:accounts_teacherprofile_changelist' as teacher_admin %}
+=======
+		{% url 'subject_list' as subject_list %}
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 		
 
 		<ul>
@@ -117,6 +121,7 @@
 				</a>
 			</li>
 
+<<<<<<< HEAD
 			<li class="{% if request.path == fee_admin %}active{% endif %}">
 				<a href="{{ fee_admin }}"><i class="fas fa-coins"></i>{% trans 'School Fees' %}</a>
 			</li>
@@ -145,6 +150,8 @@
 				<a href="{{ teacher_admin }}"><i class="fas fa-chalkboard-teacher"></i>{% trans 'Teacher Profiles' %}</a>
 			</li>
 
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 			{% endif %}
 
@@ -206,4 +213,8 @@
 		document.getElementById("lang-form").submit();
 	});
 </script>
+<<<<<<< HEAD
 {% endblock js %}
+=======
+{% endblock js %}
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

@@ -1,12 +1,19 @@
 from django.contrib import admin
+<<<<<<< HEAD
 from .models import User, Student, Parent, TeacherProfile
+=======
+from .models import User, Student, Parent
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 
 class UserAdmin(admin.ModelAdmin):
     list_display = [
         "get_full_name",
         "username",
+<<<<<<< HEAD
         "school",
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         "email",
         "is_active",
         "is_student",
@@ -14,7 +21,10 @@ class UserAdmin(admin.ModelAdmin):
         "is_parent",
         "is_staff",
     ]
+<<<<<<< HEAD
     list_filter = ["school", "is_student", "is_lecturer", "is_parent", "is_staff", "is_superuser"]
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     search_fields = [
         "username",
         "first_name",
@@ -26,6 +36,7 @@ class UserAdmin(admin.ModelAdmin):
         "is_staff",
     ]
 
+<<<<<<< HEAD
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser and not getattr(request.user, "school_id", None):
@@ -37,6 +48,8 @@ class UserAdmin(admin.ModelAdmin):
             obj.school = getattr(request.user, "school", None)
         super().save_model(request, obj, form, change)
 
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     class Meta:
         managed = True
         verbose_name = "User"
@@ -44,6 +57,7 @@ class UserAdmin(admin.ModelAdmin):
 
 
 admin.site.register(User, UserAdmin)
+<<<<<<< HEAD
 class StudentAdmin(admin.ModelAdmin):
     list_display = ("student", "school", "level", "student_class")
     list_filter = ("student__school", "level", "student_class")
@@ -122,3 +136,7 @@ class TeacherProfileAdmin(admin.ModelAdmin):
 admin.site.register(Student, StudentAdmin)
 admin.site.register(Parent, ParentAdmin)
 admin.site.register(TeacherProfile, TeacherProfileAdmin)
+=======
+admin.site.register(Student)
+admin.site.register(Parent)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

@@ -92,7 +92,10 @@ TEST_FIELDS = ("assignment", "mid_exam", "quiz")
 # TAKEN COURSE (SUBJECT RESULT)
 # =========================================================
 class TakenCourse(models.Model):
+<<<<<<< HEAD
     school = models.ForeignKey("core.School", on_delete=models.CASCADE, null=True, blank=True)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     course = models.ForeignKey(
         Course,
@@ -160,8 +163,11 @@ class TakenCourse(models.Model):
     # AUTO CALCULATION ON SAVE
     # =====================================================
     def save(self, *args, **kwargs):
+<<<<<<< HEAD
         if not self.school_id:
             self.school = self.student.student.school
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         self.total = self.get_total()
         self.grade = self.get_grade()
         self.point = self.get_point()
@@ -173,7 +179,10 @@ class TakenCourse(models.Model):
 # RESULT SUMMARY (TERM / YEAR REPORT CARD)
 # =========================================================
 class Result(models.Model):
+<<<<<<< HEAD
     school = models.ForeignKey("core.School", on_delete=models.CASCADE, null=True, blank=True)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
 
     session = models.CharField(max_length=100, blank=True, null=True)
@@ -186,8 +195,11 @@ class Result(models.Model):
 
     def __str__(self):
         return f"Result - {self.student} ({self.session}, {self.quarter})"
+<<<<<<< HEAD
 
     def save(self, *args, **kwargs):
         if not self.school_id:
             self.school = self.student.student.school
         super().save(*args, **kwargs)
+=======
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

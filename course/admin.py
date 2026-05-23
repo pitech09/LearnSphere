@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group
 
+<<<<<<< HEAD
 from .models import Subject, SubjectAllocation, Upload
 
 
@@ -50,4 +51,17 @@ class UploadAdmin(SchoolScopedAdminMixin, admin.ModelAdmin):
 
 admin.site.register(Subject, SubjectAdmin)
 admin.site.register(SubjectAllocation, SubjectAllocationAdmin)
+=======
+from .models import  SubjectAllocation, Upload
+from .models import Subject
+
+class SubjectAdmin(admin.ModelAdmin):
+    pass
+class UploadAdmin(admin.ModelAdmin):
+    pass
+    
+
+admin.site.register(Subject, SubjectAdmin)
+admin.site.register(SubjectAllocation)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 admin.site.register(Upload, UploadAdmin)

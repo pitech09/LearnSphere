@@ -26,12 +26,19 @@ class SchoolClassForm(forms.ModelForm):
 
     level = forms.ChoiceField(choices=LEVELS)
 
+<<<<<<< HEAD
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         lecturers = User.objects.filter(is_lecturer=True)
         if school:
             lecturers = lecturers.filter(school=school)
+=======
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        lecturers = User.objects.filter(is_lecturer=True)
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
         print(" LECTURERS IN SYSTEM:")
         for u in lecturers:
@@ -69,7 +76,11 @@ class NewsAndEventsForm(forms.ModelForm):
 # 📅 SESSION FORM
 # =========================================================
 class SessionForm(forms.ModelForm):
+<<<<<<< HEAD
     next_session_begins = forms.DateField(
+=======
+    next_begins = forms.DateField(
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         widget=forms.DateInput(
             attrs={
                 "type": "date",
@@ -81,7 +92,11 @@ class SessionForm(forms.ModelForm):
 
     class Meta:
         model = Session
+<<<<<<< HEAD
         fields = ["session", "is_current", "next_session_begins"]
+=======
+        fields = ["session", "is_current", "next_begins"]
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -130,6 +145,7 @@ class SubjectForm(forms.ModelForm):
         model = Subject
         fields = ['title', 'code', 'summary', 'class_assigned', 'teacher']
 
+<<<<<<< HEAD
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
         if school:
@@ -137,3 +153,9 @@ class SubjectForm(forms.ModelForm):
             self.fields["teacher"].queryset = self.fields["teacher"].queryset.filter(school=school)
         for field in self.fields.values():
             field.widget.attrs.update({"class": "form-control"})
+=======
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
+>>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
