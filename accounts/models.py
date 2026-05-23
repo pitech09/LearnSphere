@@ -62,7 +62,6 @@ class CustomUserManager(UserManager):
 GENDERS = ((_("M"), _("Male")), (_("F"), _("Female")))
 
 
-<<<<<<< HEAD
 class User(AbstractUser):
     school = models.ForeignKey(
         "core.School",
@@ -72,10 +71,9 @@ class User(AbstractUser):
         related_name="users",
     )
     is_student = models.BooleanField(default=False)
-=======
+
 class User(AbstractUser):
     is_student = models.BooleanField(default=False)
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     is_lecturer = models.BooleanField(default=False)
     is_parent = models.BooleanField(default=False)
     gender = models.CharField(max_length=1, choices=GENDERS, blank=True, null=True)
@@ -104,17 +102,11 @@ class User(AbstractUser):
         return "{} ({})".format(self.username, self.get_full_name)
 
     @property
-<<<<<<< HEAD
     def get_user_role(self):
         if self.is_superuser and self.school:
             role = _("Principal")
         elif self.is_superuser:
             role = _("Platform Admin")
-=======
-    def get_user_role(self):
-        if self.is_superuser:
-            role = _("Admin")
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         elif self.is_student:
             role = _("Student")
         elif self.is_lecturer:
@@ -195,11 +187,7 @@ class Student(models.Model):
         super().delete(*args, **kwargs)
 
 
-<<<<<<< HEAD
 class Parent(models.Model):
-=======
-class Parent(models.Model):
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     """
     Connect student with their parent, parents can
     only view their connected students information
@@ -219,7 +207,6 @@ class Parent(models.Model):
     class Meta:
         ordering = ("-user__date_joined",)
 
-<<<<<<< HEAD
     def __str__(self):
         return self.user.username
 
@@ -245,13 +232,11 @@ class TeacherProfile(models.Model):
 
 
 class DepartmentHead(models.Model):
-=======
     def __str__(self):
         return self.user.username
 
 
 class DepartmentHead(models.Model):
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     class Meta:
