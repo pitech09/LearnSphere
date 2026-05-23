@@ -203,8 +203,5 @@ class NewsAndEventsAdmin(admin.ModelAdmin):
     pass
 
 
-
-admin.site.register(SchoolClass)
-
 admin.site.register(Session)
 admin.site.register(NewsAndEvents, NewsAndEventsAdmin)
