@@ -43,7 +43,7 @@
     <div class="col-md-9 mx-auto">
         <div class="card">
             <div class="card-body">
-                <!-- {% if user.is_student %}
+                {% if user.is_student %}
                 <p class="form-title"><i class="fas fa-book-open"></i>Enrolled Courses</p>
                 <div class="dashboard-description">
                     {% if courses %}
@@ -56,8 +56,8 @@
                             <div class="text-danger"><i class="far fa-frown"></i>No courses!</div>
                     {% endif %}
                 </div>
-                {% endif %} -->
-    
+                {% endif %}
+
                 {% if user.is_lecturer %}
                 <p class="fw-bold"><i class="fas fa-book-open"></i> {% trans 'My Courses' %}</p>
                 {% if courses %}
