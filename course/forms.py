@@ -33,16 +33,11 @@ class SubjectAddForm(forms.ModelForm):
         model = Subject
         fields = ["title", "code", "summary", "class_assigned", "teacher"]
 
-<<<<<<< HEAD
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
         if school:
             self.fields["class_assigned"].queryset = SchoolClass.objects.filter(school=school)
             self.fields["teacher"].queryset = User.objects.filter(is_lecturer=True, school=school)
-=======
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
         # KEEP ONLY UI styling here
         for field in self.fields.values():
@@ -74,8 +69,4 @@ class UploadFormVideo(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["title"].widget.attrs.update({"class": "form-control"})
-<<<<<<< HEAD
         self.fields["video"].widget.attrs.update({"class": "form-control"})
-=======
-        self.fields["video"].widget.attrs.update({"class": "form-control"})
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e

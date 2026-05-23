@@ -11,7 +11,7 @@ from core.models import SchoolClass
 from .models import User, Student, Parent, RELATION_SHIP, LEVEL, GENDERS
 
 
-<<<<<<< HEAD
+
 class SchoolSignupForm(UserCreationForm):
     school_name = forms.CharField(
         max_length=180,
@@ -84,10 +84,6 @@ class SchoolSignupForm(UserCreationForm):
         if commit:
             user.save()
         return user
-
-
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 class StaffAddForm(UserCreationForm):
     username = forms.CharField(
         max_length=30,
@@ -295,7 +291,6 @@ class StudentAddForm(UserCreationForm):
         label="Email Address",
     )
 
-<<<<<<< HEAD
     password1 = forms.CharField(
     widget=forms.PasswordInput(attrs={
         "class": "form-control",
@@ -312,8 +307,6 @@ class StudentAddForm(UserCreationForm):
         label="Confirm Password"
     ) 
 
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 
     # def validate_email(self):
@@ -324,7 +317,6 @@ class StudentAddForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
 
-<<<<<<< HEAD
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
         if school:
@@ -335,11 +327,6 @@ class StudentAddForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
 
-=======
-    @transaction.atomic()
-    def save(self, commit=True):
-        user = super().save(commit=False)
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         user.is_student = True
         user.first_name = self.cleaned_data.get("first_name")
         user.last_name = self.cleaned_data.get("last_name")
@@ -350,22 +337,16 @@ class StudentAddForm(UserCreationForm):
         user.email = self.cleaned_data.get("email")
         user.class_assigned = self.cleaned_data.get("class_assigned")
 
-<<<<<<< HEAD
         # 🔐 IMPORTANT: force proper password hashing
         raw_password = self.cleaned_data.get("password1")
         user.set_password(raw_password)
 
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         if commit:
             user.save()
             Student.objects.create(
                 student=user,
                 level=self.cleaned_data.get("level"),
-<<<<<<< HEAD
                 student_class=self.cleaned_data.get("class_assigned"),
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
             )
 
         return user
@@ -565,14 +546,11 @@ class ParentAddForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
 
-<<<<<<< HEAD
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
         if school:
             self.fields["student"].queryset = Student.objects.filter(student__school=school)
 
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     @transaction.atomic()
     def save(self):
         user = super().save(commit=False)
@@ -586,13 +564,10 @@ class ParentAddForm(UserCreationForm):
         parent = Parent.objects.create(
             user=user,
             student=self.cleaned_data.get("student"),
-<<<<<<< HEAD
             first_name=self.cleaned_data.get("first_name"),
             last_name=self.cleaned_data.get("last_name"),
             phone=self.cleaned_data.get("phone"),
             email=self.cleaned_data.get("email"),
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
             relation_ship=self.cleaned_data.get("relation_ship"),
         )
         parent.save()

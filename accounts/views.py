@@ -18,18 +18,12 @@ from accounts.filters import LecturerFilter, StudentFilter
 from accounts.forms import (
     ParentAddForm,
     ProfileUpdateForm,
-<<<<<<< HEAD
     SchoolSignupForm,
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     StaffAddForm,
     StudentAddForm,
 )
 from accounts.models import Parent, Student, User
-<<<<<<< HEAD
 from accounts.utils import send_new_account_email
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 from core.models import Session, Term
 from course.models import Subject
 from result.models import TakenCourse
@@ -64,31 +58,6 @@ def logout_view(request):
     logout(request)
     return redirect("login")
 
-<<<<<<< HEAD
-=======
-def custom_login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            login(request, user)
-
-            # 🔀 Redirect based on role
-            if user.is_superuser:
-                return redirect('admin:index')
-            elif hasattr(user, 'profile') and user.profile.role == 'teacher':
-                return redirect('dashboard')
-            else:
-                return redirect('home')
-        else:
-            return render(request, 'login.html', {'error': 'Invalid credentials'})
-
-    return render(request, 'login.html')
-
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
 def register(request):
     if request.method == "POST":
@@ -105,7 +74,6 @@ def register(request):
     return render(request, "registration/register.html", {"form": form})
 
 
-<<<<<<< HEAD
 def school_signup(request):
     if request.method == "POST":
         form = SchoolSignupForm(request.POST)
@@ -172,17 +140,11 @@ def custom_login_view(request):
 
     return render(request, "registration/login.html")
 
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 # ########################################################
 # Profile Views
 # ########################################################
 
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 @login_required
 def profile(request):
     """Show profile of the current user."""
@@ -332,10 +294,7 @@ def staff_add_view(request):
     if request.method == "POST":
         form = StaffAddForm(request.POST)
         if form.is_valid():
-<<<<<<< HEAD
             form.instance.school = request.user.school
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
             lecturer = form.save()
             full_name = lecturer.get_full_name
             email = lecturer.email
@@ -374,7 +333,6 @@ def edit_staff(request, pk):
 @method_decorator([login_required, admin_required], name="dispatch")
 class LecturerFilterView(FilterView):
     filterset_class = LecturerFilter
-<<<<<<< HEAD
     template_name = "accounts/lecturer_list.html"
     paginate_by = 10
 
@@ -385,12 +343,6 @@ class LecturerFilterView(FilterView):
             qs = qs.filter(school=school)
         return qs
 
-=======
-    queryset = User.objects.filter(is_lecturer=True)
-    template_name = "accounts/lecturer_list.html"
-    paginate_by = 10
-
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Lecturers"
@@ -401,11 +353,8 @@ class LecturerFilterView(FilterView):
 @admin_required
 def render_lecturer_pdf_list(request):
     lecturers = User.objects.filter(is_lecturer=True)
-<<<<<<< HEAD
     if request.user.school:
         lecturers = lecturers.filter(school=request.user.school)
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     template_path = "pdf/lecturer_list.html"
     context = {"lecturers": lecturers}
     response = HttpResponse(content_type="application/pdf")
@@ -431,16 +380,10 @@ def delete_staff(request, pk):
 # ########################################################
 # Student Views
 # ########################################################
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 @login_required
 @admin_required
 def student_add_view(request):
     if request.method == "POST":
-<<<<<<< HEAD
         form = StudentAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
@@ -478,29 +421,6 @@ def student_add_view(request):
         {"title": "Add Student", "form": form}
     )
 
-=======
-        form = StudentAddForm(request.POST)
-        print(form)
-        if form.is_valid():
-            student = form.save()
-            full_name = student.get_full_name
-            email = student.email
-            messages.success(
-                request,
-                f"Account for {full_name} has been created. "
-                f"An email with account credentials will be sent to {email} within a minute.",
-            )
-            return redirect("student_list")
-        messages.error(request, "Correct the error(s) below.")
-        print("form not valid")
-    else:
-        form = StudentAddForm()
-    return render(
-        request, "accounts/add_student.html", {"title": "Add Student", "form": form}
-    )
-
-
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 @login_required
 @admin_required
 def edit_student(request, pk):
@@ -522,15 +442,10 @@ def edit_student(request, pk):
 
 @method_decorator([login_required, admin_required], name="dispatch")
 class StudentListView(FilterView):
-<<<<<<< HEAD
-=======
-    queryset = Student.objects.all()
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     filterset_class = StudentFilter
     template_name = "accounts/student_list.html"
     paginate_by = 10
 
-<<<<<<< HEAD
     def get_queryset(self):
         qs = Student.objects.all()
         school = getattr(self.request.user, "school", None)
@@ -538,8 +453,6 @@ class StudentListView(FilterView):
             qs = qs.filter(student__school=school)
         return qs
 
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Students"
@@ -550,11 +463,8 @@ class StudentListView(FilterView):
 @admin_required
 def render_student_pdf_list(request):
     students = Student.objects.all()
-<<<<<<< HEAD
     if request.user.school:
         students = students.filter(student__school=request.user.school)
-=======
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
     template_path = "pdf/student_list.html"
     context = {"students": students}
     response = HttpResponse(content_type="application/pdf")
@@ -588,7 +498,6 @@ class ParentAdd(CreateView):
     form_class = ParentAddForm
     template_name = "accounts/parent_form.html"
 
-<<<<<<< HEAD
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["school"] = self.request.user.school
@@ -596,8 +505,5 @@ class ParentAdd(CreateView):
 
     def form_valid(self, form):
         form.instance.school = self.request.user.school
-=======
-    def form_valid(self, form):
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
         messages.success(self.request, "Parent added successfully.")
         return super().form_valid(form)

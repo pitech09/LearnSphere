@@ -26,18 +26,11 @@ from .views import (
     ParentAdd,
     validate_username,
     register,
-<<<<<<< HEAD
     school_signup,
     logout_view,
     render_lecturer_pdf_list,  # new
     render_student_pdf_list,  # new
     custom_login_view,
-=======
-    logout_view,
-    render_lecturer_pdf_list,  # new
-    render_student_pdf_list,  # new
-    custom_login,
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 )
 
 # from .forms import EmailValidationOnForgotPassword
@@ -62,12 +55,8 @@ urlpatterns = [
     path("parents/add/", ParentAdd.as_view(), name="add_parent"),
     path("ajax/validate-username/", validate_username, name="validate_username"),
     path("register/", register, name="register"),
-<<<<<<< HEAD
     path("schools/signup/", school_signup, name="school_signup"),
     path('login/', custom_login_view, name='login'),
-=======
-    path('login/', custom_login, name='login'),
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
 
     path('accounts/logout/', LogoutView.as_view(next_page='login'), name='logout'),
     # paths to pdf
