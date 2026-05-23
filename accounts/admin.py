@@ -122,5 +122,3 @@ class TeacherProfileAdmin(admin.ModelAdmin):
 admin.site.register(Student, StudentAdmin)
 admin.site.register(Parent, ParentAdmin)
 admin.site.register(TeacherProfile, TeacherProfileAdmin)
-admin.site.register(Student)
-admin.site.register(Parent)
