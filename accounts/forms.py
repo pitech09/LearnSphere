@@ -11,6 +11,80 @@ from core.models import SchoolClass
 from .models import User, Student, Parent, RELATION_SHIP, LEVEL, GENDERS
 
 
+class SchoolSignupForm(UserCreationForm):
+    school_name = forms.CharField(
+        max_length=180,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        label="School name",
+    )
+    subdomain = forms.SlugField(
+        max_length=80,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "green-valley"}),
+        label="Preferred school URL",
+        help_text="Used later for a dedicated school URL.",
+    )
+    school_email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={"class": "form-control"}),
+        label="School email",
+    )
+    school_phone = forms.CharField(
+        max_length=60,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        label="School phone",
+    )
+    school_address = forms.CharField(
+        max_length=220,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        label="School address",
+    )
+    first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={"class": "form-control"}))
+    last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={"class": "form-control"}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"class": "form-control"}), label="Principal email")
+    phone = forms.CharField(max_length=60, required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
+    username = forms.CharField(max_length=30, widget=forms.TextInput(attrs={"class": "form-control"}))
+    password1 = forms.CharField(widget=forms.PasswordInput(attrs={"class": "form-control"}), label="Password")
+    password2 = forms.CharField(widget=forms.PasswordInput(attrs={"class": "form-control"}), label="Confirm password")
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ("username", "first_name", "last_name", "email", "phone", "password1", "password2")
+
+    def clean_subdomain(self):
+        from core.models import School
+
+        subdomain = self.cleaned_data.get("subdomain")
+        if subdomain and School.objects.filter(subdomain=subdomain).exists():
+            raise forms.ValidationError("That school URL is already taken.")
+        return subdomain
+
+    @transaction.atomic()
+    def save(self, commit=True):
+        from core.models import School
+
+        school = School.objects.create(
+            name=self.cleaned_data["school_name"],
+            subdomain=self.cleaned_data.get("subdomain") or None,
+            email=self.cleaned_data.get("school_email") or self.cleaned_data.get("email"),
+            phone=self.cleaned_data.get("school_phone") or self.cleaned_data.get("phone", ""),
+            address=self.cleaned_data.get("school_address", ""),
+        )
+        user = super().save(commit=False)
+        user.school = school
+        user.is_staff = True
+        user.is_superuser = True
+        user.first_name = self.cleaned_data.get("first_name")
+        user.last_name = self.cleaned_data.get("last_name")
+        user.email = self.cleaned_data.get("email")
+        user.phone = self.cleaned_data.get("phone")
+        if commit:
+            user.save()
+        return user
+
+
 class StaffAddForm(UserCreationForm):
     username = forms.CharField(
         max_length=30,
@@ -244,6 +318,11 @@ class StudentAddForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
 
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields["class_assigned"].queryset = SchoolClass.objects.filter(school=school)
+
     @transaction.atomic()
 
     def save(self, commit=True):
@@ -268,6 +347,7 @@ class StudentAddForm(UserCreationForm):
             Student.objects.create(
                 student=user,
                 level=self.cleaned_data.get("level"),
+                student_class=self.cleaned_data.get("class_assigned"),
             )
 
         return user
@@ -467,6 +547,11 @@ class ParentAddForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
 
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields["student"].queryset = Student.objects.filter(student__school=school)
+
     @transaction.atomic()
     def save(self):
         user = super().save(commit=False)
@@ -480,6 +565,10 @@ class ParentAddForm(UserCreationForm):
         parent = Parent.objects.create(
             user=user,
             student=self.cleaned_data.get("student"),
+            first_name=self.cleaned_data.get("first_name"),
+            last_name=self.cleaned_data.get("last_name"),
+            phone=self.cleaned_data.get("phone"),
+            email=self.cleaned_data.get("email"),
             relation_ship=self.cleaned_data.get("relation_ship"),
         )
         parent.save()

@@ -26,10 +26,12 @@ class SchoolClassForm(forms.ModelForm):
 
     level = forms.ChoiceField(choices=LEVELS)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         lecturers = User.objects.filter(is_lecturer=True)
+        if school:
+            lecturers = lecturers.filter(school=school)
 
         print(" LECTURERS IN SYSTEM:")
         for u in lecturers:
@@ -67,7 +69,7 @@ class NewsAndEventsForm(forms.ModelForm):
 # 📅 SESSION FORM
 # =========================================================
 class SessionForm(forms.ModelForm):
-    next_begins = forms.DateField(
+    next_session_begins = forms.DateField(
         widget=forms.DateInput(
             attrs={
                 "type": "date",
@@ -79,7 +81,7 @@ class SessionForm(forms.ModelForm):
 
     class Meta:
         model = Session
-        fields = ["session", "is_current", "next_begins"]
+        fields = ["session", "is_current", "next_session_begins"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -128,7 +130,10 @@ class SubjectForm(forms.ModelForm):
         model = Subject
         fields = ['title', 'code', 'summary', 'class_assigned', 'teacher']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if school:
+            self.fields["class_assigned"].queryset = self.fields["class_assigned"].queryset.filter(school=school)
+            self.fields["teacher"].queryset = self.fields["teacher"].queryset.filter(school=school)
         for field in self.fields.values():
             field.widget.attrs.update({"class": "form-control"})

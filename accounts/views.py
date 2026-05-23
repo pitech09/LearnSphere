@@ -18,6 +18,7 @@ from accounts.filters import LecturerFilter, StudentFilter
 from accounts.forms import (
     ParentAddForm,
     ProfileUpdateForm,
+    SchoolSignupForm,
     StaffAddForm,
     StudentAddForm,
 )
@@ -73,6 +74,20 @@ def register(request):
     return render(request, "registration/register.html", {"form": form})
 
 
+def school_signup(request):
+    if request.method == "POST":
+        form = SchoolSignupForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, "Your school workspace is ready.")
+            return redirect("dashboard")
+        messages.error(request, "Please correct the highlighted fields.")
+    else:
+        form = SchoolSignupForm()
+    return render(request, "registration/school_signup.html", {"form": form})
+
+
 from django.contrib.auth import authenticate, login
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -123,7 +138,7 @@ def custom_login_view(request):
 
         messages.error(request, "Invalid ID or Password")
 
-    return render(request, "accounts/login.html")
+    return render(request, "registration/login.html")
 
 # ########################################################
 # Profile Views
@@ -280,6 +295,7 @@ def staff_add_view(request):
     if request.method == "POST":
         form = StaffAddForm(request.POST)
         if form.is_valid():
+            form.instance.school = request.user.school
             lecturer = form.save()
             full_name = lecturer.get_full_name
             email = lecturer.email
@@ -318,9 +334,15 @@ def edit_staff(request, pk):
 @method_decorator([login_required, admin_required], name="dispatch")
 class LecturerFilterView(FilterView):
     filterset_class = LecturerFilter
-    queryset = User.objects.filter(is_lecturer=True)
     template_name = "accounts/lecturer_list.html"
     paginate_by = 10
+
+    def get_queryset(self):
+        qs = User.objects.filter(is_lecturer=True)
+        school = getattr(self.request.user, "school", None)
+        if school:
+            qs = qs.filter(school=school)
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -332,6 +354,8 @@ class LecturerFilterView(FilterView):
 @admin_required
 def render_lecturer_pdf_list(request):
     lecturers = User.objects.filter(is_lecturer=True)
+    if request.user.school:
+        lecturers = lecturers.filter(school=request.user.school)
     template_path = "pdf/lecturer_list.html"
     context = {"lecturers": lecturers}
     response = HttpResponse(content_type="application/pdf")
@@ -361,9 +385,10 @@ def delete_staff(request, pk):
 @admin_required
 def student_add_view(request):
     if request.method == "POST":
-        form = StudentAddForm(request.POST)
+        form = StudentAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
+            form.instance.school = request.user.school
             student = form.save()
 
             full_name = student.get_full_name
@@ -389,7 +414,7 @@ def student_add_view(request):
         print("form not valid")
 
     else:
-        form = StudentAddForm()
+        form = StudentAddForm(school=request.user.school)
 
     return render(
         request,
@@ -418,10 +443,16 @@ def edit_student(request, pk):
 
 @method_decorator([login_required, admin_required], name="dispatch")
 class StudentListView(FilterView):
-    queryset = Student.objects.all()
     filterset_class = StudentFilter
     template_name = "accounts/student_list.html"
     paginate_by = 10
+
+    def get_queryset(self):
+        qs = Student.objects.all()
+        school = getattr(self.request.user, "school", None)
+        if school:
+            qs = qs.filter(student__school=school)
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -433,6 +464,8 @@ class StudentListView(FilterView):
 @admin_required
 def render_student_pdf_list(request):
     students = Student.objects.all()
+    if request.user.school:
+        students = students.filter(student__school=request.user.school)
     template_path = "pdf/student_list.html"
     context = {"students": students}
     response = HttpResponse(content_type="application/pdf")
@@ -466,6 +499,12 @@ class ParentAdd(CreateView):
     form_class = ParentAddForm
     template_name = "accounts/parent_form.html"
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["school"] = self.request.user.school
+        return kwargs
+
     def form_valid(self, form):
+        form.instance.school = self.request.user.school
         messages.success(self.request, "Parent added successfully.")
         return super().form_valid(form)

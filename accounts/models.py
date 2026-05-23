@@ -63,6 +63,13 @@ GENDERS = ((_("M"), _("Male")), (_("F"), _("Female")))
 
 
 class User(AbstractUser):
+    school = models.ForeignKey(
+        "core.School",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="users",
+    )
     is_student = models.BooleanField(default=False)
     is_lecturer = models.BooleanField(default=False)
     is_parent = models.BooleanField(default=False)
@@ -93,8 +100,10 @@ class User(AbstractUser):
 
     @property
     def get_user_role(self):
-        if self.is_superuser:
-            role = _("Admin")
+        if self.is_superuser and self.school:
+            role = _("Principal")
+        elif self.is_superuser:
+            role = _("Platform Admin")
         elif self.is_student:
             role = _("Student")
         elif self.is_lecturer:
@@ -197,6 +206,26 @@ class Parent(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class TeacherProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={"is_lecturer": True},
+        related_name="teacher_profile",
+    )
+    staff_number = models.CharField(max_length=40, unique=True, blank=True, null=True)
+    qualification = models.CharField(max_length=160, blank=True)
+    specialization = models.CharField(max_length=160, blank=True)
+    employment_date = models.DateField(blank=True, null=True)
+    is_class_teacher = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ("user__first_name", "user__last_name", "user__username")
+
+    def __str__(self):
+        return self.user.get_full_name
 
 
 class DepartmentHead(models.Model):

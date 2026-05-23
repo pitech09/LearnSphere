@@ -26,6 +26,7 @@ from .views import (
     ParentAdd,
     validate_username,
     register,
+    school_signup,
     logout_view,
     render_lecturer_pdf_list,  # new
     render_student_pdf_list,  # new
@@ -54,6 +55,7 @@ urlpatterns = [
     path("parents/add/", ParentAdd.as_view(), name="add_parent"),
     path("ajax/validate-username/", validate_username, name="validate_username"),
     path("register/", register, name="register"),
+    path("schools/signup/", school_signup, name="school_signup"),
     path('login/', custom_login_view, name='login'),
 
     path('accounts/logout/', LogoutView.as_view(next_page='login'), name='logout'),

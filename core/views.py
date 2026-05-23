@@ -1,14 +1,26 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Avg
 
 from accounts.decorators import admin_required, lecturer_required
-from accounts.models import User, Student
+from accounts.models import Parent, TeacherProfile, User, Student
 from course.forms import SubjectAddForm
 from course.models import Subject, SubjectAllocation
 
 from .forms import SessionForm, NewsAndEventsForm, SubjectForm
-from .models import NewsAndEvents, ActivityLog, Session, SchoolClass
+from .models import (
+    ATTENDANCE_PRESENT,
+    AttendanceRecord,
+    Exam,
+    MarkEntry,
+    NewsAndEvents,
+    ActivityLog,
+    SchoolFee,
+    Session,
+    SchoolClass,
+    TimetableEntry,
+)
 
 
 # =========================================================
@@ -17,6 +29,8 @@ from .models import NewsAndEvents, ActivityLog, Session, SchoolClass
 @login_required
 def home_view(request):
     items = NewsAndEvents.objects.all().order_by("-updated_at")
+    if request.user.school:
+        items = items.filter(school=request.user.school)
 
     return render(request, "core/index.html", {
         "title": "News & Events",
@@ -30,14 +44,42 @@ def home_view(request):
 @login_required
 @admin_required
 def dashboard_view(request):
+    school = getattr(request.user, "school", None)
+    school_filter = {"school": school} if school else {}
     logs = ActivityLog.objects.all().order_by("-created_at")[:10]
 
-    gender_count = Student.get_gender_count()
+    students = Student.objects.filter(student__school=school) if school else Student.objects.all()
+    users = User.objects.filter(school=school) if school else User.objects.all()
+    gender_count = {
+        "M": students.filter(student__gender="M").count(),
+        "F": students.filter(student__gender="F").count(),
+    }
+    attendance_total = AttendanceRecord.objects.filter(**school_filter).count()
+    attendance_present = AttendanceRecord.objects.filter(status=ATTENDANCE_PRESENT, **school_filter).count()
+    attendance_rate = round((attendance_present / attendance_total) * 100, 1) if attendance_total else 0
+
+    fees = SchoolFee.objects.filter(**school_filter).prefetch_related("payments")
+    outstanding_fees = sum(fee.balance for fee in fees)
+    collected_fees = sum(fee.total_paid for fee in fees)
+    average_mark = MarkEntry.objects.filter(**school_filter).aggregate(value=Avg("final_mark")).get("value") or 0
+    upcoming_exams = Exam.objects.filter(**school_filter).exclude(status="completed").order_by("starts_on")[:5]
 
     return render(request, "core/dashboard.html", {
-        "student_count": User.objects.get_student_count(),
-        "lecturer_count": User.objects.get_lecturer_count(),
-        "superuser_count": User.objects.get_superuser_count(),
+        "school": school,
+        "student_count": users.filter(is_student=True).count(),
+        "lecturer_count": users.filter(is_lecturer=True).count(),
+        "teacher_profile_count": TeacherProfile.objects.filter(user__school=school).count() if school else TeacherProfile.objects.count(),
+        "parent_count": Parent.objects.filter(user__school=school).count() if school else Parent.objects.count(),
+        "superuser_count": users.filter(is_superuser=True).count(),
+        "class_count": SchoolClass.objects.filter(is_active=True, **school_filter).count(),
+        "timetable_count": TimetableEntry.objects.filter(is_active=True, **school_filter).count(),
+        "exam_count": Exam.objects.filter(**school_filter).count(),
+        "marks_count": MarkEntry.objects.filter(**school_filter).count(),
+        "attendance_rate": attendance_rate,
+        "outstanding_fees": outstanding_fees,
+        "collected_fees": collected_fees,
+        "average_mark": average_mark,
+        "upcoming_exams": upcoming_exams,
         "males_count": gender_count.get("M", 0),
         "females_count": gender_count.get("F", 0),
         "logs": logs,
@@ -174,6 +216,8 @@ def session_delete_view(request, pk):
 @lecturer_required
 def subject_list_view(request):
     subjects = Subject.objects.all()
+    if request.user.school:
+        subjects = subjects.filter(school=request.user.school)
     return render(request, "core/subject_list.html", {"subjects": subjects})
 
 
@@ -181,14 +225,16 @@ def subject_list_view(request):
 @lecturer_required
 def subject_add_view(request):
     if request.method == "POST":
-        form = SubjectAddForm(request.POST)
+        form = SubjectAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
-            form.save()
+            subject = form.save(commit=False)
+            subject.school = request.user.school
+            subject.save()
             messages.success(request, "Subject added.")
             return redirect("subject_list_view")
     else:
-        form = SubjectAddForm()
+        form = SubjectAddForm(school=request.user.school)
 
     return render(request, "core/subject_form.html", {"form": form})
 
@@ -198,7 +244,7 @@ def subject_update_view(request, pk):
     subject = get_object_or_404(Subject, pk=pk)
 
     if request.method == "POST":
-        form = SubjectAddForm(request.POST, instance=subject)
+        form = SubjectAddForm(request.POST, instance=subject, school=request.user.school)
 
         if form.is_valid():
             form.save()
@@ -206,7 +252,7 @@ def subject_update_view(request, pk):
             return redirect("subject_list_view")
 
     else:
-        form = SubjectAddForm(instance=subject)
+        form = SubjectAddForm(instance=subject, school=request.user.school)
 
     return render(request, "core/subject_form.html", {"form": form})
 
@@ -231,20 +277,24 @@ from .forms import (
 @lecturer_required
 def class_list_view(request):
     classes = SchoolClass.objects.all()
+    if request.user.school:
+        classes = classes.filter(school=request.user.school)
     return render(request, "core/class_list.html", {"classes": classes})
 
 
 @login_required
 @lecturer_required
 def class_add_view(request):
-    form = SchoolClassForm(request.POST or None)
+    form = SchoolClassForm(request.POST or None, school=request.user.school)
 
     if request.method == "POST":
             print(" POST DATA:", request.POST)
 
             if form.is_valid():
                 print(" VALID FORM")
-                form.save()
+                school_class = form.save(commit=False)
+                school_class.school = request.user.school
+                school_class.save()
             else:
                 print(" FORM ERRORS:", form.errors)
 
@@ -254,7 +304,7 @@ def class_add_view(request):
 @lecturer_required
 def class_update_view(request, pk):
     obj = get_object_or_404(SchoolClass, pk=pk)
-    form = SchoolClassForm(request.POST or None, instance=obj)
+    form = SchoolClassForm(request.POST or None, instance=obj, school=request.user.school)
 
     if form.is_valid():
         form.save()
@@ -275,5 +325,3 @@ def class_delete_view(request, pk):
         return redirect("class_list")
 
     return render(request, "core/confirm_delete.html", {"object": obj})
-
-

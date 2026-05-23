@@ -7,7 +7,9 @@ from django.conf.urls.i18n import i18n_patterns
 from django.views.i18n import JavaScriptCatalog
 from django.shortcuts import redirect
 
-admin.site.site_header = "LearnSphere"
+admin.site.site_header = "LearnSphere School Management"
+admin.site.site_title = "School Management Admin"
+admin.site.index_title = "Principal Administration"
 
 urlpatterns = [
     path("admin/", admin.site.urls),

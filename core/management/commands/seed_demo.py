@@ -10,7 +10,7 @@ from course.models import Subject
 from core.utils import send_html_email
 
 User = get_user_model()
-DEFAULT_PASSWORD = "1234"
+DEFAULT_PASSWORD = "12345678"
 
 def dummy_send(*args, **kwargs):
     pass

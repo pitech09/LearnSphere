@@ -33,8 +33,11 @@ class SubjectAddForm(forms.ModelForm):
         model = Subject
         fields = ["title", "code", "summary", "class_assigned", "teacher"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if school:
+            self.fields["class_assigned"].queryset = SchoolClass.objects.filter(school=school)
+            self.fields["teacher"].queryset = User.objects.filter(is_lecturer=True, school=school)
 
         # KEEP ONLY UI styling here
         for field in self.fields.values():

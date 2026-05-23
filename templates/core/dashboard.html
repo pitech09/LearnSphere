@@ -16,13 +16,20 @@
 {% include 'snippets/messages.html' %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="title-1">{% trans 'School Dashboard' %}</h1>
+  <div>
+    <h1 class="title-1 mb-1">{% trans 'Principal Dashboard' %}</h1>
+    {% if school %}
+      <div class="text-muted">{{ school.name }}</div>
+    {% else %}
+      <div class="text-muted">{% trans 'Platform overview' %}</div>
+    {% endif %}
+  </div>
+  <a class="btn btn-outline-primary" href="{% url 'admin:index' %}">
+    <i class="fas fa-sliders-h me-1"></i>{% trans 'Open Admin' %}
+  </a>
 </div>
 
-<!-- REAL COUNTS ONLY -->
 <div class="row users-count px-3">
-
-  <!-- Students -->
   <div class="col-md-4 mb-3">
     <div class="card-count p-3 d-flex align-items-center">
       <i class="fas fa-user-graduate fa-2x text-primary me-3"></i>
@@ -44,24 +51,89 @@
     </div>
   </div>
 
-  <!-- Admins -->
   <div class="col-md-4 mb-3">
     <div class="card-count p-3 d-flex align-items-center">
-      <i class="fas fa-user-shield fa-2x text-danger me-3"></i>
+      <i class="fas fa-users fa-2x text-info me-3"></i>
       <div>
-        <small>{% trans 'Admins' %}</small>
-        <h2>{{ superuser_count }}</h2>
+        <small>{% trans 'Parents' %}</small>
+        <h2>{{ parent_count }}</h2>
       </div>
     </div>
   </div>
 
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-school fa-2x text-warning me-3"></i>
+      <div>
+        <small>{% trans 'Active Classes' %}</small>
+        <h2>{{ class_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-calendar-check fa-2x text-success me-3"></i>
+      <div>
+        <small>{% trans 'Attendance Rate' %}</small>
+        <h2>{{ attendance_rate }}%</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-file-signature fa-2x text-danger me-3"></i>
+      <div>
+        <small>{% trans 'Exams' %}</small>
+        <h2>{{ exam_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-table fa-2x text-primary me-3"></i>
+      <div>
+        <small>{% trans 'Timetable Entries' %}</small>
+        <h2>{{ timetable_count }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-coins fa-2x text-success me-3"></i>
+      <div>
+        <small>{% trans 'Fees Collected' %}</small>
+        <h2>{{ collected_fees|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-wallet fa-2x text-danger me-3"></i>
+      <div>
+        <small>{% trans 'Fees Outstanding' %}</small>
+        <h2>{{ outstanding_fees|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-chart-line fa-2x text-info me-3"></i>
+      <div>
+        <small>{% trans 'Average Mark' %}</small>
+        <h2>{{ average_mark|floatformat:1 }}%</h2>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- GENDER CHART + ACTIVITY -->
 <div class="row px-2">
-
-  <!-- Gender Chart -->
-  <div class="col-md-6 p-2">
+  <div class="col-lg-4 p-2">
     <div class="card p-3">
       <h5>
         <i class="fas fa-chart-pie me-2"></i>
@@ -71,8 +143,26 @@
     </div>
   </div>
 
-  <!-- Activity Logs -->
-  <div class="col-md-6 p-2">
+  <div class="col-lg-4 p-2">
+    <div class="card p-3 h-100">
+      <h5>
+        <i class="fas fa-file-signature me-2"></i>
+        {% trans 'Upcoming Exams' %}
+      </h5>
+      <ul class="small">
+        {% for exam in upcoming_exams %}
+          <li>
+            <strong>{{ exam.name }}</strong>
+            <span class="text-muted">{{ exam.school_class }} - {{ exam.starts_on }}</span>
+          </li>
+        {% empty %}
+          <li>{% trans 'No upcoming exams' %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-4 p-2">
     <div class="card p-3">
       <h5>
         <i class="fas fa-clock me-2"></i>
