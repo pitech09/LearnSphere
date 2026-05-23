@@ -1,10 +1,7 @@
-
 from decimal import Decimal
-
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MaxValueValidator, MinValueValidator
-
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -18,7 +15,6 @@ from django.urls import reverse
 
 from django.utils.text import slugify
 
-
 from accounts.models import User
 
 
@@ -26,7 +22,6 @@ from accounts.models import User
 #  NEWS & EVENTS
 # =========================================================
 
-<<<<<<< HEAD
 SCHOOL_STATUS_TRIAL = "trial"
 SCHOOL_STATUS_ACTIVE = "active"
 SCHOOL_STATUS_SUSPENDED = "suspended"
