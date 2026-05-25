@@ -92,6 +92,17 @@ class User(AbstractUser):
     class Meta:
         ordering = ("-date_joined",)
 
+    def get_role(self):
+        if self.is_superuser:
+            return "admin"
+        if self.is_lecturer:
+            return "lecturer"
+        if self.is_student:
+            return "student"
+        if self.is_parent:
+            return "parent"
+        return "unknown"
+
 class StudentManager(models.Manager):
     def search(self, query=None):
         qs = self.get_queryset()

@@ -25,7 +25,7 @@ SECRET_KEY = config(
     default="o!ld8nrt4vc*h1zoey*wj48x*q0#ss12h=+zh)kk^6b3aygg=!"
 )
 
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -210,10 +210,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://propertyempire.onrender.com",
 ]
 
-# -------------------------------------------------
-# EMAIL (FOR SCHOOL NOTIFICATIONS)
-# -------------------------------------------------
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 
 # =============================
 # Email config
