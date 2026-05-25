@@ -1,81 +1,261 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{{ title }} | {% trans 'Assessment Results' %}{% endblock title %}
+
+{% block title %}
+{{ title }} | {% trans 'Assessment Results' %}
+{% endblock title %}
 
 {% block content %}
 
-<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{% trans 'Assessment Results' %}</li>
+<!-- Breadcrumb -->
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb bg-light px-3 py-2 rounded-3">
+    <li class="breadcrumb-item">
+      <a href="/" class="text-decoration-none">{% trans 'Home' %}</a>
+    </li>
+    <li class="breadcrumb-item active fw-semibold text-primary" aria-current="page">
+      {% trans 'Assessment Results' %}
+    </li>
   </ol>
 </nav>
 
 {% include 'snippets/messages.html' %}
 
-<div class="title-1"><i class="fa fa-list-ol"></i>{% trans 'Assessment Results' %}</div>
-<p>{{ student.level }} {% trans 'Result' %}</p>
-<a class="btn btn-sm btn-secondary mb-3" href="{% url 'student_result_pdf_view' %}" target="_blank">
-  <i class="fas fa-print"></i> {% trans 'Print Results' %}
-</a>
+<!-- Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
 
-{% for section in quarter_sections %}
-<div class="table-responsive p-0 px-2 mt-4">
-  <div class="table-title"><u>{{ section.label }}</u></div>
-  <table class="table table-light">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>{% trans 'Course Title' %}</th>
-        <th>{% trans 'Course Code' %}</th>
-        <th>{% trans 'Assignment' %}</th>
-        <th>{% trans 'Test' %}</th>
-        <th>{% trans 'Quiz' %}</th>
-        <th>{% trans 'Attendance' %}</th>
-        <th>{% trans 'Exam' %}</th>
-        <th>{% trans 'Tests Avg' %}</th>
-        <th>{% trans 'Final Mark' %}</th>
-        <th>{% trans 'Comment' %}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for course in section.courses %}
-      <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray{% endif %}">
-        <th scope="row">{{ forloop.counter }}</th>
-        <td><a href="{{ course.course.get_absolute_url }}">{{ course.course.title }}</a></td>
-        <td>{{ course.course.code }}</td>
-        <td>{{ course.assignment }}</td>
-        <td>{{ course.mid_exam }}</td>
-        <td>{{ course.quiz }}</td>
-        <td>{{ course.attendance }}</td>
-        <td>{{ course.final_exam }}</td>
-        <td>{{ course.get_test_average }}</td>
-        <td class="{% if course.comment == 'PASS' %}success{% else %}danger{% endif %}">
-          {{ course.total }}
-        </td>
-        <td class="{% if course.comment == 'PASS' %}text-success{% else %}text-danger{% endif %}">
-          {{ course.comment }}
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="11" class="text-center text-muted">{% trans 'No assessment recorded for this quarter.' %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr class="fw-bold">
-        <td colspan="3">{% trans 'Quarter Summary' %}</td>
-        <td colspan="2">{% trans 'Tests Avg' %}: {{ section.test_average }}</td>
-        <td colspan="3">{% trans 'Final Avg' %}: {{ section.average }}</td>
-        <td colspan="2">{% trans 'Subjects' %}: {{ section.total_subjects }}</td>
-        <td class="{% if section.comment == 'PASS' %}text-success{% else %}text-danger{% endif %}">
-          {{ section.comment }}
-        </td>
-      </tr>
-    </tfoot>
-  </table>
+  <div>
+    <h3 class="fw-bold mb-1">
+      <i class="fas fa-chart-line text-primary me-2"></i>
+      {% trans 'Assessment Results' %}
+    </h3>
+
+    <div class="text-muted">
+      {{ student.level }} • {{ student.student.get_full_name }}
+    </div>
+  </div>
+
+  <a class="btn btn-outline-dark shadow-sm"
+     href="{% url 'student_result_pdf_view' %}"
+     target="_blank">
+
+    <i class="fas fa-print me-1"></i>
+    {% trans 'Print Results' %}
+  </a>
+
 </div>
+
+<!-- Quarter Sections -->
+{% for section in quarter_sections %}
+
+<div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+
+  <!-- Card Header -->
+  <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+      <div>
+        <h5 class="fw-bold mb-1">
+          <i class="fas fa-calendar-alt text-primary me-2"></i>
+          {{ section.label }}
+        </h5>
+
+        <small class="text-muted">
+          {{ section.total_subjects }} {% trans "Subjects" %}
+        </small>
+      </div>
+
+      <div>
+        {% if section.comment == 'PASS' %}
+          <span class="badge bg-success-subtle text-success border px-3 py-2">
+            <i class="fas fa-check-circle me-1"></i>
+            {{ section.comment }}
+          </span>
+
+        {% elif section.comment %}
+          <span class="badge bg-danger-subtle text-danger border px-3 py-2">
+            <i class="fas fa-times-circle me-1"></i>
+            {{ section.comment }}
+          </span>
+
+        {% else %}
+          <span class="badge bg-secondary-subtle text-muted border px-3 py-2">
+            <i class="fas fa-minus-circle me-1"></i>
+            {% trans "No Comment" %}
+          </span>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Table -->
+  <div class="table-responsive">
+    <table class="table align-middle table-hover mb-0">
+
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">#</th>
+          <th>{% trans 'Subject' %}</th>
+          <th>{% trans 'Code' %}</th>
+          <th>{% trans 'Assignment' %}</th>
+          <th>{% trans 'Test' %}</th>
+          <th>{% trans 'Quiz' %}</th>
+          <th>{% trans 'Attendance' %}</th>
+          <th>{% trans 'Exam' %}</th>
+          <th>{% trans 'Tests Avg' %}</th>
+          <th>{% trans 'Final Mark' %}</th>
+          <th class="pe-4">{% trans 'Comment' %}</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        {% for course in section.courses %}
+        <tr class="position-relative">
+
+          <!-- Number -->
+          <td class="ps-4 text-muted fw-semibold">
+            {{ forloop.counter }}
+          </td>
+
+          <!-- Subject -->
+          <td>
+            <a href="{{ course.course.get_absolute_url }}"
+               class="stretched-link text-decoration-none fw-semibold text-dark">
+
+              {{ course.course.title }}
+            </a>
+
+            <div class="small text-muted">
+              {% trans "Click to view subject" %}
+            </div>
+          </td>
+
+          <!-- Code -->
+          <td>
+            <span class="badge bg-secondary-subtle text-dark border">
+              {{ course.course.code }}
+            </span>
+          </td>
+
+          <!-- Scores -->
+          <td>{{ course.assignment }}</td>
+          <td>{{ course.mid_exam }}</td>
+          <td>{{ course.quiz }}</td>
+          <td>{{ course.attendance }}</td>
+          <td>{{ course.final_exam }}</td>
+
+          <!-- Average -->
+          <td>
+            <span class="fw-semibold">
+              {{ course.get_test_average }}
+            </span>
+          </td>
+
+          <!-- Final Mark -->
+          <td>
+            {% if course.comment == 'PASS' %}
+              <span class="badge bg-success px-3 py-2">
+                {{ course.total }}
+              </span>
+            {% else %}
+              <span class="badge bg-danger px-3 py-2">
+                {{ course.total }}
+              </span>
+            {% endif %}
+          </td>
+
+          <!-- Comment -->
+          <td class="pe-4">
+
+            {% if course.comment == 'PASS' %}
+              <span class="text-success fw-semibold">
+                <i class="fas fa-check-circle me-1"></i>
+                {{ course.comment }}
+              </span>
+
+            {% elif course.comment %}
+              <span class="text-danger fw-semibold">
+                <i class="fas fa-times-circle me-1"></i>
+                {{ course.comment }}
+              </span>
+
+            {% else %}
+              <span class="text-muted fw-semibold">
+                <i class="fas fa-minus-circle me-1"></i>
+                {% trans "No Comment" %}
+              </span>
+            {% endif %}
+
+          </td>
+
+        </tr>
+
+        {% empty %}
+        <tr>
+          <td colspan="11" class="text-center py-5 text-muted">
+            <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
+            {% trans 'No assessment recorded for this quarter.' %}
+          </td>
+        </tr>
+        {% endfor %}
+
+      </tbody>
+
+      <!-- Footer Summary -->
+      <tfoot class="table-light">
+
+        <tr class="fw-bold">
+
+          <td colspan="3" class="ps-4">
+            <i class="fas fa-chart-pie text-primary me-2"></i>
+            {% trans 'Quarter Summary' %}
+          </td>
+
+          <td colspan="2">
+            {% trans 'Tests Avg' %}: {{ section.test_average }}
+          </td>
+
+          <td colspan="3">
+            {% trans 'Final Avg' %}: {{ section.average }}
+          </td>
+
+          <td colspan="2">
+            {% trans 'Subjects' %}: {{ section.total_subjects }}
+          </td>
+
+          <td>
+
+            {% if section.comment == 'PASS' %}
+              <span class="text-success">
+                {{ section.comment }}
+              </span>
+
+            {% elif section.comment %}
+              <span class="text-danger">
+                {{ section.comment }}
+              </span>
+
+            {% else %}
+              <span class="text-muted">
+                {% trans "No Comment" %}
+              </span>
+            {% endif %}
+
+          </td>
+
+        </tr>
+
+      </tfoot>
+
+    </table>
+  </div>
+
+</div>
+
 {% endfor %}
 
 {% endblock %}
