@@ -10,6 +10,7 @@ from django.contrib.auth.views import LogoutView
 #     LogoutView,
 # )
 from .views import (
+    health_check_view,
     profile,
     profile_single,
     admin_panel,
@@ -57,7 +58,7 @@ urlpatterns = [
     path("register/", register, name="register"),
     path("schools/signup/", school_signup, name="school_signup"),
     path('login/', custom_login_view, name='login'),
-
+    path('health/', health_check_view, name='health_check_view'),
     path('accounts/logout/', LogoutView.as_view(next_page='login'), name='logout'),
     # paths to pdf
     path(

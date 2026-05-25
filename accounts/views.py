@@ -140,6 +140,13 @@ def custom_login_view(request):
 
     return render(request, "registration/login.html")
 
+def health_check_view(request):
+    return render(request, "core/health_check.html", {
+        "status": "OK",
+        "message": "The application is running smoothly!"
+    })
+
+
 # ########################################################
 # Profile Views
 # ########################################################
@@ -393,8 +400,8 @@ def student_add_view(request):
             full_name = student.get_full_name
             email = student.email
 
-            # 🔐 IMPORTANT: retrieve password ONLY if your form generates it
-            raw_password = request.POST.get("password1", "1234")
+            #  IMPORTANT: retrieve password ONLY if your form generates it
+            raw_password = request.POST.get("password1")
 
             send_new_account_email(student, raw_password)
 
@@ -405,9 +412,9 @@ def student_add_view(request):
             )
 
             return redirect("student_list")
-        print("❌ FORM INVALID")
-        print(form.errors)              # 🔥 THIS IS WHAT YOU NEED
-        print(form.non_field_errors())  # 🔥 extra hidden errors
+        print(" FORM INVALID")
+        print(form.errors)              
+        print(form.non_field_errors())  
 
         messages.error(request, "Correct the error(s) below.")
         print("form not valid")

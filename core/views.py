@@ -11,11 +11,6 @@ from .forms import SessionForm, NewsAndEventsForm, SubjectForm
 from .models import NewsAndEvents, ActivityLog, Session, SchoolClass
 
 
-def health_check_view(request):
-    return render(request, "core/health_check.html", {
-        "status": "OK",
-        "message": "The application is running smoothly!"
-    })
 
 # =========================================================
 # NEWS & EVENTS

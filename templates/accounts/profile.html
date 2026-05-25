@@ -78,14 +78,7 @@
                     <p><strong>{% trans 'Last Name:' %}</strong> {{ user.last_name|title }}</p>
                     <p><strong>{% trans 'ID No.:' %}</strong> {{ user.username }}</p>
                 </div>
-                {% if user.is_student %}
-                <hr>
-                <p class="fw-bold"><i class="me-2 fas fa-graduation-cap"></i>{% trans 'Applicant Info' %}</p>
-                <div class="dashboard-description">
-                    <p><strong>{% trans 'School:' %} </strong>{% trans 'Maboee Arch-Bishop High School' %}</p>
-                    <p><strong>{% trans 'Level:' %} </strong>{{ level.level }}</p>
-                </div>
-                {% endif %}
+
     
                 <hr>
                 <p class="fw-bold"><i class="me-2 fas fa-phone-square-alt"></i>{% trans 'Contact Info' %}</p>

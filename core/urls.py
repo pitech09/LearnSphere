@@ -18,7 +18,6 @@ from .views import (
     subject_add_view,
     subject_update_view,
     subject_delete_view,
-    health_check_view
 )
 
 
@@ -41,6 +40,5 @@ urlpatterns = [
     path('add_subject/', subject_add_view, name='add_subject_view'),
     path('edit_subject/<int:pk>', subject_update_view, name='edit_subject_view'),
     path('delete_subject/<int:pk>', subject_delete_view, name='delete_subject_view'),
-    path('health/', health_check_view, name='health_check_view')
 
 ]
