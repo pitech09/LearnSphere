@@ -115,7 +115,7 @@ class TakenCourse(models.Model):
     comment = models.CharField(max_length=10, choices=COMMENT_CHOICES, blank=True, editable=False)
 
     def __str__(self):
-        return f"{self.course.title} - {self.student}"
+        return self.student.student.get_full_name()
 
     # =====================================================
     # TEST AVERAGE
