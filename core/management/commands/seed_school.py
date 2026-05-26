@@ -1,5 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
+import csv
+import os
 import random
 
 from django.core.management.base import BaseCommand
@@ -20,11 +22,13 @@ from course.models import Subject
 from result.models import TakenCourse
 
 
-# ================= CONFIG =================
-STRESS_MODE = True
+# =========================================================
+# CONFIG
+# =========================================================
 
-STUDENTS_PER_SCHOOL = 200
-TEACHERS_PER_SCHOOL = 12
+STUDENTS_PER_SCHOOL = 30
+TEACHERS_PER_SCHOOL = 8
+
 SUBJECT_POOL = [
     ("Mathematics", "MATH"),
     ("English", "ENG"),
@@ -35,7 +39,12 @@ SUBJECT_POOL = [
     ("Life Skills", "LS"),
 ]
 
-PLATFORM_OWNER = ("platform_owner", "PlatformOwner123!", "Platform", "Owner")
+PLATFORM_OWNER = (
+    "platform_owner",
+    "PlatformOwner123!",
+    "Platform",
+    "Owner",
+)
 
 SCHOOLS = [
     {
@@ -49,14 +58,24 @@ SCHOOLS = [
 ]
 
 
-# ================= COMMAND =================
+# =========================================================
+# COMMAND
+# =========================================================
+
 class Command(BaseCommand):
-    help = "FULL LMS Stress Seeder (single script)"
+
+    help = "LearnSphere LMS Stress Seeder"
 
     @transaction.atomic
     def handle(self, *args, **options):
 
         self.credentials = []
+
+        self.stdout.write("")
+        self.stdout.write(
+            self.style.SUCCESS("🚀 STARTING LEARNSPHERE STRESS SEED...")
+        )
+        self.stdout.write("")
 
         self.create_platform_owner()
 
@@ -64,30 +83,74 @@ class Command(BaseCommand):
             self.seed_school(school_data)
 
         self.print_credentials()
+        self.save_credentials_to_file()
 
-    # ================= SCHOOL =================
+        self.stdout.write("")
+        self.stdout.write(
+            self.style.SUCCESS("✅ SEEDING COMPLETE")
+        )
+        self.stdout.write("")
+
+    # =========================================================
+    # SCHOOL SEEDER
+    # =========================================================
+
     def seed_school(self, data):
 
         school = self.create_school(data)
 
+        self.stdout.write(
+            self.style.WARNING(f"\n🏫 Seeding {school.name}...")
+        )
+
         teachers = self.create_teachers(school)
-        classes = self.create_classes(school, teachers)
 
-        students = self.create_students(school, classes)
-        parents = self.create_parents(school, students)
+        classes = self.create_classes(
+            school=school,
+            teachers=teachers,
+        )
 
-        subjects = self.create_subjects(school, teachers)
+        students = self.create_students(
+            school=school,
+            classes=classes,
+        )
+
+        self.create_parents(
+            school=school,
+            students=students,
+        )
+
+        subjects = self.create_subjects(
+            school=school,
+            teachers=teachers,
+        )
 
         session = self.create_session(school)
-        term = self.create_term(school, session)
 
-        self.create_results(school, students, subjects)
-        self.create_fees(school, students, session, term)
+        term = self.create_term(
+            school=school,
+            session=session,
+        )
 
-        self.credentials.append((school.name, "SYSTEM", "STRESS MODE", "ACTIVE"))
+        self.create_results(
+            school=school,
+            students=students,
+            subjects=subjects,
+        )
 
-    # ================= SCHOOL =================
+        self.create_fees(
+            school=school,
+            students=students,
+            session=session,
+            term=term,
+        )
+
+    # =========================================================
+    # SCHOOL
+    # =========================================================
+
     def create_school(self, data):
+
         school, _ = School.objects.update_or_create(
             subdomain=data["subdomain"],
             defaults={
@@ -105,13 +168,18 @@ class Command(BaseCommand):
                 "current_quarter": "Q1",
             },
         )
+
         return school
 
-    # ================= PLATFORM OWNER =================
+    # =========================================================
+    # PLATFORM OWNER
+    # =========================================================
+
     def create_platform_owner(self):
+
         username, password, first, last = PLATFORM_OWNER
 
-        user, created = User.objects.update_or_create(
+        user, _ = User.objects.update_or_create(
             username=username,
             defaults={
                 "school": None,
@@ -125,23 +193,37 @@ class Command(BaseCommand):
             },
         )
 
-        if created:
-            user.set_password(password)
-            user.save()
+        user.set_password(password)
+        user.save()
 
-    # ================= TEACHERS =================
+        self.credentials.append(
+            ("Platform", "Owner", username, password)
+        )
+
+    # =========================================================
+    # TEACHERS
+    # =========================================================
+
     def create_teachers(self, school):
+
         teachers = []
 
         for i in range(TEACHERS_PER_SCHOOL):
 
-            user, created = User.objects.update_or_create(
-                username=f"{school.subdomain}_teacher_{i}",
+            username = f"{school.subdomain}_teacher_{i}"
+            password = "Teacher123!"
+
+            self.stdout.write(
+                f"👨‍🏫 Creating teacher {i + 1}/{TEACHERS_PER_SCHOOL}"
+            )
+
+            user, _ = User.objects.update_or_create(
+                username=username,
                 defaults={
                     "school": school,
                     "first_name": f"Teacher{i}",
                     "last_name": "Staff",
-                    "email": f"t{i}@{school.subdomain}.test",
+                    "email": f"{username}@test.com",
                     "phone": "+26650000000",
                     "is_staff": True,
                     "is_lecturer": True,
@@ -149,28 +231,38 @@ class Command(BaseCommand):
                 },
             )
 
-            if created:
-                user.set_password("Teacher123!")
-                user.save()
+            user.set_password(password)
+            user.save()
 
             teachers.append(user)
 
+            self.credentials.append(
+                (school.name, "Teacher", username, password)
+            )
+
         return teachers
 
-    # ================= CLASSES =================
+    # =========================================================
+    # CLASSES
+    # =========================================================
+
     def create_classes(self, school, teachers):
 
         levels = ["F1", "F2", "F3", "F4", "F5"]
         streams = ["A", "B"]
 
         classes = []
-        t = 0
+
+        teacher_index = 0
 
         for level in levels:
             for stream in streams:
 
-                teacher = teachers[t % len(teachers)]
-                t += 1
+                teacher = teachers[
+                    teacher_index % len(teachers)
+                ]
+
+                teacher_index += 1
 
                 school_class, _ = SchoolClass.objects.update_or_create(
                     school=school,
@@ -186,21 +278,37 @@ class Command(BaseCommand):
 
         return classes
 
-    # ================= STUDENTS =================
+    # =========================================================
+    # STUDENTS
+    # =========================================================
+
     def create_students(self, school, classes):
 
         students = []
 
         for i in range(STUDENTS_PER_SCHOOL):
 
-            user = User.objects.create(
-                username=f"{school.subdomain}_student_{i}",
-                first_name=f"Student{i}",
-                last_name="Learner",
-                school=school,
-                is_student=True,
+            username = f"{school.subdomain}_student_{i}"
+            password = "Student123!"
+
+            self.stdout.write(
+                f"🎓 Creating student {i + 1}/{STUDENTS_PER_SCHOOL}"
             )
-            user.set_password("Student123!")
+
+            user, _ = User.objects.update_or_create(
+                username=username,
+                defaults={
+                    "school": school,
+                    "first_name": f"Student{i}",
+                    "last_name": "Learner",
+                    "email": f"{username}@test.com",
+                    "phone": "+26650000000",
+                    "is_student": True,
+                    "is_active": True,
+                },
+            )
+
+            user.set_password(password)
             user.save()
 
             assigned_class = random.choice(classes)
@@ -215,23 +323,41 @@ class Command(BaseCommand):
 
             students.append(student)
 
+            self.credentials.append(
+                (school.name, "Student", username, password)
+            )
+
         return students
 
-    # ================= PARENTS =================
-    def create_parents(self, school, students):
+    # =========================================================
+    # PARENTS
+    # =========================================================
 
-        parents = []
+    def create_parents(self, school, students):
 
         for i, student in enumerate(students):
 
-            user = User.objects.create(
-                username=f"{school.subdomain}_parent_{i}",
-                first_name=f"Parent{i}",
-                last_name="Guardian",
-                school=school,
-                is_parent=True,
+            username = f"{school.subdomain}_parent_{i}"
+            password = "Parent123!"
+
+            self.stdout.write(
+                f"👨‍👩‍👧 Creating parent {i + 1}/{len(students)}"
             )
-            user.set_password("Parent123!")
+
+            user, _ = User.objects.update_or_create(
+                username=username,
+                defaults={
+                    "school": school,
+                    "first_name": f"Parent{i}",
+                    "last_name": "Guardian",
+                    "email": f"{username}@test.com",
+                    "phone": "+26650000000",
+                    "is_parent": True,
+                    "is_active": True,
+                },
+            )
+
+            user.set_password(password)
             user.save()
 
             Parent.objects.update_or_create(
@@ -242,11 +368,14 @@ class Command(BaseCommand):
                 },
             )
 
-            parents.append(user)
+            self.credentials.append(
+                (school.name, "Parent", username, password)
+            )
 
-        return parents
+    # =========================================================
+    # SUBJECTS
+    # =========================================================
 
-    # ================= SUBJECTS =================
     def create_subjects(self, school, teachers):
 
         subjects = []
@@ -268,25 +397,43 @@ class Command(BaseCommand):
 
         return subjects
 
-    # ================= SESSION / TERM =================
+    # =========================================================
+    # SESSION
+    # =========================================================
+
     def create_session(self, school):
+
         session, _ = Session.objects.update_or_create(
             school=school,
             session="2026",
-            defaults={"is_current": True},
+            defaults={
+                "is_current": True,
+            },
         )
+
         return session
 
+    # =========================================================
+    # TERM
+    # =========================================================
+
     def create_term(self, school, session):
+
         term, _ = Term.objects.update_or_create(
             school=school,
             session=session,
             name="T1",
-            defaults={"is_current": True},
+            defaults={
+                "is_current": True,
+            },
         )
+
         return term
 
-    # ================= RESULTS (STRESS BULK) =================
+    # =========================================================
+    # RESULTS
+    # =========================================================
+
     def create_results(self, school, students, subjects):
 
         bulk = []
@@ -308,32 +455,44 @@ class Command(BaseCommand):
                     )
                 )
 
-        TakenCourse.objects.bulk_create(bulk, batch_size=500)
+        TakenCourse.objects.bulk_create(
+            bulk,
+            batch_size=100,
+        )
 
-    # ================= FINANCE =================
+    # =========================================================
+    # FEES
+    # =========================================================
+
     def create_fees(self, school, students, session, term):
 
         fees = []
-        payments = []
 
         for student in students:
 
-            fee = SchoolFee(
-                school=school,
-                student=student,
-                session=session,
-                term=term,
-                description="Term 1 fees",
-                amount_due=Decimal("1500.00"),
-                discount=Decimal("0.00"),
-                due_date=timezone.localdate() + timedelta(days=14),
-                status=FEE_STATUS_PARTIAL,
+            fees.append(
+                SchoolFee(
+                    school=school,
+                    student=student,
+                    session=session,
+                    term=term,
+                    description="Term 1 fees",
+                    amount_due=Decimal("1500.00"),
+                    discount=Decimal("0.00"),
+                    due_date=timezone.localdate() + timedelta(days=14),
+                    status=FEE_STATUS_PARTIAL,
+                )
             )
-            fees.append(fee)
 
-        fee_objs = SchoolFee.objects.bulk_create(fees, batch_size=500)
+        fee_objs = SchoolFee.objects.bulk_create(
+            fees,
+            batch_size=100,
+        )
+
+        payments = []
 
         for fee in fee_objs:
+
             payments.append(
                 FeePayment(
                     fee=fee,
@@ -344,11 +503,98 @@ class Command(BaseCommand):
                 )
             )
 
-        FeePayment.objects.bulk_create(payments, batch_size=500)
+        FeePayment.objects.bulk_create(
+            payments,
+            batch_size=100,
+        )
 
-    # ================= OUTPUT =================
+    # =========================================================
+    # PRINT CREDENTIALS
+    # =========================================================
+
     def print_credentials(self):
-        self.stdout.write(self.style.SUCCESS(" STRESS SEED COMPLETE"))
 
-        for item in self.credentials:
-            self.stdout.write(str(item))
+        self.stdout.write("")
+        self.stdout.write("=" * 120)
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "📋 GENERATED LOGIN CREDENTIALS"
+            )
+        )
+
+        self.stdout.write("=" * 120)
+
+        for school, role, username, password in self.credentials:
+
+            self.stdout.write(
+                f"{school:<30} | "
+                f"{role:<10} | "
+                f"{username:<40} | "
+                f"{password}"
+            )
+
+        self.stdout.write("=" * 120)
+
+    # =========================================================
+    # EXPORT CREDENTIALS
+    # =========================================================
+
+    def save_credentials_to_file(self):
+
+        output_dir = os.path.join(
+            "media",
+            "seed_credentials",
+        )
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        txt_file = os.path.join(
+            output_dir,
+            "credentials.txt",
+        )
+
+        csv_file = os.path.join(
+            output_dir,
+            "credentials.csv",
+        )
+
+        # TXT
+        with open(txt_file, "w", encoding="utf-8") as f:
+
+            f.write("LEARNSPHERE GENERATED CREDENTIALS\n")
+            f.write("=" * 120)
+            f.write("\n\n")
+
+            for school, role, username, password in self.credentials:
+
+                f.write(
+                    f"{school:<30} | "
+                    f"{role:<10} | "
+                    f"{username:<40} | "
+                    f"{password}\n"
+                )
+
+        # CSV
+        with open(csv_file, "w", newline="", encoding="utf-8") as f:
+
+            writer = csv.writer(f)
+
+            writer.writerow([
+                "School",
+                "Role",
+                "Username",
+                "Password",
+            ])
+
+            for row in self.credentials:
+                writer.writerow(row)
+
+        self.stdout.write("")
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"📁 Credentials exported:\n"
+                f"   - {txt_file}\n"
+                f"   - {csv_file}"
+            )
+        )

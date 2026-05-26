@@ -4,7 +4,18 @@ from .utils import (
     send_new_account_sms,
 )
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
+from accounts.models import Student
+from core.datastore.loaders import SchoolDataLoader
+
+
+@receiver(post_save, sender=Student)
+def refresh_student_cache(sender, instance, **kwargs):
+
+    SchoolDataLoader.refresh_student(instance)
+    
 def post_save_account_receiver(instance=None, created=False, *args, **kwargs):
     """
     Send SMS notification for accounts that need generated credentials.
