@@ -5,6 +5,7 @@ High School LMS Version (Clean Structure)
 
 import os
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 import course
@@ -20,20 +21,38 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # -------------------------------------------------
 # SECURITY
 # -------------------------------------------------
+def env_bool(name, default=False):
+    value = config(name, default=default)
+    if isinstance(value, bool):
+        return value
+    value = str(value).strip().lower()
+    if value in {"1", "true", "yes", "on", "debug", "dev", "development"}:
+        return True
+    if value in {"0", "false", "no", "off", "release", "prod", "production", ""}:
+        return False
+    return default
+
+
+def env_list(name, default):
+    value = config(name, default=default)
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [item.strip() for item in str(value).split(",") if item.strip()]
+
+
+DEBUG = env_bool("DEBUG", default=False)
+
 SECRET_KEY = config(
     "SECRET_KEY",
-    default="o!ld8nrt4vc*h1zoey*wj48x*q0#ss12h=+zh)kk^6b3aygg=!"
+    default="unsafe-dev-only-secret-key" if DEBUG else "",
 )
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is disabled.")
 
-DEBUG = config("DEBUG", default=False, cast=bool)
-
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "propertyempire-vour.onrender.com",
-    ".onrender.com",
-
-]
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,learnsphere.onrender.com",
+)
 
 
 # -------------------------------------------------
@@ -85,6 +104,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
 
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.middleware.SchoolSuspensionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -107,6 +127,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.school_trial",
             ],
         },
     },
@@ -182,6 +203,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+WHITENOISE_MAX_AGE = 31536000 if not DEBUG else 0
 
 
 # -------------------------------------------------
@@ -190,12 +212,15 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = config("DATA_UPLOAD_MAX_MEMORY_SIZE", default=5 * 1024 * 1024, cast=int)
+FILE_UPLOAD_MAX_MEMORY_SIZE = config("FILE_UPLOAD_MAX_MEMORY_SIZE", default=5 * 1024 * 1024, cast=int)
+
 
 # -------------------------------------------------
 # LOGIN / LOGOUT FLOW
 # -------------------------------------------------
 LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/"
 
 
@@ -206,9 +231,39 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://propertyempire.onrender.com",
-]
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://learnsphere.onrender.com",
+)
+
+
+# -------------------------------------------------
+# SECURITY HARDENING
+# -------------------------------------------------
+FORCE_HTTPS = env_bool("FORCE_HTTPS", default=False)
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = FORCE_HTTPS
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = FORCE_HTTPS
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=FORCE_HTTPS)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+
+if FORCE_HTTPS:
+    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=31536000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", default=True)
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "learnsphere-default-cache",
+    }
+}
 
 
 
@@ -218,6 +273,15 @@ CSRF_TRUSTED_ORIGINS = [
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 SENDGRID_API_KEY=config("SENDGRID_API_KEY")
 DEFAULT_FROM_EMAIL=config("DEFAULT_FROM_EMAIL")
+
+# =============================
+# TextBee SMS config
+# Leave TEXTBEE_API_KEY or TEXTBEE_DEVICE_ID blank in development to log SMS
+# messages instead of calling a live provider.
+
+TEXTBEE_API_KEY = config("TEXTBEE_API_KEY", default="")
+TEXTBEE_DEVICE_ID = config("TEXTBEE_DEVICE_ID", default="")
+TEXTBEE_BASE_URL = config("TEXTBEE_BASE_URL", default="https://api.textbee.dev")
 
 
 # -------------------------------------------------
@@ -235,7 +299,7 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-            "level": "DEBUG",
+            "level": "DEBUG" if DEBUG else "INFO",
         }
     },
     "root": {
@@ -283,7 +347,6 @@ GENDER = (
     ("M", _("Male")),
     ("F", _("Female")),
 )
-
 
 # -------------------------------------------------
 # OPTIONAL PAYMENTS (FUTURE LMS FEATURE)

@@ -1,5 +1,5 @@
 from django.urls import path
-
+from django.views.generic import TemplateView
 from .views import (
     home_view,
     post_add,
@@ -10,6 +10,16 @@ from .views import (
     session_update_view,
     session_delete_view,
     dashboard_view,
+    principal_dashboard,
+    teacher_dashboard,
+    student_dashboard,
+    current_quarter_update,
+    platform_owner_dashboard,
+    platform_school_reactivate,
+    platform_school_suspend,
+    platform_school_update,
+    platform_suspend_overdue_schools,
+    platform_schools_dashboard,
     class_list_view,
     class_add_view,
     class_update_view,
@@ -32,6 +42,16 @@ urlpatterns = [
     path("session/<int:pk>/edit/", session_update_view, name="edit_session"),
     path("session/<int:pk>/delete/", session_delete_view, name="delete_session"),
     path("dashboard/", dashboard_view, name="dashboard"),
+    path("dashboard/principal/", principal_dashboard, name="principal_dashboard"),
+    path("dashboard/teacher/", teacher_dashboard, name="teacher_dashboard"),
+    path("dashboard/student/", student_dashboard, name="student_dashboard"),
+    path("dashboard/platform/", platform_owner_dashboard, name="platform_owner_dashboard"),
+    path("dashboard/schools/", platform_schools_dashboard, name="platform_schools_dashboard"),
+    path("dashboard/schools/<int:pk>/", platform_school_update, name="platform_school_update"),
+    path("dashboard/schools/<int:pk>/suspend/", platform_school_suspend, name="platform_school_suspend"),
+    path("dashboard/schools/<int:pk>/reactivate/", platform_school_reactivate, name="platform_school_reactivate"),
+    path("dashboard/schools/suspend-overdue/", platform_suspend_overdue_schools, name="platform_suspend_overdue_schools"),
+    path("settings/current-quarter/", current_quarter_update, name="current_quarter_update"),
     path("class/", class_list_view, name="class_list"),
     path("class/add/", class_add_view, name="add_class"),
     path("class/<int:pk>/edit/", class_update_view, name="edit_class"),
@@ -40,5 +60,6 @@ urlpatterns = [
     path('add_subject/', subject_add_view, name='add_subject_view'),
     path('edit_subject/<int:pk>', subject_update_view, name='edit_subject_view'),
     path('delete_subject/<int:pk>', subject_delete_view, name='delete_subject_view'),
+    path("legal/", TemplateView.as_view(template_name="legal/privacy_terms.html"), name="legal"),
 
 ]

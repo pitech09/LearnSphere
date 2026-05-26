@@ -36,13 +36,21 @@ class Subject(models.Model):
     school = models.ForeignKey("core.School", on_delete=models.CASCADE, null=True, blank=True)
     slug = models.SlugField(unique=True, blank=True)
     title = models.CharField(max_length=200)
-    code = models.CharField(max_length=200, unique=True)
+    code = models.CharField(max_length=200)
     summary = models.TextField(max_length=200, blank=True)
 
     class_assigned = models.ForeignKey('core.SchoolClass', on_delete=models.CASCADE, null=True, blank=True)
     teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     objects = CourseManager()
+
+    class Meta:
+        unique_together = ("school", "class_assigned", "code")
+        indexes = [
+            models.Index(fields=["school", "class_assigned"], name="subject_school_class_idx"),
+            models.Index(fields=["school", "teacher"], name="subject_school_teacher_idx"),
+            models.Index(fields=["school", "code"], name="subject_school_code_idx"),
+        ]
 
     def __str__(self):
         return f"{self.title} ({self.code})"
@@ -115,6 +123,11 @@ class SubjectAllocation(models.Model):
     def get_absolute_url(self):
         return reverse("edit_allocated_subject", kwargs={"pk": self.pk})
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["teacher", "session"], name="alloc_teacher_session_idx"),
+        ]
+
 # =========================================================
 # UPLOADS
 # =========================================================
@@ -137,6 +150,11 @@ class Upload(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["subject", "-upload_time"], name="upload_subject_time_idx"),
+        ]
 
 
 @receiver(post_save, sender=Upload)
@@ -181,6 +199,11 @@ class UploadVideo(models.Model):
             "video_single",
             kwargs={"slug": self.subject.slug, "video_slug": self.slug},
         )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["subject", "-timestamp"], name="video_subject_time_idx"),
+        ]
 
 
 @receiver(pre_save, sender=UploadVideo)

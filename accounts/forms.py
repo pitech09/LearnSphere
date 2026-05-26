@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django import forms
 from django.db import transaction
+from django.utils import timezone
 from django.contrib.auth.forms import (
     UserCreationForm,
     UserChangeForm,
@@ -72,6 +75,7 @@ class SchoolSignupForm(UserCreationForm):
             email=self.cleaned_data.get("school_email") or self.cleaned_data.get("email"),
             phone=self.cleaned_data.get("school_phone") or self.cleaned_data.get("phone", ""),
             address=self.cleaned_data.get("school_address", ""),
+            trial_ends_on=timezone.localdate() + timedelta(days=7),
         )
         user = super().save(commit=False)
         user.school = school
@@ -552,23 +556,24 @@ class ParentAddForm(UserCreationForm):
             self.fields["student"].queryset = Student.objects.filter(student__school=school)
 
     @transaction.atomic()
-    def save(self):
+    def save(self, commit=True):
         user = super().save(commit=False)
         user.is_parent = True
+        user.school = self.cleaned_data.get("student").student.school
         user.first_name = self.cleaned_data.get("first_name")
         user.last_name = self.cleaned_data.get("last_name")
         user.address = self.cleaned_data.get("address")
         user.phone = self.cleaned_data.get("phone")
         user.email = self.cleaned_data.get("email")
-        user.save()
-        parent = Parent.objects.create(
-            user=user,
-            student=self.cleaned_data.get("student"),
-            first_name=self.cleaned_data.get("first_name"),
-            last_name=self.cleaned_data.get("last_name"),
-            phone=self.cleaned_data.get("phone"),
-            email=self.cleaned_data.get("email"),
-            relation_ship=self.cleaned_data.get("relation_ship"),
-        )
-        parent.save()
+        if commit:
+            user.save()
+            Parent.objects.create(
+                user=user,
+                student=self.cleaned_data.get("student"),
+                first_name=self.cleaned_data.get("first_name"),
+                last_name=self.cleaned_data.get("last_name"),
+                phone=self.cleaned_data.get("phone"),
+                email=self.cleaned_data.get("email"),
+                relation_ship=self.cleaned_data.get("relation_ship"),
+            )
         return user

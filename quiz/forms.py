@@ -3,7 +3,15 @@ from django.forms.widgets import RadioSelect, Textarea
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.utils.translation import gettext_lazy as _
 from django.forms.models import inlineformset_factory
-from .models import Question, Quiz, MCQuestion, Choice
+from .models import EssayQuestion, Question, Quiz, MCQuestion, Choice
+
+
+QUESTION_TYPE_MCQ = "mcq"
+QUESTION_TYPE_ESSAY = "essay"
+QUESTION_TYPE_CHOICES = (
+    (QUESTION_TYPE_MCQ, _("Multiple choice")),
+    (QUESTION_TYPE_ESSAY, _("Short answers / Essay")),
+)
 
 
 class QuestionForm(forms.Form):
@@ -11,7 +19,9 @@ class QuestionForm(forms.Form):
         super(QuestionForm, self).__init__(*args, **kwargs)
         choice_list = [x for x in question.get_choices_list()]
         self.fields["answers"] = forms.ChoiceField(
-            choices=choice_list, widget=RadioSelect
+            choices=choice_list,
+            widget=RadioSelect,
+            label=_("Choose one answer"),
         )
 
 
@@ -19,11 +29,26 @@ class EssayForm(forms.Form):
     def __init__(self, question, *args, **kwargs):
         super(EssayForm, self).__init__(*args, **kwargs)
         self.fields["answers"] = forms.CharField(
-            widget=Textarea(attrs={"style": "width:100%"})
+            label=_("Your answer"),
+            widget=Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 8,
+                    "placeholder": _("Type your short answer or essay response here."),
+                }
+            ),
         )
 
 
 class QuizAddForm(forms.ModelForm):
+    question_type = forms.ChoiceField(
+        choices=QUESTION_TYPE_CHOICES,
+        initial=QUESTION_TYPE_MCQ,
+        required=False,
+        label=_("Question type"),
+        help_text=_("Choose the first question type to add after saving this assessment."),
+    )
+
     class Meta:
         model = Quiz
         exclude = []
@@ -41,6 +66,7 @@ class QuizAddForm(forms.ModelForm):
             self.fields["questions"].initial = (
                 self.instance.question_set.all().select_subclasses()
             )
+            self.fields.pop("question_type", None)
 
     def save(self, commit=True):
         quiz = super(QuizAddForm, self).save(commit=False)
@@ -53,6 +79,12 @@ class QuizAddForm(forms.ModelForm):
 class MCQuestionForm(forms.ModelForm):
     class Meta:
         model = MCQuestion
+        exclude = ()
+
+
+class EssayQuestionForm(forms.ModelForm):
+    class Meta:
+        model = EssayQuestion
         exclude = ()
 
 

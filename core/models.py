@@ -35,11 +35,20 @@ SCHOOL_STATUS_CHOICES = (
 SCHOOL_PLAN_STARTER = "starter"
 SCHOOL_PLAN_GROWTH = "growth"
 SCHOOL_PLAN_ENTERPRISE = "enterprise"
+SCHOOL_PLAN_UNLIMITED = "unlimited"
 
 SCHOOL_PLAN_CHOICES = (
     (SCHOOL_PLAN_STARTER, _("Starter")),
     (SCHOOL_PLAN_GROWTH, _("Growth")),
     (SCHOOL_PLAN_ENTERPRISE, _("Enterprise")),
+    (SCHOOL_PLAN_UNLIMITED, _("Unlimited (One-Time)")),
+)
+
+SCHOOL_QUARTER_CHOICES = (
+    ("Q1", _("Quarter 1")),
+    ("Q2", _("Quarter 2")),
+    ("Q3", _("Quarter 3")),
+    ("Q4", _("Quarter 4")),
 )
 
 
@@ -53,6 +62,13 @@ class School(models.Model):
     address = models.CharField(max_length=220, blank=True)
     status = models.CharField(max_length=20, choices=SCHOOL_STATUS_CHOICES, default=SCHOOL_STATUS_TRIAL)
     plan = models.CharField(max_length=20, choices=SCHOOL_PLAN_CHOICES, default=SCHOOL_PLAN_STARTER)
+    max_students = models.PositiveIntegerField(default=100, verbose_name=_("Max Students"))
+    current_quarter = models.CharField(max_length=2, choices=SCHOOL_QUARTER_CHOICES, default="Q1")
+    subscription_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_unlimited = models.BooleanField(default=False, verbose_name=_("Unlimited (One-Time Payment)"))
+    last_payment_on = models.DateField(blank=True, null=True)
+    next_payment_due_on = models.DateField(blank=True, null=True)
+    suspended_reason = models.TextField(blank=True)
     trial_ends_on = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -60,9 +76,21 @@ class School(models.Model):
 
     class Meta:
         ordering = ("name",)
+        indexes = [
+            models.Index(fields=["status", "is_active"], name="school_status_active_idx"),
+            models.Index(fields=["next_payment_due_on"], name="school_next_due_idx"),
+        ]
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_suspended(self):
+        return self.status == SCHOOL_STATUS_SUSPENDED or not self.is_active
+
+    @property
+    def payment_is_overdue(self):
+        return bool(self.next_payment_due_on and self.next_payment_due_on < timezone.localdate())
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -75,6 +103,17 @@ class School(models.Model):
             self.slug = slug
         if not self.subdomain:
             self.subdomain = self.slug
+        # Auto-set pricing and limits based on plan
+        plan_config = {
+            SCHOOL_PLAN_STARTER: {"max_students": 100, "amount": 250, "unlimited": False},
+            SCHOOL_PLAN_GROWTH: {"max_students": 300, "amount": 400, "unlimited": False},
+            SCHOOL_PLAN_ENTERPRISE: {"max_students": 800, "amount": 750, "unlimited": False},
+            SCHOOL_PLAN_UNLIMITED: {"max_students": 0, "amount": 10000, "unlimited": True},
+        }
+        config = plan_config.get(self.plan, plan_config[SCHOOL_PLAN_STARTER])
+        self.max_students = config["max_students"]
+        self.subscription_amount = config["amount"]
+        self.is_unlimited = config["unlimited"]
         super().save(*args, **kwargs)
 
 POST_NEWS = "news"
@@ -120,6 +159,12 @@ class NewsAndEvents(models.Model):
     def __str__(self):
         return self.title
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["school", "-updated_at"], name="news_school_updated_idx"),
+            models.Index(fields=["school", "posted_as"], name="news_school_type_idx"),
+        ]
+
 
 # =========================================================
 # 📅 SESSION (ACADEMIC YEAR)
@@ -131,8 +176,6 @@ class Session(models.Model):
     """
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
     session = models.CharField(max_length=200)
-
-    session = models.CharField(max_length=200, unique=True)
     is_current = models.BooleanField(default=False)
     next_session_begins = models.DateField(null=True, blank=True)
 
@@ -141,6 +184,9 @@ class Session(models.Model):
 
     class Meta:
         unique_together = ("school", "session")
+        indexes = [
+            models.Index(fields=["school", "is_current"], name="session_school_current_idx"),
+        ]
 
 
 # =========================================================
@@ -164,6 +210,12 @@ class Term(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.session.session}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["school", "is_current"], name="term_school_current_idx"),
+            models.Index(fields=["school", "session"], name="term_school_session_idx"),
+        ]
 
 
 # =========================================================
@@ -234,7 +286,7 @@ def log_term_save(sender, instance, created, **kwargs):
 # =========================================================
 class SchoolClass(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=50, unique=True)  # e.g. F1A, F2B
+    name = models.CharField(max_length=50)  # e.g. Form 1A, Form 1B
     level = models.CharField(max_length=10)  # e.g. F1, F2, F3
     class_teacher = models.ForeignKey(
         User,
@@ -249,7 +301,10 @@ class SchoolClass(models.Model):
         return self.name
 
     class Meta:
-        unique_together = ("school", "name")
+        unique_together = ("school", "level", "name")
+        indexes = [
+            models.Index(fields=["school", "level", "is_active"], name="class_school_level_idx"),
+        ]
 
 
 FEE_STATUS_PENDING = "pending"
@@ -334,6 +389,11 @@ class SchoolFee(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["school", "status", "due_date"], name="fee_school_status_due_idx"),
+            models.Index(fields=["school", "student"], name="fee_school_student_idx"),
+            models.Index(fields=["school", "session", "term"], name="fee_school_period_idx"),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.description}"
@@ -382,6 +442,10 @@ class FeePayment(models.Model):
 
     class Meta:
         ordering = ("-paid_on", "-id")
+        indexes = [
+            models.Index(fields=["fee", "-paid_on"], name="payment_fee_paid_idx"),
+            models.Index(fields=["received_by", "-paid_on"], name="payment_receiver_idx"),
+        ]
 
     def __str__(self):
         return f"{self.fee} - {self.amount}"
@@ -415,6 +479,10 @@ class AttendanceRecord(models.Model):
     class Meta:
         ordering = ("-date", "school_class__name", "student__student__last_name")
         unique_together = ("student", "school_class", "subject", "date")
+        indexes = [
+            models.Index(fields=["school", "-date", "status"], name="att_school_date_status_idx"),
+            models.Index(fields=["school", "school_class", "date"], name="att_school_class_date_idx"),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.date} - {self.status}"
@@ -438,6 +506,10 @@ class Exam(models.Model):
 
     class Meta:
         ordering = ("-starts_on", "name")
+        indexes = [
+            models.Index(fields=["school", "starts_on", "status"], name="exam_school_start_idx"),
+            models.Index(fields=["school", "school_class"], name="exam_school_class_idx"),
+        ]
 
     def __str__(self):
         return f"{self.name} - {self.school_class}"
@@ -502,6 +574,10 @@ class MarkEntry(models.Model):
     class Meta:
         ordering = ("student__student__last_name", "subject__title")
         unique_together = ("student", "subject", "exam")
+        indexes = [
+            models.Index(fields=["school", "status", "subject"], name="mark_school_status_idx"),
+            models.Index(fields=["school", "student"], name="mark_school_student_idx"),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.subject} ({self.final_mark})"
@@ -538,6 +614,10 @@ class TimetableEntry(models.Model):
     class Meta:
         ordering = ("school_class__name", "day", "start_time")
         unique_together = ("school_class", "day", "start_time")
+        indexes = [
+            models.Index(fields=["school", "school_class", "day"], name="time_school_class_day_idx"),
+            models.Index(fields=["school", "teacher", "day"], name="time_school_teacher_idx"),
+        ]
 
     def __str__(self):
         return f"{self.school_class} - {self.day} - {self.subject}"

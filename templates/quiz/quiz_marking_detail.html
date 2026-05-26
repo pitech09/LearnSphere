@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
+{% load quiz_tags %}
 {% block title %}
 {% trans "Result of" %} {{ sitting.quiz.title }} {% trans "for" %} {{ sitting.user }} | {% trans 'Learning management system' %}
 {% endblock %}
@@ -23,7 +24,10 @@
 <hr>
 <p><b>{% trans "User" %}:</b> {{ sitting.user }}</p>
 <p><b>{% trans "Completed" %}:</b> {{ sitting.end|date }}</p>
-<p><b>{% trans "Score" %}:</b> {{ sitting.get_percent_correct }}%</p>
+<p><b>{% trans "Score" %}:</b> {{ sitting.get_current_score }} / {{ sitting.get_max_score }} ({{ sitting.get_percent_correct }}%)</p>
+{% if sitting.has_unmarked_questions %}
+<p class="alert alert-warning">{% trans "This assessment has questions waiting for manual marking." %}</p>
+{% endif %}
 <!-- <p><b>{% trans "Start" %}:</b> {{ sitting.start }}</p>
 <p><b>{% trans "End" %}:</b> {{ sitting.end }}</p> -->
 
@@ -33,37 +37,42 @@
 	<tr>
 	  <th>{% trans "Question" %}</th>
 	  <th>{% trans "User answer" %}</th>
-	  <th></th>
+	  <th>{% trans "Marks" %}</th>
+	  <th>{% trans "Feedback" %}</th>
 	  <th></th>
 	</tr>
   </thead>
 
   <tbody>
-{% for question in questions %}
+{% for row in question_rows %}
+  {% with question=row.question grade=row.grade %}
 
 	<tr>
       <td>
         {{ question.content }}
+        <div class="text-muted small">{{ question.marks }} {% trans "marks available" %}</div>
         {% if question.figure %}
         <div style="max-width: 100px;"><img src="{{ question.figure.url }}" alt="{{ question.figure }}" width="100px"/></div>
         {% endif %}
       </td>
-	  <td>{{ question }}</td>
 	  <td>
-		{% if question.id in sitting.get_incorrect_questions %}
-		  <p>{% trans "incorrect" %}</p>
-		{% else %}
-		  <p>{% trans "Correct" %}</p>
-		{% endif %}
+        {{ question|answer_choice_to_string:row.user_answer }}
 	  </td>
 	  <td>
-		<form action="" method="POST">{% csrf_token %}
-		  <input type="hidden" name="qid" value="{{ question.id }}">
-		  <button type="submit" class="btn btn-sm btn-secondary">{% trans "Toggle whether correct" %}</button>
-		</form>
+          <input class="form-control" form="grade-{{ question.id }}" type="number" name="awarded_marks" min="0" max="{{ question.marks }}" value="{{ grade.awarded_marks|default_if_none:'' }}" required>
+      </td>
+      <td>
+          <textarea class="form-control" form="grade-{{ question.id }}" name="feedback" rows="2">{{ grade.feedback }}</textarea>
+      </td>
+      <td>
+        <form id="grade-{{ question.id }}" action="" method="POST">{% csrf_token %}
+          <input type="hidden" name="qid" value="{{ question.id }}">
+        </form>
+		<button type="submit" form="grade-{{ question.id }}" class="btn btn-sm btn-secondary">{% trans "Save mark" %}</button>
 	  </td>
 	</tr>
 
+  {% endwith %}
 {% endfor %}
 
   </tbody>

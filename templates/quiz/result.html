@@ -96,8 +96,13 @@
 	  <strong>{{ quiz.title }}</strong></p>
 
 	<p class="lead text-center">
-	  {% trans "You answered" %} {{ score }} {% trans "questions correctly out of" %} {{ max_score }}, {% trans "giving you" %} {{ percent }}{% trans "% correct" %}
+	  {% trans "You scored" %} {{ score }} {% trans "out of" %} {{ max_score }} {% trans "marks" %}, {% trans "giving you" %} {{ percent }}{% trans "% correct" %}
     </p>
+    {% if sitting.has_unmarked_questions %}
+    <p class="alert alert-warning text-center">
+      {% trans "Your short answer / essay responses were submitted and require teacher marking before the final score is complete." %}
+    </p>
+    {% endif %}
 
     <div class="score-wrapper mx-auto">
       <div class="score-wrapper-text">{{ percent }}%</div>

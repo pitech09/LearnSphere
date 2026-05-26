@@ -12,7 +12,7 @@
 	</ol>
 </nav>
 
-<div class="title-1">{% trans 'Quiz form for' %} {{ course|truncatechars:15 }}</div>
+<div class="title-1">{% trans 'Assessment form for' %} {{ course|truncatechars:15 }}</div>
 <br><br>
 
 <div class="container">
@@ -30,6 +30,9 @@
                             </div>                    
                             {{ form.category|as_crispy_field }}                    
                             {{ form.title|as_crispy_field }}
+                            {% if form.question_type %}
+                                {{ form.question_type|as_crispy_field }}
+                            {% endif %}
                             <!-- <div class="mb-2">
                                 <label for="max_questions">{{ form.max_questions.label }}</label>
                                 <input class="form-control" type="number" name="max_questions" min="0" id="id_max_questions">

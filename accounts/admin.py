@@ -38,6 +38,11 @@ class UserAdmin(admin.ModelAdmin):
             obj.school = getattr(request.user, "school", None)
         super().save_model(request, obj, form, change)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "school" and not (request.user.is_superuser and not getattr(request.user, "school_id", None)):
+            kwargs["queryset"] = db_field.remote_field.model.objects.filter(pk=getattr(request.user, "school_id", None))
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     class Meta:
         managed = True
         verbose_name = "User"
@@ -64,6 +69,15 @@ class StudentAdmin(admin.ModelAdmin):
             return qs
         return qs.filter(student__school=getattr(request.user, "school_id", None))
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        school_id = getattr(request.user, "school_id", None)
+        if not (request.user.is_superuser and not school_id):
+            if db_field.name == "student":
+                kwargs["queryset"] = User.objects.filter(school_id=school_id, is_student=True)
+            elif db_field.name == "student_class":
+                kwargs["queryset"] = db_field.remote_field.model.objects.filter(school_id=school_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class ParentAdmin(admin.ModelAdmin):
     list_display = ("user", "school", "student", "first_name", "last_name", "phone", "email", "relation_ship")
@@ -87,6 +101,15 @@ class ParentAdmin(admin.ModelAdmin):
         if request.user.is_superuser and not getattr(request.user, "school_id", None):
             return qs
         return qs.filter(user__school=getattr(request.user, "school_id", None))
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        school_id = getattr(request.user, "school_id", None)
+        if not (request.user.is_superuser and not school_id):
+            if db_field.name == "user":
+                kwargs["queryset"] = User.objects.filter(school_id=school_id, is_parent=True)
+            elif db_field.name == "student":
+                kwargs["queryset"] = Student.objects.filter(student__school_id=school_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class TeacherProfileAdmin(admin.ModelAdmin):
@@ -117,6 +140,12 @@ class TeacherProfileAdmin(admin.ModelAdmin):
         if request.user.is_superuser and not getattr(request.user, "school_id", None):
             return qs
         return qs.filter(user__school=getattr(request.user, "school_id", None))
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        school_id = getattr(request.user, "school_id", None)
+        if db_field.name == "user" and not (request.user.is_superuser and not school_id):
+            kwargs["queryset"] = User.objects.filter(school_id=school_id, is_lecturer=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 admin.site.register(Student, StudentAdmin)

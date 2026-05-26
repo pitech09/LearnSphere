@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans 'Current Quarter' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% trans 'Dashboard' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Current Quarter' %}</li>
+  </ol>
+</nav>
+
+<h1 class="title-1 mb-1">{% trans 'Current Quarter' %}</h1>
+<p class="text-muted">{{ school.name }}</p>
+
+<form method="post" class="bg-white border p-3" style="max-width: 520px;">
+  {% csrf_token %}
+  {{ form.current_quarter|as_crispy_field }}
+  <button class="btn btn-primary" type="submit">{% trans 'Save' %}</button>
+  <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">{% trans 'Cancel' %}</a>
+</form>
+{% endblock %}

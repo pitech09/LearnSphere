@@ -1,6 +1,6 @@
-# Contributing to SkyLearn
+# Contributing to LearnSphere
 
-Thank you for considering contributing to SkyLearn! We welcome your contributions to help improve and enhance the project.
+Thank you for considering contributing to LearnSphere! We welcome your contributions to help improve and enhance the project.
 Whether you're submitting code, documentation, or bug reports, your help is greatly appreciated.
 
 Before you start contributing, please take a moment to review the following guidelines.
@@ -59,9 +59,9 @@ Maintaining consistent coding style is important for the project's readability. 
 
 ## License
 
-By contributing to SkyLearn, you agree that your contributions will be licensed under the [SkyLearn's license](https://github.com/SkyCascade/SkyLearn/blob/main/LICENSE).
+By contributing to LearnSphere, you agree that your contributions will be licensed under the [LearnSphere's license](https://github.com/SkyCascade/LearnSphere/blob/main/LICENSE).
 
 ---
 
-Thank you for contributing to SkyLearn!
+Thank you for contributing to LearnSphere!
 Your support helps make this project better for everyone. If you have any questions, feel free to reach out to the maintainers.

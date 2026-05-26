@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Manage School' %} - {{ school.name }}{% endblock %}
+
+{% block content %}
+
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb bg-light px-3 py-2 rounded-3">
+    <li class="breadcrumb-item"><a href="/" class="text-decoration-none">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'platform_schools_dashboard' %}" class="text-decoration-none">{% trans 'Schools' %}</a></li>
+    <li class="breadcrumb-item active fw-semibold text-primary">{{ school.name }}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="row g-4">
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+        <h4 class="fw-bold mb-4">
+          <i class="fas fa-edit me-2 text-primary"></i>
+          {% trans 'Billing & Plan Settings' %}
+        </h4>
+
+        <form method="post" id="planForm">
+          {% csrf_token %}
+
+          <div class="row g-3">
+            {% for field in form %}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}
+              <small class="text-muted">{{ field.help_text }}</small>
+              {% endif %}
+              {% if field.errors %}
+              <div class="text-danger small">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="fas fa-save me-1"></i> {% trans 'Save Changes' %}
+            </button>
+            <a href="{% url 'platform_schools_dashboard' %}" class="btn btn-outline-secondary px-4">
+              {% trans 'Cancel' %}
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">
+          <i class="fas fa-info-circle me-2 text-primary"></i>
+          {% trans 'School Info' %}
+        </h5>
+        <table class="table table-sm table-borderless">
+          <tr>
+            <td class="text-muted">{% trans 'Name' %}:</td>
+            <td class="fw-semibold">{{ school.name }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">{% trans 'Student Count' %}:</td>
+            <td class="fw-semibold">{{ student_count }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">{% trans 'Plan Limit' %}:</td>
+            <td class="fw-semibold">{% if school.is_unlimited %}{% trans 'Unlimited' %}{% else %}{{ school.max_students }}{% endif %}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">{% trans 'Registered' %}:</td>
+            <td>{{ school.created_at|date }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">{% trans 'Email' %}:</td>
+            <td>{{ school.email|default:'-' }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">{% trans 'Phone' %}:</td>
+            <td>{{ school.phone|default:'-' }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pricing Summary -->
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">
+          <i class="fas fa-tags me-2 text-success"></i>
+          {% trans 'Pricing Plans' %}
+        </h5>
+        <div class="mb-3 p-3 rounded-3 border-start border-3 border-primary">
+          <div class="fw-bold">{% trans 'Starter' %}</div>
+          <div class="text-primary fs-5">M250 <small class="text-muted">/{% trans 'month' %}</small></div>
+          <small class="text-muted">< 100 {% trans 'students' %}</small>
+        </div>
+        <div class="mb-3 p-3 rounded-3 border-start border-3 border-success">
+          <div class="fw-bold">{% trans 'Growth' %}</div>
+          <div class="text-success fs-5">M400 <small class="text-muted">/{% trans 'month' %}</small></div>
+          <small class="text-muted">100 – 300 {% trans 'students' %}</small>
+        </div>
+        <div class="mb-3 p-3 rounded-3 border-start border-3 border-info">
+          <div class="fw-bold">{% trans 'Enterprise' %}</div>
+          <div class="text-info fs-5">M750 <small class="text-muted">/{% trans 'month' %}</small></div>
+          <small class="text-muted">300 – 800 {% trans 'students' %}</small>
+        </div>
+        <div class="p-3 rounded-3 border-start border-3 border-warning">
+          <div class="fw-bold">{% trans 'Unlimited (One-Time)' %}</div>
+          <div class="text-warning fs-5">M10,000</div>
+          <small class="text-muted">{% trans 'No recurring fees' %}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+// Auto-update subscription amount, max students, and next payment due when plan changes
+const PLAN_CONFIG = {
+  starter:   { amount: 250,   students: 100, unlimited: false },
+  growth:    { amount: 400,   students: 300, unlimited: false },
+  enterprise:{ amount: 750,   students: 800, unlimited: false },
+  unlimited: { amount: 10000, students: 0,   unlimited: true },
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+  const planField = document.querySelector('[name="plan"]');
+  const amountField = document.querySelector('[name="subscription_amount"]');
+  const studentsField = document.querySelector('[name="max_students"]');
+  const unlimitedField = document.querySelector('[name="is_unlimited"]');
+  const nextDueField = document.querySelector('[name="next_payment_due_on"]');
+  const statusField = document.querySelector('[name="status"]');
+
+  if (!planField) return;
+
+  function updateFields() {
+    const config = PLAN_CONFIG[planField.value] || PLAN_CONFIG.starter;
+    amountField.value = config.amount;
+    studentsField.value = config.students;
+
+    // Disable next payment due for unlimited
+    if (config.unlimited) {
+      nextDueField.value = '';
+      nextDueField.disabled = true;
+      nextDueField.required = false;
+      // Auto-set status to active for unlimited
+      if (statusField) statusField.value = 'active';
+    } else {
+      nextDueField.disabled = false;
+    }
+  }
+
+  planField.addEventListener('change', updateFields);
+  updateFields();
+});
+</script>
+{% endblock %}

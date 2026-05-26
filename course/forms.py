@@ -13,6 +13,13 @@ class AssignClassForm(forms.ModelForm):
             "student_class": forms.Select(attrs={"class": "form-control"})
         }
 
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        classes = SchoolClass.objects.filter(is_active=True)
+        if school:
+            classes = classes.filter(school=school)
+        self.fields["student_class"].queryset = classes.select_related("class_teacher")
+
 
 class SubjectAddForm(forms.ModelForm):
 

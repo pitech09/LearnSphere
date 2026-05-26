@@ -1,12 +1,15 @@
 import stripe
 import uuid
 import json
+import logging
 
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
 from django.shortcuts import redirect
 from django.views.generic.base import TemplateView
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 
 from django.http import JsonResponse
 
@@ -14,27 +17,35 @@ import gopay
 from gopay.enums import Recurrence, PaymentInstrument, BankSwiftCode, Currency, Language
 from .models import Invoice
 
+logger = logging.getLogger(__name__)
 
+
+@login_required
 def payment_paypal(request):
     return render(request, "payments/paypal.html", context={})
 
 
+@login_required
 def payment_stripe(request):
     return render(request, "payments/stripe.html", context={})
 
 
+@login_required
 def payment_coinbase(request):
     return render(request, "payments/coinbase.html", context={})
 
 
+@login_required
 def payment_paylike(request):
     return render(request, "payments/paylike.html", context={})
 
 
+@login_required
 def payment_succeed(request):
     return render(request, "payments/payment_succeed.html", context={})
 
 
+@method_decorator(login_required, name="dispatch")
 class PaymentGetwaysView(TemplateView):
     template_name = "payments/payment_gateways.html"
 
@@ -44,10 +55,10 @@ class PaymentGetwaysView(TemplateView):
         context["amount"] = 500
         context["description"] = "Stripe Payment"
         context["invoice_session"] = self.request.session["invoice_session"]
-        print(context["invoice_session"])
         return context
 
 
+@login_required
 def stripe_charge(request):
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -59,7 +70,7 @@ def stripe_charge(request):
             source=request.POST["stripeToken"],
         )
         invoice_code = request.session["invoice_session"]
-        invoice = Invoice.objects.get(invoice_code=invoice_code)
+        invoice = Invoice.objects.get(invoice_code=invoice_code, user=request.user)
         invoice.payment_complete = True
         invoice.save()
         return redirect("completed")
@@ -67,6 +78,7 @@ def stripe_charge(request):
         # return render(request, 'payments/charge.html')
 
 
+@login_required
 def gopay_charge(request):
     if request.method == "POST":
         user = request.user
@@ -131,33 +143,28 @@ def gopay_charge(request):
         )
 
         if response.has_succeed():
-            print("\nPayment Succeed\n")
-            print("hooray, API returned " + str(response))
+            logger.info("GoPay payment succeeded for user_id=%s", user.id)
         else:
-            print("\nPayment Fail\n")
-            print(
-                "oops, API returned " + str(response.status_code) + ": " + str(response)
-            )
+            logger.warning("GoPay payment failed for user_id=%s status=%s", user.id, response.status_code)
         return JsonResponse({"message": str(response)})
 
     return JsonResponse({"message": "GET requested"})
 
 
+@login_required
 def paymentComplete(request):
-    print(request.is_ajax())
-    if request.is_ajax() or request.method == "POST":
+    if request.method == "POST":
         invoice_id = request.session["invoice_session"]
-        invoice = Invoice.objects.get(id=invoice_id)
+        invoice = Invoice.objects.get(id=invoice_id, user=request.user)
         invoice.payment_complete = True
         invoice.save()
-        # return redirect('invoice', invoice.invoice_code)
-    body = json.loads(request.body)
-    print("BODY:", body)
+    if request.body:
+        json.loads(request.body)
     return JsonResponse("Payment completed!", safe=False)
 
 
+@login_required
 def create_invoice(request):
-    print(request.is_ajax())
     if request.method == "POST":
         invoice = Invoice.objects.create(
             user=request.user,
@@ -167,14 +174,6 @@ def create_invoice(request):
         )
         request.session["invoice_session"] = invoice.invoice_code
         return redirect("payment_gateways")
-    # if request.is_ajax():
-    #     invoice = Invoice.objects.create(
-    #         user = request.user,
-    #         amount = 15,
-    #         total=26,
-    #     )
-    #     return JsonResponse({'invoice': invoice}, status=201) # created
-
     return render(
         request,
         "invoices.html",
@@ -182,9 +181,10 @@ def create_invoice(request):
     )
 
 
+@login_required
 def invoice_detail(request, slug):
     return render(
         request,
         "invoice_detail.html",
-        context={"invoice": Invoice.objects.get(invoice_code=slug)},
+        context={"invoice": Invoice.objects.get(invoice_code=slug, user=request.user)},
     )

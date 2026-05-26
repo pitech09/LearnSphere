@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Teacher Dashboard' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Teacher Dashboard' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="title-1 mb-1">{% trans 'Teacher Dashboard' %}</h1>
+    <div class="text-muted">{{ school.name }}</div>
+  </div>
+  <a class="btn btn-primary" href="{% url 'user_course_list' %}">
+    <i class="fas fa-book-open"></i>{% trans 'My Subjects' %}
+  </a>
+</div>
+
+<div class="row users-count px-3">
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-book text-primary"></i>
+      <div class="text-right">
+        <small>{% trans 'Subjects' %}</small>
+        <h2>{{ subject_count }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-user-graduate text-success"></i>
+      <div class="text-right">
+        <small>{% trans 'Students' %}</small>
+        <h2>{{ student_count }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-spell-check text-warning"></i>
+      <div class="text-right">
+        <small>{% trans 'Marks Recorded' %}</small>
+        <h2>{{ marked_count }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-chart-line text-info"></i>
+      <div class="text-right">
+        <small>{% trans 'Average Mark' %}</small>
+        <h2>{{ average_mark|floatformat:1 }}%</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row px-2">
+  <div class="col-lg-6 p-2">
+    <div class="card p-3 h-100">
+      <h5>{% trans 'My Subjects' %}</h5>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>{% trans 'Subject' %}</th>
+              <th>{% trans 'Class' %}</th>
+              <th>{% trans 'Code' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for subject in subjects %}
+            <tr>
+              <td><a href="{{ subject.get_absolute_url }}">{{ subject.title }}</a></td>
+              <td>{{ subject.class_assigned|default:'-' }}</td>
+              <td>{{ subject.code }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center">{% trans 'No subjects assigned yet.' %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 p-2">
+    <div class="card p-3 h-100">
+      <h5>{% trans 'Upcoming Exams' %}</h5>
+      <ul class="small mb-0">
+        {% for exam in upcoming_exams %}
+        <li><strong>{{ exam.name }}</strong> <span class="text-muted">{{ exam.school_class }} - {{ exam.starts_on }}</span></li>
+        {% empty %}
+        <li>{% trans 'No upcoming exams.' %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock content %}

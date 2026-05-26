@@ -11,6 +11,7 @@ from .models import (
     MCQuestion,
     Choice,
     EssayQuestion,
+    QuestionGrade,
     Sitting,
 )
 
@@ -47,7 +48,24 @@ class QuizAdminForm(admin.ModelAdmin):
 
 
 class QuizAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("title", "course", "school", "category", "exam_paper", "single_attempt")
+    list_filter = ("course__school", "category", "exam_paper", "single_attempt")
+
+    @admin.display(description="School")
+    def school(self, obj):
+        return obj.course.school
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser and not getattr(request.user, "school_id", None):
+            return qs
+        return qs.filter(course__school=getattr(request.user, "school_id", None))
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        school_id = getattr(request.user, "school_id", None)
+        if db_field.name == "course" and not (request.user.is_superuser and not school_id):
+            kwargs["queryset"] = db_field.remote_field.model.objects.filter(school_id=school_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
     # form = QuizAdminForm
     # fields = (
     #     "title",
@@ -62,10 +80,10 @@ class QuizAdmin(admin.ModelAdmin):
 
 
 class MCQuestionAdmin(admin.ModelAdmin):
-    list_display = ("content",)
+    list_display = ("content", "marks")
     # list_filter = ('category',)
     fieldsets = [
-        ("figure" "quiz" "choice_order", {"fields": ("content", "explanation")})
+        ("figure" "quiz" "choice_order", {"fields": ("content", "marks", "explanation")})
     ]
 
     search_fields = ("content", "explanation")
@@ -80,12 +98,19 @@ class ProgressAdmin(admin.ModelAdmin):
         "score",
     )
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser and not getattr(request.user, "school_id", None):
+            return qs
+        return qs.filter(user__school=getattr(request.user, "school_id", None))
+
 
 class EssayQuestionAdmin(admin.ModelAdmin):
-    list_display = ("content",)
+    list_display = ("content", "marks")
     # list_filter = ('category',)
     fields = (
         "content",
+        "marks",
         "quiz",
         "explanation",
     )
@@ -97,4 +122,5 @@ admin.site.register(Quiz, QuizAdmin)
 admin.site.register(MCQuestion, MCQuestionAdmin)
 admin.site.register(Progress, ProgressAdmin)
 admin.site.register(EssayQuestion, EssayQuestionAdmin)
+admin.site.register(QuestionGrade)
 admin.site.register(Sitting)

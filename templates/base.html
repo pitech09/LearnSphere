@@ -36,6 +36,18 @@
         {% endblock %}
 
         <div class="container-fluid" id="main-content">
+            {% if trial_school %}
+            <div class="alert alert-warning d-flex justify-content-between align-items-center mb-3" role="alert">
+                <div>
+                    <strong>{% trans 'Trial version' %}</strong>
+                    {% if trial_days_left is not None %}
+                        - {{ trial_days_left }} {% trans 'day(s) left' %}
+                    {% endif %}
+                    <span class="ms-2">{% trans 'Upgrade to keep your school active after the trial.' %}</span>
+                </div>
+                <a class="btn btn-sm btn-primary" href="{% url 'payment_gateways' %}">{% trans 'Upgrade' %}</a>
+            </div>
+            {% endif %}
             {% block content %}{% endblock content %}
         </div>
 

@@ -33,12 +33,21 @@ CM = 2.54
 PASS_MARK = 45
 
 
-def get_current_session():
-    return Session.objects.filter(is_current=True).first()
+def get_current_session(school=None):
+    sessions = Session.objects.filter(is_current=True)
+    if school:
+        sessions = sessions.filter(school=school)
+    return sessions.first()
 
 
-def get_current_quarter():
-    current_term = Term.objects.filter(is_current=True).first()
+def get_current_quarter(school=None):
+    if school and getattr(school, "current_quarter", None):
+        return school.current_quarter
+
+    current_term = Term.objects.filter(is_current=True)
+    if school:
+        current_term = current_term.filter(school=school)
+    current_term = current_term.first()
     term_to_quarter = {
         "T1": "Q1",
         "T2": "Q2",
@@ -82,7 +91,8 @@ def build_quarter_sections(courses):
 
 
 def update_result_summary(student, session, quarter):
-    courses = TakenCourse.objects.filter(student=student, quarter=quarter)
+    school = student.student.school
+    courses = TakenCourse.objects.filter(student=student, school=school, quarter=quarter)
     section = build_quarter_sections(courses)[["Q1", "Q2", "Q3", "Q4"].index(quarter)]
     defaults = {
         "total_subjects": section["total_subjects"],
@@ -93,6 +103,7 @@ def update_result_summary(student, session, quarter):
 
     results = Result.objects.filter(
         student=student,
+        school=school,
         session=str(session) if session else "",
         quarter=quarter,
     )
@@ -101,6 +112,7 @@ def update_result_summary(student, session, quarter):
     else:
         Result.objects.create(
             student=student,
+            school=school,
             session=str(session) if session else "",
             quarter=quarter,
             **defaults,
@@ -114,11 +126,12 @@ def save_assessment_mark(student, course, quarter, field_name, mark, session=Non
     taken_course, _created = TakenCourse.objects.get_or_create(
         student=student,
         course=course,
+        school=student.student.school,
         quarter=quarter,
     )
     setattr(taken_course, field_name, mark)
     taken_course.save()
-    update_result_summary(student, session or get_current_session(), quarter)
+    update_result_summary(student, session or get_current_session(student.student.school), quarter)
     return taken_course
 
 
@@ -128,8 +141,8 @@ def save_assessment_mark(student, course, quarter, field_name, mark, session=Non
 @login_required
 @lecturer_required
 def add_score(request):
-    current_session = get_current_session()
-    current_quarter = get_current_quarter()
+    current_session = get_current_session(getattr(request.user, "school", None))
+    current_quarter = get_current_quarter(getattr(request.user, "school", None))
 
     if not current_session:
         messages.error(request, "No active session found.")
@@ -137,7 +150,8 @@ def add_score(request):
 
 
     courses = Course.objects.filter(
-        Q(allocated_subjects__teacher=request.user) | Q(teacher=request.user)
+        Q(allocated_subjects__teacher=request.user) | Q(teacher=request.user),
+        school=request.user.school,
     ).distinct()
 
     return render(
@@ -158,32 +172,35 @@ def add_score(request):
 @login_required
 @lecturer_required
 def add_score_for(request, id):
-    current_session = get_current_session()
-    selected_quarter = request.GET.get("quarter") or get_current_quarter()
+    current_session = get_current_session(getattr(request.user, "school", None))
+    selected_quarter = request.GET.get("quarter") or get_current_quarter(getattr(request.user, "school", None))
     valid_quarters = dict(QUARTER_CHOICES)
 
     if selected_quarter not in valid_quarters:
-        selected_quarter = get_current_quarter()
+        selected_quarter = get_current_quarter(getattr(request.user, "school", None))
 
     if not current_session:
         messages.error(request, "No active session found.")
         return HttpResponseRedirect(reverse_lazy("add_score"))
 
     courses = Course.objects.filter(
-        Q(allocated_subjects__teacher=request.user) | Q(teacher=request.user)
+        Q(allocated_subjects__teacher=request.user) | Q(teacher=request.user),
+        school=request.user.school,
     ).distinct()
-    course = get_object_or_404(Course, pk=id)
+    course = get_object_or_404(courses, pk=id)
 
     if course.class_assigned:
-        for student in Student.objects.filter(student_class=course.class_assigned):
+        for student in Student.objects.filter(student__school=request.user.school, student_class=course.class_assigned):
             TakenCourse.objects.get_or_create(
                 student=student,
                 course=course,
+                school=request.user.school,
                 quarter=selected_quarter,
             )
 
     if request.method == "GET":
         students = TakenCourse.objects.filter(
+            school=request.user.school,
             course__id=id,
             quarter=selected_quarter,
         ).select_related("student__student", "course")
@@ -212,12 +229,18 @@ def add_score_for(request, id):
             ids = ids + (str(key),)
 
         for sid in ids:
-            student = TakenCourse.objects.get(id=sid, quarter=selected_quarter)
+            student = get_object_or_404(
+                TakenCourse,
+                id=sid,
+                school=request.user.school,
+                course=course,
+                quarter=selected_quarter,
+            )
             score = data.getlist(sid)
             if len(score) < 5:
                 continue
 
-            obj = TakenCourse.objects.get(pk=sid, quarter=selected_quarter)
+            obj = student
             obj.assignment = score[0]
             obj.mid_exam = score[1]
             obj.quiz = score[2]
@@ -244,10 +267,10 @@ def add_score_for(request, id):
 @login_required
 @student_required
 def grade_result(request):
-    student = Student.objects.get(student__pk=request.user.id)
+    student = get_object_or_404(Student, student__pk=request.user.id, student__school=request.user.school)
 
-    courses = TakenCourse.objects.filter(student__student__pk=request.user.id)
-    results = Result.objects.filter(student__student__pk=request.user.id)
+    courses = TakenCourse.objects.filter(student=student, school=request.user.school)
+    results = Result.objects.filter(student=student, school=request.user.school)
     quarter_sections = build_quarter_sections(courses)
 
     return render(
@@ -268,10 +291,10 @@ def grade_result(request):
 @login_required
 @student_required
 def assessment_result(request):
-    student = Student.objects.get(student__pk=request.user.id)
+    student = get_object_or_404(Student, student__pk=request.user.id, student__school=request.user.school)
 
-    courses = TakenCourse.objects.filter(student__student__pk=request.user.id)
-    result = Result.objects.filter(student__student__pk=request.user.id)
+    courses = TakenCourse.objects.filter(student=student, school=request.user.school)
+    result = Result.objects.filter(student=student, school=request.user.school)
     quarter_sections = build_quarter_sections(courses)
 
     return render(
@@ -292,11 +315,16 @@ def assessment_result(request):
 @login_required
 @lecturer_required
 def result_sheet_pdf_view(request, id):
-    current_session = get_current_session()
-    selected_quarter = request.GET.get("quarter") or get_current_quarter()
+    current_session = get_current_session(getattr(request.user, "school", None))
+    selected_quarter = request.GET.get("quarter") or get_current_quarter(getattr(request.user, "school", None))
 
-    result = TakenCourse.objects.filter(course__pk=id, quarter=selected_quarter)
-    course = get_object_or_404(Course, id=id)
+    course = get_object_or_404(
+        Course.objects.filter(
+            school=request.user.school,
+        ).filter(Q(allocated_subjects__teacher=request.user) | Q(teacher=request.user)).distinct(),
+        id=id,
+    )
+    result = TakenCourse.objects.filter(school=request.user.school, course=course, quarter=selected_quarter)
 
     no_of_pass = result.filter(comment="PASS").count()
     no_of_fail = result.filter(comment="FAIL").count()
@@ -376,10 +404,11 @@ def result_sheet_pdf_view(request, id):
 @login_required
 @student_required
 def student_result_pdf_view(request):
-    current_session = get_current_session()
-    student = get_object_or_404(Student, student=request.user)
+    current_session = get_current_session(getattr(request.user, "school", None))
+    student = get_object_or_404(Student, student=request.user, student__school=request.user.school)
     courses = TakenCourse.objects.filter(
-        student=student
+        student=student,
+        school=request.user.school,
     ).select_related("course").order_by("quarter", "course__title")
     quarter_sections = build_quarter_sections(courses)
 
@@ -454,13 +483,14 @@ def student_result_pdf_view(request):
 @login_required
 @student_required
 def course_registration_form(request):
-    current_session = get_current_session()
+    current_session = get_current_session(getattr(request.user, "school", None))
 
     courses = TakenCourse.objects.filter(
-        student__student__id=request.user.id
+        student__student__id=request.user.id,
+        school=request.user.school,
     )
 
-    student = Student.objects.get(student__pk=request.user.id)
+    student = Student.objects.get(student__pk=request.user.id, student__school=request.user.school)
 
     fname = request.user.username + ".pdf"
     os.makedirs(settings.MEDIA_ROOT + "/registration_form", exist_ok=True)

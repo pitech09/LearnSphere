@@ -12,21 +12,21 @@ class Command(BaseCommand):
         users = [
             {
                 "username": "admin",
-                "email": "admin@skylearn.com",
+                "email": "admin@learnsphere.com",
                 "password": "admin12345",
                 "is_staff": True,
                 "is_superuser": True,
             },
             {
                 "username": "lecturer1",
-                "email": "lecturer@skylearn.com",
+                "email": "lecturer@learnsphere.com",
                 "password": "lecturer123",
                 "is_staff": True,
                 "is_superuser": False,
             },
             {
                 "username": "student1",
-                "email": "student@skylearn.com",
+                "email": "student@learnsphere.com",
                 "password": "student123",
                 "is_staff": False,
                 "is_superuser": False,

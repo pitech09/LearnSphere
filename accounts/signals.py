@@ -1,29 +1,25 @@
 from .utils import (
     generate_student_credentials,
     generate_lecturer_credentials,
-    send_new_account_email,
+    send_new_account_sms,
 )
 
 
 def post_save_account_receiver(instance=None, created=False, *args, **kwargs):
     """
-    Send email notification
+    Send SMS notification for accounts that need generated credentials.
     """
-    if created:
+    if created and not instance.has_usable_password():
         if instance.is_student:
             username, password = generate_student_credentials()
             instance.username = username
             instance.set_password(password)
-            #print(f"Generated credentials for {instance.get_full_name()}: {username} / {password}")
             instance.save()
-            # Send email with the generated credentials
-            send_new_account_email(instance, password)
+            send_new_account_sms(instance, password)
 
         if instance.is_lecturer:
             username, password = generate_lecturer_credentials()
             instance.username = username
             instance.set_password(password)
-            # print(f"Generated credentials for {instance.get_full_name()}: {username} / {password}")
             instance.save()
-            # Send email with the generated credentials
-            send_new_account_email(instance, password)
+            send_new_account_sms(instance, password)

@@ -24,6 +24,15 @@ class SearchView(ListView):
             news_events_results = NewsAndEvents.objects.search(query)
             course_results = Course.objects.search(query)
             quiz_results = Quiz.objects.search(query)
+            school = getattr(request.user, "school", None)
+            if school:
+                news_events_results = news_events_results.filter(school=school)
+                course_results = course_results.filter(school=school)
+                quiz_results = quiz_results.filter(course__school=school)
+            elif not request.user.is_superuser:
+                news_events_results = NewsAndEvents.objects.none()
+                course_results = Course.objects.none()
+                quiz_results = Quiz.objects.none()
 
             # combine querysets
             queryset_chain = chain(

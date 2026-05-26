@@ -19,10 +19,12 @@ from course.models import Subject as Course
 from result.views import get_current_quarter, save_assessment_mark
 from .forms import (
     EssayForm,
+    EssayQuestionForm,
     MCQuestionForm,
     MCQuestionFormSet,
     QuestionForm,
     QuizAddForm,
+    QUESTION_TYPE_ESSAY,
 )
 from .models import (
     EXAM_CATEGORY,
@@ -30,6 +32,7 @@ from .models import (
     MCQuestion,
     Progress,
     Question,
+    QuestionGrade,
     Quiz,
     Sitting,
 )
@@ -39,6 +42,26 @@ QUIZ_RESULT_FIELDS = {
     EXAM_CATEGORY: "final_exam",
     "practice": "quiz",
 }
+
+
+def school_scoped_courses(user):
+    qs = Course.objects.all()
+    school = getattr(user, "school", None)
+    if school:
+        qs = qs.filter(school=school)
+    return qs
+
+
+def get_school_scoped_course(user, **filters):
+    return get_object_or_404(school_scoped_courses(user), **filters)
+
+
+def school_scoped_quizzes(user):
+    qs = Quiz.objects.all()
+    school = getattr(user, "school", None)
+    if school:
+        qs = qs.filter(course__school=school)
+    return qs
 
 
 # ========================================================
@@ -53,13 +76,21 @@ class QuizCreateView(CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
-        initial["course"] = get_object_or_404(Course, slug=self.kwargs["slug"])
+        initial["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
         return initial
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["is_create"] = True
+        return context
+
     def form_valid(self, form):
-        form.instance.course = get_object_or_404(Course, slug=self.kwargs["slug"])
+        form.instance.course = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
         with transaction.atomic():
             self.object = form.save()
+        if form.cleaned_data.get("question_type") == QUESTION_TYPE_ESSAY:
+            return redirect("essay_create", slug=self.kwargs["slug"], quiz_id=self.object.id)
         return redirect("mc_create", slug=self.kwargs["slug"], quiz_id=self.object.id)
 
 
@@ -70,7 +101,13 @@ class QuizUpdateView(UpdateView):
     template_name = "quiz/quiz_form.html"
 
     def get_object(self, queryset=None):
-        return get_object_or_404(Quiz, pk=self.kwargs["pk"])
+        return get_object_or_404(school_scoped_quizzes(self.request.user), pk=self.kwargs["pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["quiz"] = self.object
+        return context
 
     def form_valid(self, form):
         with transaction.atomic():
@@ -81,7 +118,9 @@ class QuizUpdateView(UpdateView):
 @login_required
 @lecturer_required
 def quiz_delete(request, slug, pk):
-    quiz = get_object_or_404(Quiz, pk=pk)
+    quiz = get_object_or_404(school_scoped_quizzes(request.user), pk=pk)
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": quiz, "cancel_url": "quiz_index", "cancel_kwargs": {"slug": slug}})
     quiz.delete()
     messages.success(request, "Quiz deleted successfully.")
     return redirect("quiz_index", slug=slug)
@@ -89,7 +128,7 @@ def quiz_delete(request, slug, pk):
 
 @login_required
 def quiz_list(request, slug):
-    course = get_object_or_404(Course, slug=slug)
+    course = get_school_scoped_course(request.user, slug=slug)
     quizzes = Quiz.objects.filter(course=course).order_by("-timestamp")
     completed_exam_ids = []
     if request.user.is_authenticated and request.user.is_student:
@@ -121,9 +160,9 @@ class MCQuestionCreate(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        quiz = get_object_or_404(Quiz, id=self.kwargs["quiz_id"])
+        quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
 
-        context["course"] = get_object_or_404(Course, slug=self.kwargs["slug"])
+        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
         context["quiz_obj"] = quiz
         context["quiz_questions_count"] = Question.objects.filter(quiz=quiz).count()
 
@@ -144,7 +183,7 @@ class MCQuestionCreate(CreateView):
         with transaction.atomic():
             self.object = form.save()
 
-            quiz = get_object_or_404(Quiz, id=self.kwargs["quiz_id"])
+            quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
             self.object.quiz.add(quiz)
 
             formset.instance = self.object
@@ -152,6 +191,32 @@ class MCQuestionCreate(CreateView):
 
         if "another" in self.request.POST:
             return redirect("mc_create", slug=self.kwargs["slug"], quiz_id=quiz.id)
+
+        return redirect("quiz_index", slug=self.kwargs["slug"])
+
+
+@method_decorator([login_required, lecturer_required], name="dispatch")
+class EssayQuestionCreate(CreateView):
+    model = EssayQuestion
+    form_class = EssayQuestionForm
+    template_name = "quiz/essayquestion_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
+        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["quiz_obj"] = quiz
+        context["quiz_questions_count"] = Question.objects.filter(quiz=quiz).count()
+        return context
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            self.object = form.save()
+            quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
+            self.object.quiz.add(quiz)
+
+        if "another" in self.request.POST:
+            return redirect("essay_create", slug=self.kwargs["slug"], quiz_id=quiz.id)
 
         return redirect("quiz_index", slug=self.kwargs["slug"])
 
@@ -185,6 +250,9 @@ class QuizMarkingList(ListView):
 
     def get_queryset(self):
         qs = Sitting.objects.filter(complete=True)
+        school = getattr(self.request.user, "school", None)
+        if school:
+            qs = qs.filter(course__school=school)
 
         if not self.request.user.is_superuser:
             qs = qs.filter(
@@ -210,24 +278,84 @@ class QuizMarkingDetail(DetailView):
     model = Sitting
     template_name = "quiz/quiz_marking_detail.html"
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        school = getattr(self.request.user, "school", None)
+        if school:
+            qs = qs.filter(course__school=school)
+        if not self.request.user.is_superuser:
+            qs = qs.filter(
+                Q(course__teacher=self.request.user)
+                | Q(course__allocated_subjects__teacher=self.request.user)
+                | Q(quiz__course__teacher=self.request.user)
+                | Q(quiz__course__allocated_subjects__teacher=self.request.user)
+            ).distinct()
+        return qs
+
     def post(self, request, *args, **kwargs):
         sitting = self.get_object()
         qid = request.POST.get("qid")
 
         if qid:
-            question = Question.objects.get_subclass(id=int(qid))
+            try:
+                qid = int(qid)
+            except (TypeError, ValueError):
+                messages.error(request, "Invalid question.")
+                return self.get(request, *args, **kwargs)
+            question = next(
+                (question for question in sitting.get_questions(with_answers=True) if question.id == qid),
+                None,
+            )
+            if question is None:
+                messages.error(request, "Question does not belong to this assessment.")
+                return self.get(request, *args, **kwargs)
+            awarded_marks = request.POST.get("awarded_marks")
+            feedback = request.POST.get("feedback", "")
 
-            if int(qid) in sitting.get_incorrect_questions:
-                sitting.remove_incorrect_question(question)
-            else:
-                sitting.add_incorrect_question(question)
+            if awarded_marks not in (None, ""):
+                try:
+                    sitting.set_question_score(
+                        question=question,
+                        awarded_marks=awarded_marks,
+                        marked_by=request.user,
+                        feedback=feedback,
+                    )
+                    self._sync_result_mark(sitting)
+                    messages.success(request, "Question mark saved.")
+                except ValueError:
+                    messages.error(request, "Enter a valid mark.")
+                except Exception as exc:
+                    messages.error(request, str(exc))
 
         return self.get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["questions"] = self.object.get_questions(with_answers=True)
+        questions = self.object.get_questions(with_answers=True)
+        rows = []
+        for question in questions:
+            grade = self.object.get_question_grade(question)
+            rows.append({
+                "question": question,
+                "grade": grade,
+                "user_answer": question.user_answer,
+            })
+        context["question_rows"] = rows
         return context
+
+    def _sync_result_mark(self, sitting):
+        if sitting.has_unmarked_questions or not sitting.user.is_student:
+            return
+
+        field_name = QUIZ_RESULT_FIELDS.get(sitting.quiz.category, "quiz")
+        student = get_object_or_404(Student, student=sitting.user, student__school=sitting.user.school)
+        save_assessment_mark(
+            student=student,
+            course=sitting.course,
+            quarter=get_current_quarter(getattr(sitting.user, "school", None)),
+            field_name=field_name,
+            mark=sitting.get_percent_correct,
+        )
 
 
 # ========================================================
@@ -241,8 +369,16 @@ class QuizTake(FormView):
     result_template_name = "quiz/result.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.quiz = get_object_or_404(Quiz, slug=self.kwargs["slug"])
-        self.course = get_object_or_404(Course, pk=self.kwargs["pk"])
+        self.course = get_school_scoped_course(request.user, pk=self.kwargs["pk"])
+
+        if not request.user.is_student:
+            messages.error(request, "Only students can take assessments.")
+            return redirect("quiz_index", slug=self.course.slug)
+        self.quiz = get_object_or_404(
+            school_scoped_quizzes(request.user),
+            slug=self.kwargs["slug"],
+            course=self.course,
+        )
 
         if not Question.objects.filter(quiz=self.quiz).exists():
             messages.warning(request, "This quiz has no questions.")
@@ -266,6 +402,10 @@ class QuizTake(FormView):
         context["question"] = self.question
         context["progress"] = self.progress
         context["sitting"] = self.sitting
+        context["is_essay_question"] = isinstance(self.question, EssayQuestion)
+        context["question_type_label"] = (
+            "Short answer / Essay" if context["is_essay_question"] else "Multiple choice"
+        )
 
         return context
 
@@ -289,14 +429,18 @@ class QuizTake(FormView):
         progress, _ = Progress.objects.get_or_create(user=self.request.user)
         guess = form.cleaned_data["answers"]
 
-        correct = self.question.check_if_correct(guess)
-
-        if correct:
-            self.sitting.add_to_score(1)
-            progress.update_score(self.question, 1, 1)
+        if isinstance(self.question, EssayQuestion):
+            QuestionGrade.objects.update_or_create(
+                sitting=self.sitting,
+                question=self.question,
+                defaults={"awarded_marks": None},
+            )
+            progress.update_score(self.question, 0, self.question.marks)
         else:
-            self.sitting.add_incorrect_question(self.question)
-            progress.update_score(self.question, 0, 1)
+            correct = self.question.check_if_correct(guess)
+            awarded_marks = self.question.marks if correct else 0
+            self.sitting.set_question_score(self.question, awarded_marks)
+            progress.update_score(self.question, awarded_marks, self.question.marks)
 
         self.sitting.add_user_answer(self.question, guess)
         self.sitting.remove_first_question()
@@ -320,8 +464,9 @@ class QuizTake(FormView):
         if self.quiz.answers_at_end:
             result["questions"] = self.sitting.get_questions(with_answers=True)
 
-        if self.request.user.is_superuser or (
-            not self.quiz.exam_paper and self.quiz.category != EXAM_CATEGORY
+        if not self.sitting.has_unmarked_questions and (
+            self.request.user.is_superuser
+            or (not self.quiz.exam_paper and self.quiz.category != EXAM_CATEGORY)
         ):
             self.sitting.delete()
 
@@ -330,13 +475,15 @@ class QuizTake(FormView):
     def _sync_result_mark(self):
         if not self.request.user.is_student:
             return
+        if self.sitting.has_unmarked_questions:
+            return
 
         field_name = QUIZ_RESULT_FIELDS.get(self.quiz.category, "quiz")
         student = get_object_or_404(Student, student=self.request.user)
         save_assessment_mark(
             student=student,
             course=self.course,
-            quarter=get_current_quarter(),
+            quarter=get_current_quarter(getattr(self.request.user, "school", None)),
             field_name=field_name,
             mark=self.sitting.get_percent_correct,
         )

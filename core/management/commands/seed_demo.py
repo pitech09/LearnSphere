@@ -1,251 +1,298 @@
-<<<<<<< HEAD
+from datetime import timedelta
+from decimal import Decimal
 import random
-from datetime import datetime
-from django.conf import settings
+
 from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
 from django.db import transaction
-from accounts.models import Student
-from core.models import SchoolClass
+from django.utils import timezone
+
+from accounts.models import Parent, Student, User
+from core.models import (
+    FEE_STATUS_PARTIAL,
+    FeePayment,
+    School,
+    SchoolClass,
+    SchoolFee,
+    Session,
+    Term,
+)
 from course.models import Subject
-from core.utils import send_html_email
+from result.models import TakenCourse
 
-User = get_user_model()
-DEFAULT_PASSWORD = "12345678"
 
-def dummy_send(*args, **kwargs):
-    pass
+PLATFORM_OWNER = ("platform_owner", "PlatformOwner123!", "Platform", "Owner")
+
+SCHOOLS = [
+    {
+        "name": "Green Valley High School",
+        "subdomain": "green-valley",
+        "admin": ("green_admin", "GreenAdmin123!", "Grace", "Mokoena"),
+        "teacher": ("green_teacher", "GreenTeacher123!", "Thabo", "Ndlovu"),
+        "student": ("green_student", "GreenStudent123!", "Lerato", "Molefe"),
+        "parent": ("green_parent", "GreenParent123!", "Mpho", "Molefe"),
+    },
+    {
+        "name": "Blue Mountain Academy",
+        "subdomain": "blue-mountain",
+        "admin": ("blue_admin", "BlueAdmin123!", "Naledi", "Dlamini"),
+        "teacher": ("blue_teacher", "BlueTeacher123!", "Kabelo", "Maseko"),
+        "student": ("blue_student", "BlueStudent123!", "Neo", "Khama"),
+        "parent": ("blue_parent", "BlueParent123!", "Palesa", "Khama"),
+    },
+]
+
 
 class Command(BaseCommand):
-    help = "Seed students and teachers with proper prefixed IDs"
+    help = "Seeder Engine (single-file architecture)"
 
+    # ================= ENTRY =================
     @transaction.atomic
-    def handle(self, *args, **kwargs):
-        # Temporarily disable email sending
-        original_send = send_html_email
-        import core.utils
-        core.utils.send_html_email = dummy_send
+    def handle(self, *args, **options):
+        self.credentials = []
 
-        # Clear old data
-        User.objects.exclude(is_superuser=True).delete()
-        Student.objects.all().delete()
+        self.create_platform_owner()
 
-        # Create classes
-        levels = ["F1","F2","F3","F4","F5"]
-        classes = []
-        for level in levels:
-            for letter in ["A","B"]:
-                cls, _ = SchoolClass.objects.get_or_create(name=f"{level}{letter}", level=level)
-                classes.append(cls)
+        for school_data in SCHOOLS:
+            self.seed_school(school_data)
 
-        # Create subjects
-        base_subjects = ["Mathematics","English","Physics","Chemistry","Biology","Geography","History","Computer Studies"]
-        for level in levels:
-            for name in base_subjects:
-                Subject.objects.get_or_create(
-                    title=f"{name} {level}",
-                    defaults={'code': f"{name[:4].upper()}-{level}", 'summary': f"{name} for {level} students"}
-                )
+        self.print_credentials()
 
-        current_year = datetime.now().strftime("%Y")
+    # ================= ENGINE =================
+    def seed_school(self, school_data):
+        school = self.create_school(school_data)
 
-        # ----- TEACHERS (lecturers) -----
-        lecturers_count = 0
-        for i in range(1, 6):
-            lecturers_count += 1
-            lecturer_id = f"{settings.LECTURER_ID_PREFIX}-{current_year}-{lecturers_count}"
-            teacher = User.objects.create_user(
-                username=lecturer_id,
-=======
-from django.core.management.base import BaseCommand
-import random
+        users = self.create_users(school, school_data)
 
-from accounts.models import User, Student
-from core.models import SchoolClass
-from course.models import Subject
+        school_class = self.create_classes(school, users["teacher"])
+        session = self.create_session(school)
+        term = self.create_term(school, session)
 
+        student = self.create_student(school, users["student"], school_class)
+        self.create_parent(users["parent"], student)
 
-DEFAULT_PASSWORD = "1234"
+        subjects = self.create_subjects(school, school_class, users["teacher"])
+        self.create_results(school, student, subjects)
 
+        fee = self.create_fee(school, student, session, term)
+        self.create_payment(fee, users["admin"])
 
-class Command(BaseCommand):
-    help = "Fixed seed script (students, teachers, classes, subjects)"
+        self.store_credentials(school, school_data, users)
 
-    def handle(self, *args, **kwargs):
+    # ================= SCHOOL =================
+    def create_school(self, data):
+        school, _ = School.objects.update_or_create(
+            subdomain=data["subdomain"],
+            defaults={
+                "name": data["name"],
+                "email": f"admin@{data['subdomain']}.learnsphere.test",
+                "phone": "+26650000000",
+                "address": "Maseru",
+                "status": "active",
+                "plan": "growth",
+                "subscription_amount": Decimal("750.00"),
+                "last_payment_on": timezone.localdate(),
+                "next_payment_due_on": timezone.localdate() + timedelta(days=30),
+                "trial_ends_on": timezone.localdate() + timedelta(days=7),
+                "is_active": True,
+                "current_quarter": "Q1",
+            },
+        )
+        return school
 
-        self.stdout.write("Deleting old data...")
+    # ================= USERS =================
+    def create_users(self, school, data):
+        return {
+            "admin": self.upsert_user(school, data["admin"], is_staff=True, is_superuser=True),
+            "teacher": self.upsert_user(school, data["teacher"], is_staff=True, is_lecturer=True),
+            "student": self.upsert_user(school, data["student"], is_student=True),
+            "parent": self.upsert_user(school, data["parent"], is_parent=True),
+        }
 
-        Student.objects.all().delete()
-        SchoolClass.objects.all().delete()
-        Subject.objects.all().delete()
-        User.objects.exclude(is_superuser=True).delete()
+    def upsert_user(self, school, data, **flags):
+        username, password, first, last = data
 
-        # =====================================================
-        # SUBJECTS (LEVEL BASED)
-        # =====================================================
-        levels = ["F1", "F2", "F3", "F4", "F5"]
+        user, created = User.objects.update_or_create(
+            username=username,
+            defaults={
+                "school": school,
+                "first_name": first,
+                "last_name": last,
+                "email": f"{username}@{school.subdomain}.learnsphere.test",
+                "phone": "+26650000000",
+                "is_staff": flags.get("is_staff", False),
+                "is_superuser": flags.get("is_superuser", False),
+                "is_lecturer": flags.get("is_lecturer", False),
+                "is_student": flags.get("is_student", False),
+                "is_parent": flags.get("is_parent", False),
+                "is_active": True,
+            },
+        )
 
-        base_subjects = [
-            "Mathematics",
-            "English",
-            "Physics",
-            "Chemistry",
-            "Biology",
-            "Geography",
-            "History",
-            "Computer Studies",
+        if created:
+            user.set_password(password)
+            user.save()
+
+        return user
+
+    # ================= PLATFORM OWNER =================
+    def create_platform_owner(self):
+        username, password, first, last = PLATFORM_OWNER
+
+        user, created = User.objects.update_or_create(
+            username=username,
+            defaults={
+                "school": None,
+                "first_name": first,
+                "last_name": last,
+                "email": "owner@learnsphere.test",
+                "phone": "+26650000000",
+                "is_staff": True,
+                "is_superuser": True,
+                "is_active": True,
+            },
+        )
+
+        if created:
+            user.set_password(password)
+            user.save()
+
+        self.credentials.append(("Platform", "Owner", username, password))
+
+    # ================= ACADEMICS =================
+    def create_classes(self, school, teacher):
+        class_name, level = "F1A", "F1"
+
+        school_class, _ = SchoolClass.objects.update_or_create(
+            school=school,
+            level=level,
+            name=class_name,
+            defaults={"class_teacher": teacher, "is_active": True},
+        )
+        return school_class
+
+    def create_session(self, school):
+        session, _ = Session.objects.update_or_create(
+            school=school,
+            session="2026",
+            defaults={"is_current": True},
+        )
+        return session
+
+    def create_term(self, school, session):
+        term, _ = Term.objects.update_or_create(
+            school=school,
+            session=session,
+            name="T1",
+            defaults={"is_current": True},
+        )
+        return term
+
+    # ================= STUDENTS =================
+    def create_student(self, school, user, school_class):
+        student, _ = Student.objects.update_or_create(
+            student=user,
+            defaults={
+                "level": school_class.level,
+                "student_class": school_class,
+            },
+        )
+        return student
+
+    def create_parent(self, parent_user, student):
+        Parent.objects.update_or_create(
+            user=parent_user,
+            defaults={
+                "student": student,
+                "first_name": parent_user.first_name,
+                "last_name": parent_user.last_name,
+                "phone": parent_user.phone,
+                "email": parent_user.email,
+                "relation_ship": "Father",
+            },
+        )
+
+    # ================= SUBJECTS + RESULTS =================
+    def create_subjects(self, school, school_class, teacher):
+        subject_pool = [
+            ("Mathematics", "MATH"),
+            ("English", "ENG"),
+            ("Science", "SCI"),
+            ("History", "HIS"),
+            ("Geography", "GEO"),
+            ("Computer Studies", "CS"),
+            ("Life Skills", "LS"),
         ]
 
         subjects = []
 
-        for level in levels:
-            for name in base_subjects:
-
-                subject = Subject.objects.create(
-                    title=f"{name} {level}",
-                    code=f"{name[:4].upper()}-{level}",
-                    summary=f"{name} for {level} students"
-                )
-                subjects.append(subject)
-
-        self.stdout.write(self.style.SUCCESS("Subjects created"))
-
-        # =====================================================
-        # CLASSES
-        # =====================================================
-        classes = []
-
-        for level in levels:
-            for letter in ["A", "B"]:
-                classes.append(
-                    SchoolClass.objects.create(
-                        name=f"{level}{letter}",
-                        level=level
-                    )
-                )
-
-        self.stdout.write(self.style.SUCCESS("Classes created"))
-
-        # =====================================================
-        # TEACHERS (FIXED LOGIN)
-        # =====================================================
-        teachers = []
-
-        for i in range(1, 6):
-            teacher = User.objects.create_user(
-                username=f"teacher{i}",
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
-                email=f"teacher{i}@school.com",
-                password=DEFAULT_PASSWORD,
-                first_name=f"Teacher{i}",
-                last_name="User",
-                is_lecturer=True,
-                is_active=True
+        for title, code in subject_pool:
+            subject, _ = Subject.objects.update_or_create(
+                school=school,
+                class_assigned=school_class,
+                code=f"{school.subdomain}-{code}",
+                defaults={
+                    "title": title,
+                    "teacher": teacher,
+                },
             )
-<<<<<<< HEAD
-            self.stdout.write(f"Teacher: {lecturer_id} / {DEFAULT_PASSWORD}")
+            subjects.append(subject)
 
-        # ----- STUDENTS -----
-        students_count = 0
-        for i in range(1, 31):
-            students_count += 1
-            student_id = f"{settings.STUDENT_ID_PREFIX}-{current_year}-{students_count}"
-            user = User.objects.create_user(
-                username=student_id,
-=======
-            teachers.append(teacher)
+        return subjects
 
-            self.stdout.write(f"Teacher created → teacher{i} / {DEFAULT_PASSWORD}")
+    def create_results(self, school, student, subjects):
+        for subject in subjects:
+            TakenCourse.objects.update_or_create(
+                school=school,
+                student=student,
+                course=subject,
+                quarter="Q1",
+                defaults={
+                    "assignment": Decimal(random.randint(50, 95)),
+                    "mid_exam": Decimal(random.randint(50, 95)),
+                    "quiz": Decimal(random.randint(50, 95)),
+                    "attendance": Decimal(random.randint(60, 100)),
+                    "final_exam": Decimal(random.randint(50, 95)),
+                },
+            )
 
-        # =====================================================
-        # STUDENTS (FIXED LOGIN)
-        # =====================================================
-        students = []
-        user = User.objects.create_user(
-            username=f"student0",
-            email=f"bkhoromeng@gmail.com",
-            password=DEFAULT_PASSWORD,
-            first_name="Boris",
-            last_name="Khoromeng",
-            is_student=True,
-            gender="M",
-            is_active=True
-
+    # ================= FINANCE =================
+    def create_fee(self, school, student, session, term):
+        fee, _ = SchoolFee.objects.update_or_create(
+            school=school,
+            student=student,
+            session=session,
+            term=term,
+            description="Term 1 tuition fees",
+            defaults={
+                "amount_due": Decimal("1500.00"),
+                "discount": Decimal("0.00"),
+                "due_date": timezone.localdate() + timedelta(days=14),
+                "status": FEE_STATUS_PARTIAL,
+            },
         )
-        student = Student.objects.create(
-            student=user,
-            level="F3",
-            student_class=classes[2]
+        return fee
+
+    def create_payment(self, fee, admin):
+        FeePayment.objects.update_or_create(
+            fee=fee,
+            reference=f"{fee.school.subdomain.upper()}-T1-DEPOSIT",
+            defaults={
+                "amount": Decimal("500.00"),
+                "paid_on": timezone.localdate(),
+                "method": "cash",
+                "received_by": admin,
+                "notes": "Seed payment",
+            },
         )
-        for i in range(1, 31):
 
-            user = User.objects.create_user(
-                username=f"student{i}",
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
-                email=f"student{i}@school.com",
-                password=DEFAULT_PASSWORD,
-                first_name=f"Student{i}",
-                last_name="User",
-                is_student=True,
-<<<<<<< HEAD
-                gender=random.choice(["M","F"]),
-                is_active=True
-            )
-            Student.objects.create(
-=======
-                gender=random.choice(["M", "F"]),
-                is_active=True
+    # ================= CREDENTIALS =================
+    def store_credentials(self, school, data, users):
+        for role, user in users.items():
+            self.credentials.append(
+                (school.name, role, user.username, "HIDDEN_IF_EXISTING")
             )
 
-            student = Student.objects.create(
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
-                student=user,
-                level=random.choice(levels),
-                student_class=random.choice(classes)
-            )
-<<<<<<< HEAD
-            self.stdout.write(f"Student: {student_id} / {DEFAULT_PASSWORD}")
-
-        # ----- SUPERUSER -----
-        if not User.objects.filter(is_superuser=True).exists():
-            User.objects.create_superuser(
-                username="admin",
-                email="admin@school.com",
-                password=DEFAULT_PASSWORD,
-                first_name="Admin",
-                last_name="User"
-            )
-            self.stdout.write("Admin: admin / 1234")
-
-        # Test authentication
-        self.stdout.write("\n--- Testing login with prefixed IDs ---")
-        test_ids = [
-            f"{settings.LECTURER_ID_PREFIX}-{current_year}-1",
-            f"{settings.STUDENT_ID_PREFIX}-{current_year}-1",
-            "admin"
-        ]
-        for uid in test_ids:
-            from django.contrib.auth import authenticate
-            user = authenticate(username=uid, password=DEFAULT_PASSWORD)
-            if user:
-                self.stdout.write(self.style.SUCCESS(f"✅ {uid} authenticated"))
-            else:
-                self.stdout.write(self.style.ERROR(f"❌ {uid} authentication failed"))
-
-        # Restore email sending
-        core.utils.send_html_email = original_send
-=======
-
-            students.append(student)
-
-            self.stdout.write(f"Student created → student{i} / {DEFAULT_PASSWORD}")
-
-        # =====================================================
-        # FINAL SUMMARY
-        # =====================================================
-        self.stdout.write("\n")
-        self.stdout.write(self.style.SUCCESS("=== LOGIN DETAILS ==="))
-        self.stdout.write("All passwords: 1234")
-        self.stdout.write("Teachers: teacher1 - teacher5")
-        self.stdout.write("Students: student1 - student30")
->>>>>>> 4ae6c4e0707577dffe76510a27cd84e73b1a664e
+    def print_credentials(self):
+        self.stdout.write(self.style.SUCCESS("Seeder Engine executed 🚀"))
+        for school, role, username, password in self.credentials:
+            self.stdout.write(f"- {school} | {role}: {username} / {password}")

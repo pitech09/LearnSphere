@@ -1,5 +1,6 @@
 import random
 import string
+import logging
 from django.utils.text import slugify
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -14,6 +15,8 @@ from django.conf import settings
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 import threading
+
+logger = logging.getLogger(__name__)
 
 
 def send_html_email(subject, recipient_list, template, context):
@@ -38,16 +41,13 @@ def send_html_email(subject, recipient_list, template, context):
 
         response = sg.send(message)
 
-        print(f"[EMAIL SENT] {subject} → {recipient_list} | Status: {response.status_code}")
+        logger.info("Email sent: subject=%s recipients=%s status=%s", subject, recipient_list, response.status_code)
 
         return response.status_code
 
-    except Exception as e:
-        print(f"[EMAIL ERROR] {subject} → {recipient_list}")
-        print(str(e))
+    except Exception:
+        logger.exception("Email failed: subject=%s recipients=%s", subject, recipient_list)
         return None
-    finally:
-        print(f"[EMAIL FINISHED] {subject} → {recipient_list}")
 
 def send_email_thread(subject, recipient_list, template, context):
     thread = threading.Thread(

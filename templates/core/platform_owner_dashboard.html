@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans 'Platform Dashboard' %}{% endblock title %}
+
+{% block content %}
+
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb bg-light px-3 py-2 rounded-3">
+    <li class="breadcrumb-item"><a href="/" class="text-decoration-none">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active fw-semibold text-primary">{% trans 'Platform Dashboard' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<!-- Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h3 class="mb-0 fw-bold">
+      <i class="fas fa-globe text-primary me-2"></i>
+      {% trans 'Platform Owner Dashboard' %}
+    </h3>
+    <small class="text-muted">{% trans 'Overview of all registered schools across the platform' %}</small>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'admin:core_school_add' %}">
+      <i class="fas fa-plus me-1"></i>{% trans 'Add School' %}
+    </a>
+    <form class="d-inline" method="post" action="{% url 'platform_suspend_overdue_schools' %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit">
+        <i class="fas fa-ban me-1"></i>{% trans 'Suspend Overdue' %}
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-primary bg-opacity-10 p-3 me-3">
+          <i class="fas fa-school fa-2x text-primary"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Total Schools' %}</small>
+          <h2 class="mb-0 fw-bold">{{ total_schools }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-success bg-opacity-10 p-3 me-3">
+          <i class="fas fa-check-circle fa-2x text-success"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Active' %}</small>
+          <h2 class="mb-0 fw-bold">{{ active_count }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-warning bg-opacity-10 p-3 me-3">
+          <i class="fas fa-flask fa-2x text-warning"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Trial' %}</small>
+          <h2 class="mb-0 fw-bold">{{ trial_count }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-danger bg-opacity-10 p-3 me-3">
+          <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Suspended' %}</small>
+          <h2 class="mb-0 fw-bold">{{ suspended_count }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-danger bg-opacity-10 p-3 me-3">
+          <i class="fas fa-clock fa-2x text-danger"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Payment Overdue' %}</small>
+          <h2 class="mb-0 fw-bold">{{ overdue_count }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-info bg-opacity-10 p-3 me-3">
+          <i class="fas fa-coins fa-2x text-info"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Monthly Revenue' %}</small>
+          <h2 class="mb-0 fw-bold">{{ monthly_revenue|floatformat:2 }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-primary bg-opacity-10 p-3 me-3">
+          <i class="fas fa-users fa-2x text-primary"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Total Users' %}</small>
+          <h2 class="mb-0 fw-bold">{{ total_users }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body d-flex align-items-center p-3">
+        <div class="rounded-3 bg-success bg-opacity-10 p-3 me-3">
+          <i class="fas fa-chalkboard-teacher fa-2x text-success"></i>
+        </div>
+        <div>
+          <small class="text-muted text-uppercase fw-semibold">{% trans 'Total Teachers' %}</small>
+          <h2 class="mb-0 fw-bold">{{ total_teachers }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Row: Chart + Stats + Quick Actions -->
+<div class="row g-3 mb-4">
+
+  <!-- School Status Distribution - Doughnut Chart -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">
+            <i class="fas fa-chart-pie me-2 text-primary"></i>
+            {% trans 'School Status Distribution' %}
+          </h5>
+        </div>
+
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <canvas id="statusChart" height="200"></canvas>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex justify-content-between align-items-center p-2 bg-success bg-opacity-10 rounded-3">
+                <span><span class="badge bg-success me-2" style="width:10px;height:10px;display:inline-block;border-radius:50%;padding:0;"></span> {% trans 'Active' %}</span>
+                <strong class="fs-5">{{ active_count }}</strong>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 bg-warning bg-opacity-10 rounded-3">
+                <span><span class="badge bg-warning me-2" style="width:10px;height:10px;display:inline-block;border-radius:50%;padding:0;"></span> {% trans 'Trial' %}</span>
+                <strong class="fs-5">{{ trial_count }}</strong>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 bg-danger bg-opacity-10 rounded-3">
+                <span><span class="badge bg-danger me-2" style="width:10px;height:10px;display:inline-block;border-radius:50%;padding:0;"></span> {% trans 'Suspended' %}</span>
+                <strong class="fs-5">{{ suspended_count }}</strong>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 bg-secondary bg-opacity-10 rounded-3">
+                <span><span class="badge bg-secondary me-2" style="width:10px;height:10px;display:inline-block;border-radius:50%;padding:0;"></span> {% trans 'Overdue Payment' %}</span>
+                <strong class="fs-5">{{ overdue_count }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">
+          <i class="fas fa-bolt me-2 text-warning"></i>
+          {% trans 'Quick Actions' %}
+        </h5>
+        <div class="d-grid gap-2">
+          <a href="{% url 'platform_schools_dashboard' %}" class="btn btn-outline-primary text-start px-3 py-2">
+            <i class="fas fa-building me-2"></i> {% trans 'Manage All Schools' %}
+          </a>
+          <a href="{% url 'admin:core_school_add' %}" class="btn btn-outline-success text-start px-3 py-2">
+            <i class="fas fa-plus-circle me-2"></i> {% trans 'Register New School' %}
+          </a>
+          <a href="{% url 'admin:index' %}" class="btn btn-outline-info text-start px-3 py-2">
+            <i class="fas fa-cog me-2"></i> {% trans 'Django Admin Panel' %}
+          </a>
+          <a href="#" onclick="document.getElementById('overdue-form').submit(); return false;" class="btn btn-outline-danger text-start px-3 py-2">
+            <i class="fas fa-ban me-2"></i> {% trans 'Suspend Overdue Schools' %}
+          </a>
+          <form id="overdue-form" method="post" action="{% url 'platform_suspend_overdue_schools' %}" class="d-none">
+            {% csrf_token %}
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recently Added Schools -->
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">
+          <i class="fas fa-history me-2 text-info"></i>
+          {% trans 'Recent Schools' %}
+        </h5>
+        {% if recent_schools %}
+        <ul class="list-unstyled mb-0">
+          {% for school in recent_schools %}
+          <li class="d-flex align-items-center py-2 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; flex-shrink: 0;">
+              <i class="fas fa-school text-primary small"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <strong class="d-block text-truncate">{{ school.name }}</strong>
+              <div class="d-flex align-items-center gap-1">
+                <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>{{ school.created_at|date:"M d" }}</small>
+                <span class="badge {% if school.status == 'active' %}bg-success{% elif school.status == 'suspended' %}bg-danger{% else %}bg-warning text-dark{% endif %} ms-auto">{{ school.get_status_display }}</span>
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-school fa-2x mb-2 d-block"></i>
+          {% trans 'No schools registered yet.' %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const activeCount = {{ active_count }};
+const trialCount = {{ trial_count }};
+const suspendedCount = {{ suspended_count }};
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['{% trans "Active" %}', '{% trans "Trial" %}', '{% trans "Suspended" %}'],
+    datasets: [{
+      data: [activeCount, trialCount, suspendedCount],
+      backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 12,
+          padding: 12,
+          font: { size: 12 }
+        }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

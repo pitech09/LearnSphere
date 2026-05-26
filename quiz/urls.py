@@ -20,5 +20,10 @@ urlpatterns = [
         views.MCQuestionCreate.as_view(),
         name="mc_create",
     ),
+    path(
+        "essay-question/add/<slug>/<int:quiz_id>/",
+        views.EssayQuestionCreate.as_view(),
+        name="essay_create",
+    ),
     # path('mc-question/add/<int:pk>/<quiz_pk>/', MCQuestionCreate.as_view(), name='mc_create'),
 ]

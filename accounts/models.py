@@ -91,6 +91,13 @@ class User(AbstractUser):
 
     class Meta:
         ordering = ("-date_joined",)
+        indexes = [
+            models.Index(fields=["school", "is_superuser"], name="acct_user_school_admin_idx"),
+            models.Index(fields=["school", "is_lecturer"], name="acct_user_school_lec_idx"),
+            models.Index(fields=["school", "is_student"], name="acct_user_school_stu_idx"),
+            models.Index(fields=["school", "is_parent"], name="acct_user_school_par_idx"),
+            models.Index(fields=["email"], name="acct_user_email_idx"),
+        ]
 
     def get_role(self):
         if self.is_superuser:
@@ -128,9 +135,12 @@ class Student(models.Model):
 
     class Meta:
         ordering = ("-student__date_joined",)
+        indexes = [
+            models.Index(fields=["student_class", "level"], name="student_class_level_idx"),
+        ]
 
     def __str__(self):
-        return self.student.get_full_name
+        return self.student.get_full_name()
 
     @classmethod
     def get_gender_count(cls):
@@ -166,6 +176,9 @@ class Parent(models.Model):
 
     class Meta:
         ordering = ("-user__date_joined",)
+        indexes = [
+            models.Index(fields=["student"], name="parent_student_idx"),
+        ]
 
     def __str__(self):
         return self.user.username
@@ -188,12 +201,7 @@ class TeacherProfile(models.Model):
         ordering = ("user__first_name", "user__last_name", "user__username")
 
     def __str__(self):
-        return self.user.get_full_name
-
-
-class DepartmentHead(models.Model):
-    def __str__(self):
-        return self.user.username
+        return self.user.get_full_name()
 
 
 class DepartmentHead(models.Model):

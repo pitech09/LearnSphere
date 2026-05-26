@@ -1,0 +1,46 @@
+{% extends 'registration/registration_base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Service Suspended' %}{% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="mx-auto bg-white border p-4" style="max-width: 680px;">
+
+    <h1 class="h4 mb-3">{% trans 'Service suspended' %}</h1>
+
+    <p class="mb-2">
+      {{ school.name }} {% trans 'is currently suspended.' %}
+    </p>
+
+    {% if school.suspended_reason %}
+      <p class="text-muted">
+        {{ school.suspended_reason }}
+      </p>
+    {% endif %}
+
+    <p class="mb-4">
+      {% trans 'Please contact support to restore access.' %}
+    </p>
+
+    <!-- Contact info (use settings or replace manually) -->
+    <div class="mb-4 small text-muted">
+      <p>
+        {% trans "WhatsApp" %}: +26658538173
+      </p>
+      <p>
+        {% trans "Email" %}: khauhelo872@gmail.com
+      </p>
+    </div>
+
+    <!-- FIXED LOGOUT (POST, not GET) -->
+    <form method="post" action="{% url 'logout' %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-secondary">
+        {% trans 'Sign out' %}
+      </button>
+    </form>
+
+  </div>
+</div>
+{% endblock %}

@@ -14,7 +14,7 @@
 			</div>
 
 			<a href="/" class="d-inline-block mb-2">
-				<img src="{% static 'img/learn1.png' %}" width="165" alt="LearnSphere">
+				<img src="{% static 'img/learn1.jpg' %}" width="180" alt="LearnSphere">
 			</a>
 
 			<!-- School Name -->
@@ -50,6 +50,8 @@
 		{% url 'user_course_list' as ucl %}
 		{% url 'admin_panel' as admin_p %}
 		{% url 'session_list' as sess %}
+		{% url 'platform_schools_dashboard' as platform_schools %}
+		{% url 'current_quarter_update' as current_quarter %}
 
 		<!-- New Routes -->
 		{% url 'class_list' as class_list %}
@@ -65,11 +67,20 @@
 		<ul class="list-unstyled mt-3 px-2">
 
 			<!-- Dashboard -->
-			{% if request.user.is_superuser %}
-			<li class="{% if request.path == dash %}active{% endif %}">
+			{% if request.user.is_authenticated %}
+			<li class="{% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'principal_dashboard' or request.resolver_match.url_name == 'teacher_dashboard' or request.resolver_match.url_name == 'student_dashboard' %}active{% endif %}">
 				<a href="{% url 'dashboard' %}" class="nav-link-custom">
 					<i class="fas fa-tachometer-alt"></i>
 					<span>{% trans 'Dashboard' %}</span>
+				</a>
+			</li>
+			{% endif %}
+
+			{% if request.user.is_superuser and not request.user.school_id %}
+			<li class="{% if request.path == platform_schools %}active{% endif %}">
+				<a href="{% url 'platform_schools_dashboard' %}" class="nav-link-custom">
+					<i class="fas fa-building"></i>
+					<span>{% trans 'Registered Schools' %}</span>
 				</a>
 			</li>
 			{% endif %}
@@ -149,6 +160,15 @@
 					<span>{% trans 'Sessions' %}</span>
 				</a>
 			</li>
+
+			{% if request.user.school_id %}
+			<li class="{% if request.path == current_quarter %}active{% endif %}">
+				<a href="{% url 'current_quarter_update' %}" class="nav-link-custom">
+					<i class="fas fa-calendar-check"></i>
+					<span>{% trans 'Current Quarter' %}</span>
+				</a>
+			</li>
+			{% endif %}
 
 			<li class="{% if request.path == class_list %}active{% endif %}">
 				<a href="{% url 'class_list' %}" class="nav-link-custom">

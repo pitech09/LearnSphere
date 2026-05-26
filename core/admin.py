@@ -39,9 +39,39 @@ class TenantScopedAdminMixin:
             obj.school = getattr(request.user, "school", None)
         super().save_model(request, obj, form, change)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        school_id = getattr(request.user, "school_id", None)
+        if not self.is_platform_admin(request) and school_id:
+            if db_field.name == "school":
+                kwargs["queryset"] = School.objects.filter(pk=school_id)
+            elif db_field.name in {"student"}:
+                kwargs["queryset"] = db_field.remote_field.model.objects.filter(student__school_id=school_id)
+            elif db_field.name in {"school_class", "class_assigned"}:
+                kwargs["queryset"] = SchoolClass.objects.filter(school_id=school_id)
+            elif db_field.name in {"subject"}:
+                kwargs["queryset"] = db_field.remote_field.model.objects.filter(school_id=school_id)
+            elif db_field.name in {"teacher", "class_teacher", "invigilator", "recorded_by", "processed_by", "received_by"}:
+                kwargs["queryset"] = db_field.remote_field.model.objects.filter(school_id=school_id)
+            elif db_field.name in {"session"}:
+                kwargs["queryset"] = Session.objects.filter(school_id=school_id)
+            elif db_field.name in {"term"}:
+                kwargs["queryset"] = Term.objects.filter(school_id=school_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ("name", "subdomain", "status", "plan", "is_active", "created_at")
+    list_display = (
+        "name",
+        "subdomain",
+        "status",
+        "plan",
+        "current_quarter",
+        "subscription_amount",
+        "last_payment_on",
+        "next_payment_due_on",
+        "is_active",
+        "created_at",
+    )
     list_filter = ("status", "plan", "is_active")
     search_fields = ("name", "subdomain", "email", "phone")
     prepopulated_fields = {"slug": ("name",)}
@@ -201,4 +231,3 @@ admin.site.register(ActivityLog, ActivityLogAdmin)
 
 class NewsAndEventsAdmin(admin.ModelAdmin):
     pass
-

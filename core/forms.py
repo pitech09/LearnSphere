@@ -1,7 +1,7 @@
 from django import forms
 
 from course.models import Subject
-from .models import NewsAndEvents, Session, Term
+from .models import NewsAndEvents, School, Session, Term
 
 from django import forms
 from .models import SchoolClass
@@ -9,8 +9,6 @@ from accounts.models import User
 
 
 class SchoolClassForm(forms.ModelForm):
-
-
     class_teacher = forms.ModelChoiceField(
         queryset=User.objects.none(),
         required=True,
@@ -32,15 +30,6 @@ class SchoolClassForm(forms.ModelForm):
         lecturers = User.objects.filter(is_lecturer=True)
         if school:
             lecturers = lecturers.filter(school=school)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        lecturers = User.objects.filter(is_lecturer=True)
-
-        print(" LECTURERS IN SYSTEM:")
-        for u in lecturers:
-            print(u.id, u.username, u.is_lecturer)
 
         self.fields['class_teacher'].queryset = lecturers
 
@@ -74,35 +63,12 @@ class NewsAndEventsForm(forms.ModelForm):
 # 📅 SESSION FORM
 # =========================================================
 class SessionForm(forms.ModelForm):
-    next_session_begins = forms.DateField()
-
-    next_begins = forms.DateField(
-        widget=forms.DateInput(
-            attrs={
-                "type": "date",
-                "class": "form-control"
-            }
-        ),
-        required=False
-    )
-
     class Meta:
         model = Session
         fields = ["session", "is_current", "next_session_begins"]
         widgets = {
-            "next_session_begins": forms.DateInput(
-                attrs={
-                    "type": "date",
-                    "class": "form-control"
-                }
-            )
+            "next_session_begins": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
         }
-
-    class Meta:
-        model = Session
-        fields = ["session", "is_current", "next_begins"]
-
-        fields = ["session", "is_current", "next_begins"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -162,3 +128,42 @@ class SubjectForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.update({"class": "form-control"})
+
+
+class CurrentQuarterForm(forms.ModelForm):
+    class Meta:
+        model = School
+        fields = ["current_quarter"]
+        widgets = {
+            "current_quarter": forms.Select(attrs={"class": "form-control"}),
+        }
+
+
+class SchoolPlatformForm(forms.ModelForm):
+    class Meta:
+        model = School
+        fields = [
+            "status",
+            "plan",
+            "subscription_amount",
+            "max_students",
+            "is_unlimited",
+            "last_payment_on",
+            "next_payment_due_on",
+            "suspended_reason",
+            "is_active",
+        ]
+        widgets = {
+            "last_payment_on": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "next_payment_due_on": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "suspended_reason": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        # Make auto-calculated fields read-only in the UI
+        self.fields["subscription_amount"].widget.attrs["readonly"] = True
+        self.fields["max_students"].widget.attrs["readonly"] = True
+        self.fields["is_unlimited"].widget.attrs["disabled"] = True

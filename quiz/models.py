@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.validators import (
     MaxValueValidator,
+    MinValueValidator,
     validate_comma_separated_integer_list,
 )
 from django.db import models
@@ -102,6 +103,10 @@ class Quiz(models.Model):
     class Meta:
         verbose_name = _("Quiz")
         verbose_name_plural = _("Quizzes")
+        indexes = [
+            models.Index(fields=["course", "category", "draft"], name="quiz_course_category_idx"),
+            models.Index(fields=["course", "-timestamp"], name="quiz_course_time_idx"),
+        ]
 
     def __str__(self):
         return self.title
@@ -123,7 +128,7 @@ class Quiz(models.Model):
 
     @property
     def get_max_score(self):
-        return self.get_questions().count()
+        return sum(question.marks for question in self.get_questions())
 
     def get_absolute_url(self):
         return reverse("quiz_index", kwargs={"slug": self.course.slug})
@@ -273,6 +278,11 @@ class Sitting(models.Model):
 
     class Meta:
         permissions = (("view_sittings", _("Can see completed exams.")),)
+        indexes = [
+            models.Index(fields=["user", "quiz", "course", "complete"], name="sitting_user_quiz_idx"),
+            models.Index(fields=["course", "complete"], name="sitting_course_complete_idx"),
+            models.Index(fields=["quiz", "complete"], name="sitting_quiz_complete_idx"),
+        ]
 
     def get_first_question(self):
         if not self.question_list:
@@ -288,7 +298,7 @@ class Sitting(models.Model):
         self.save()
 
     def add_to_score(self, points):
-        self.current_score += int(points)
+        self.current_score = max(self.current_score + int(points), 0)
         self.save()
 
     @property
@@ -300,10 +310,10 @@ class Sitting(models.Model):
 
     @property
     def get_percent_correct(self):
-        total_questions = len(self._question_ids())
-        if total_questions == 0:
+        max_score = self.get_max_score
+        if max_score == 0:
             return 0
-        percent = (self.current_score / total_questions) * 100
+        percent = (self.current_score / max_score) * 100
         return min(max(int(round(percent)), 0), 100)
 
     def mark_quiz_complete(self):
@@ -313,10 +323,9 @@ class Sitting(models.Model):
 
     def add_incorrect_question(self, question):
         incorrect_ids = self.get_incorrect_questions
-        incorrect_ids.append(question.id)
+        if question.id not in incorrect_ids:
+            incorrect_ids.append(question.id)
         self.incorrect_questions = ",".join(map(str, incorrect_ids)) + ","
-        if self.complete:
-            self.add_to_score(-1)
         self.save()
 
     @property
@@ -328,7 +337,6 @@ class Sitting(models.Model):
         if question.id in incorrect_ids:
             incorrect_ids.remove(question.id)
             self.incorrect_questions = ",".join(map(str, incorrect_ids)) + ","
-            self.add_to_score(1)
             self.save()
 
     @property
@@ -360,17 +368,58 @@ class Sitting(models.Model):
                 question.user_answer = user_answers.get(str(question.id))
         return questions
 
+    def get_question_grade(self, question):
+        try:
+            return self.question_grades.get(question=question)
+        except QuestionGrade.DoesNotExist:
+            return None
+
+    def set_question_score(self, question, awarded_marks, marked_by=None, feedback=""):
+        awarded_marks = int(awarded_marks)
+        if awarded_marks < 0 or awarded_marks > question.marks:
+            raise ValidationError(_("Awarded marks must be between 0 and the question marks."))
+
+        grade, _ = QuestionGrade.objects.update_or_create(
+            sitting=self,
+            question=question,
+            defaults={
+                "awarded_marks": awarded_marks,
+                "marked_by": marked_by,
+                "feedback": feedback,
+                "marked_at": now(),
+            },
+        )
+        self.recalculate_score()
+        return grade
+
+    def recalculate_score(self):
+        grades = self.question_grades.exclude(awarded_marks__isnull=True)
+        self.current_score = sum(grade.awarded_marks for grade in grades)
+        incorrect_ids = [
+            grade.question_id
+            for grade in grades
+            if grade.awarded_marks < grade.question.marks
+        ]
+        self.incorrect_questions = ",".join(map(str, incorrect_ids)) + (
+            "," if incorrect_ids else ""
+        )
+        self.save()
+
+    @property
+    def has_unmarked_questions(self):
+        return self.question_grades.filter(awarded_marks__isnull=True).exists()
+
     @property
     def questions_with_user_answers(self):
         return {q: q.user_answer for q in self.get_questions(with_answers=True)}
 
     @property
     def get_max_score(self):
-        return len(self._question_ids())
+        return sum(question.marks for question in self.get_questions())
 
     def progress(self):
         answered = len(json.loads(self.user_answers))
-        total = self.get_max_score
+        total = len(self._question_ids())
         return answered, total
 
 
@@ -392,6 +441,12 @@ class Question(models.Model):
         blank=True,
         help_text=_("Explanation to be shown after the question has been answered."),
         verbose_name=_("Explanation"),
+    )
+    marks = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text=_("Marks available for this question."),
+        verbose_name=_("Marks"),
     )
 
     objects = InheritanceManager()
@@ -486,3 +541,46 @@ class EssayQuestion(Question):
 
     def answer_choice_to_string(self, guess):
         return str(guess)
+
+
+class QuestionGrade(models.Model):
+    sitting = models.ForeignKey(
+        Sitting,
+        on_delete=models.CASCADE,
+        related_name="question_grades",
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="sitting_grades",
+    )
+    awarded_marks = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="marked_question_grades",
+    )
+    feedback = models.TextField(blank=True)
+    marked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("sitting", "question")
+        verbose_name = _("Question Grade")
+        verbose_name_plural = _("Question Grades")
+
+    def clean(self):
+        super().clean()
+        if self.awarded_marks is not None and self.awarded_marks > self.question.marks:
+            raise ValidationError(_("Awarded marks cannot exceed the question marks."))
+
+    def save(self, *args, **kwargs):
+        if self.awarded_marks is not None and self.marked_at is None:
+            self.marked_at = now()
+        self.full_clean()
+        super().save(*args, **kwargs)

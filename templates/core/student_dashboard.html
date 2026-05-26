@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Student Dashboard' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Student Dashboard' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="title-1 mb-1">{% trans 'Student Dashboard' %}</h1>
+    <div class="text-muted">
+      {{ school.name }}{% if student.student_class %} - {{ student.student_class }}{% endif %}
+    </div>
+  </div>
+  <a class="btn btn-primary" href="{% url 'grade_results' %}">
+    <i class="fas fa-list-ol"></i>{% trans 'Results' %}
+  </a>
+</div>
+
+<div class="row users-count px-3">
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-book text-primary"></i>
+      <div class="text-right">
+        <small>{% trans 'Class Subjects' %}</small>
+        <h2>{{ subject_count }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-clipboard-check text-success"></i>
+      <div class="text-right">
+        <small>{% trans 'Recorded Results' %}</small>
+        <h2>{{ registered_count }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="card-count p-3">
+      <i class="fas fa-chart-line text-info"></i>
+      <div class="text-right">
+        <small>{% trans 'Current Average' %}</small>
+        <h2>{% if current_section %}{{ current_section.average|floatformat:1 }}%{% else %}0%{% endif %}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row px-2">
+  <div class="col-lg-7 p-2">
+    <div class="card p-3 h-100">
+      <h5>{% trans 'My Subjects' %}</h5>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>{% trans 'Subject' %}</th>
+              <th>{% trans 'Teacher' %}</th>
+              <th>{% trans 'Code' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for subject in subjects %}
+            <tr>
+              <td><a href="{{ subject.get_absolute_url }}">{{ subject.title }}</a></td>
+              <td>{{ subject.teacher.get_full_name|default:'-' }}</td>
+              <td>{{ subject.code }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center">{% trans 'No subjects assigned yet.' %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5 p-2">
+    <div class="card p-3 h-100">
+      <h5>{% trans 'Current Quarter Summary' %}</h5>
+      {% if current_section %}
+      <p class="mb-2"><strong>{{ current_section.label }}</strong></p>
+      <p class="mb-2">{% trans 'Subjects' %}: {{ current_section.total_subjects }}</p>
+      <p class="mb-2">{% trans 'Tests Average' %}: {{ current_section.test_average|floatformat:1 }}%</p>
+      <p class="mb-2">{% trans 'Final Average' %}: {{ current_section.average|floatformat:1 }}%</p>
+      <p class="{% if current_section.comment == 'PASS' %}text-success{% else %}text-danger{% endif %}">
+        {{ current_section.comment }}
+      </p>
+      {% else %}
+      <p class="text-muted">{% trans 'No results recorded yet.' %}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

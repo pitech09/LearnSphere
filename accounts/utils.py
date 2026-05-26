@@ -1,12 +1,14 @@
 import threading
 import string
+import json
+import logging
+import urllib.request
 from datetime import datetime
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth import password_validation
 from django.utils.crypto import get_random_string
 
-from core.utils import send_html_email
+logger = logging.getLogger(__name__)
 
 
 def generate_password(length=12):
@@ -35,33 +37,63 @@ def generate_lecturer_credentials():
     return generate_lecturer_id(), generate_password()
 
 
-class EmailThread(threading.Thread):
-    def __init__(self, subject, recipient_list, template_name, context):
-        self.subject = subject
-        self.recipient_list = recipient_list
-        self.template_name = template_name
-        self.context = context
+class SMSThread(threading.Thread):
+    def __init__(self, phone_number, message):
+        self.phone_number = phone_number
+        self.message = message
         threading.Thread.__init__(self)
 
     def run(self):
-        send_html_email(
-            subject=self.subject,
-            recipient_list=self.recipient_list,
-            template=self.template_name,
-            context=self.context,
-        )
+        send_sms(self.phone_number, self.message)
 
 
-def send_new_account_email(user, password):
-    if user.is_student:
-        template_name = "accounts/email/new_student_account_confirmation.html"
-    else:
-        template_name = "accounts/email/new_lecturer_account_confirmation.html"
-    print(f"[ACCOUNT CREATED] {user.username} | {user.email} | password={password}")    
-    email = {
-        "subject": "Your LearnSphere account confirmation and credentials",
-        "recipient_list": [user.email],
-        "template_name": template_name,
-        "context": {"user": user, "password": password},
-    }
-    EmailThread(**email).start()
+def send_sms(phone_number, message):
+    api_key = getattr(settings, "TEXTBEE_API_KEY", "")
+    device_id = getattr(settings, "TEXTBEE_DEVICE_ID", "")
+    base_url = getattr(settings, "TEXTBEE_BASE_URL", "https://api.textbee.dev")
+
+    if not phone_number:
+        logger.warning("SMS skipped because no phone number was supplied.")
+        return None
+
+    if not api_key or not device_id:
+        logger.info("[SMS DRY RUN] To %s: %s", phone_number, message)
+        return None
+
+    url = f"{base_url.rstrip('/')}/api/v1/gateway/devices/{device_id}/send-sms"
+    payload = json.dumps({
+        "recipients": [phone_number],
+        "message": message,
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return response.status
+    except Exception:
+        logger.exception("SMS send failed for %s", phone_number)
+        return None
+
+
+def build_account_credentials_message(user, password):
+    school_name = user.school.name if getattr(user, "school", None) else "LearnSphere"
+    role = "student" if user.is_student else "teacher"
+    return (
+        f"{school_name} {role} account created. "
+        f"Username: {user.username}. Password: {password}. "
+        "Please sign in and change your password."
+    )
+
+
+def send_new_account_sms(user, password):
+    message = build_account_credentials_message(user, password)
+    logger.info("[ACCOUNT CREATED] %s | %s", user.username, user.phone)
+    SMSThread(user.phone, message).start()

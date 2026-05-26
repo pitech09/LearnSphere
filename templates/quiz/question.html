@@ -122,10 +122,12 @@
 	<p>
 		<small class="muted">{% trans "Quiz category" %}:</small>
 		<strong>{{ quiz.category }}</strong>
+		<span class="badge bg-secondary ms-2">{{ question_type_label }}</span>
 	</p>
 
 	<div class="card">
 		<div class="lead p-2">{{ question.content }}</div>
+		<div class="px-2 pb-2 text-muted small">{{ question.marks }} {% trans "marks" %}</div>
 
 		{% if question.figure %}
 		<div class="col-md-8 mx-auto">
@@ -136,17 +138,28 @@
 			<form action="" method="POST">{% csrf_token %}
 				<input type="hidden" name="question_id" value="{{ question.id }}">
 
-				<ul class="list-group">
-
-					{% for answer in form.answers %}
-					<li class="list-group-item">
-						{{ answer }}
-					</li>
-					{% endfor %}
-
-				</ul>
+				{% if is_essay_question %}
+					<label class="form-label fw-bold" for="{{ form.answers.id_for_label }}">
+						{% trans 'Your answer' %}
+					</label>
+					{{ form.answers }}
+					<div class="form-text">
+						{% trans 'This answer will be submitted to your teacher for marking.' %}
+					</div>
+				{% else %}
+					<label class="form-label fw-bold">
+						{% trans 'Choose one answer' %}
+					</label>
+					<ul class="list-group">
+						{% for answer in form.answers %}
+						<li class="list-group-item">
+							{{ answer }}
+						</li>
+						{% endfor %}
+					</ul>
+				{% endif %}
 				<br>
-				<input type="submit" value="Check" class="btn btn-large btn-block btn-primary" />
+				<input type="submit" value="{% trans 'Submit answer' %}" class="btn btn-large btn-block btn-primary" />
 				<!-- <input type="submit" value={% trans "Previous" %} class="btn btn-large btn-block btn-outline-primary" > -->
 			</form>
 		</div>

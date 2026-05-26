@@ -10,7 +10,7 @@ from django_filters.views import FilterView
 from core.models import Term
 from core.models import SchoolClass
 
-from accounts.decorators import lecturer_required, student_required
+from accounts.decorators import admin_required, lecturer_required, student_required
 from accounts.models import Student
 from course.forms import (
     UploadFormFile,
@@ -24,22 +24,31 @@ from course.models import (
 )
 from .forms import AssignClassForm, SubjectAddForm
 from result.models import TakenCourse
+from result.views import get_current_quarter
 
 
 # ########################################################
 # Course Views
 # ########################################################
 
+def school_scoped_subjects(user):
+    subjects = Subject.objects.select_related("school", "class_assigned", "teacher")
+    school = getattr(user, "school", None)
+    if school:
+        subjects = subjects.filter(school=school)
+    elif not user.is_superuser:
+        subjects = subjects.none()
+    return subjects
+
+
 @login_required
 def course_single(request, slug):
-    course = get_object_or_404(Subject, slug=slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
 
-    # FIX: course → subject
-    files = Upload.objects.filter(subject=course)
-    videos = UploadVideo.objects.filter(subject=course)
+    files = Upload.objects.filter(subject=course).order_by("-upload_time")
+    videos = UploadVideo.objects.filter(subject=course).order_by("-timestamp")
 
-    # FIX: courses → subjects
-    lecturers = SubjectAllocation.objects.filter(subjects=course)
+    lecturers = SubjectAllocation.objects.select_related("teacher", "session").filter(subjects=course)
 
     return render(
         request,
@@ -59,10 +68,12 @@ def course_single(request, slug):
 @lecturer_required
 def subject_add(request):
     if request.method == "POST":
-        form = SubjectAddForm(request.POST)
+        form = SubjectAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
-            subject = form.save()
+            subject = form.save(commit=False)
+            subject.school = request.user.school
+            subject.save()
 
             messages.success(
                 request,
@@ -72,7 +83,7 @@ def subject_add(request):
 
         messages.error(request, "Correct the error(s) below.")
     else:
-        form = SubjectAddForm()
+        form = SubjectAddForm(school=request.user.school)
 
     return render(
         request,
@@ -87,9 +98,9 @@ def subject_add(request):
 @login_required
 @lecturer_required
 def course_edit(request, slug):
-    course = get_object_or_404(Subject, slug=slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
     if request.method == "POST":
-        form = SubjectAddForm(request.POST, instance=course)
+        form = SubjectAddForm(request.POST, instance=course, school=request.user.school)
         if form.is_valid():
             course = form.save()
             messages.success(
@@ -98,7 +109,7 @@ def course_edit(request, slug):
             return redirect("course_detail", slug=course.slug)
         messages.error(request, "Correct the error(s) below.")
     else:
-        form = SubjectAddForm(instance=course)
+        form = SubjectAddForm(instance=course, school=request.user.school)
     return render(
         request, "course/course_add.html", {"title": "Edit Course", "form": form}
     )
@@ -107,8 +118,11 @@ def course_edit(request, slug):
 @login_required
 @lecturer_required
 def subject_delete(request, slug):
-    subject = get_object_or_404(Subject, slug=slug)
+    subjects = school_scoped_subjects(request.user)
+    subject = get_object_or_404(subjects, slug=slug)
     title = subject.title
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": subject, "cancel_url": "subject_list"})
     subject.delete()
     messages.success(request, f"Subject {title} has been deleted.")
     return redirect("subject_list")
@@ -121,7 +135,12 @@ def subject_delete(request, slug):
 @login_required
 @lecturer_required
 def deallocate_course(request, pk):
-    allocation = get_object_or_404(SubjectAllocation, pk=pk)
+    allocation = get_object_or_404(
+        SubjectAllocation.objects.filter(teacher__school=request.user.school),
+        pk=pk,
+    )
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": allocation, "cancel_url": "course_allocation_view"})
     allocation.delete()
     messages.success(request, "Successfully deallocated subjects.")
     return redirect("course_allocation_view")
@@ -134,7 +153,7 @@ def deallocate_course(request, pk):
 @login_required
 @lecturer_required
 def handle_file_upload(request, slug):
-    course = get_object_or_404(Subject, slug=slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
     if request.method == "POST":
         form = UploadFormFile(request.POST, request.FILES)
         if form.is_valid():
@@ -160,8 +179,8 @@ def handle_file_upload(request, slug):
 @login_required
 @lecturer_required
 def handle_file_edit(request, slug, file_id):
-    course = get_object_or_404(Subject, slug=slug)
-    upload = get_object_or_404(Upload, pk=file_id)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
+    upload = get_object_or_404(Upload, pk=file_id, subject=course)
 
     if request.method == "POST":
         form = UploadFormFile(request.POST, request.FILES, instance=upload)
@@ -184,10 +203,12 @@ def handle_file_edit(request, slug, file_id):
 @lecturer_required
 def subject_add_view(request):
     if request.method == "POST":
-        form = SubjectAddForm(request.POST)
+        form = SubjectAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
-            subject = form.save()
+            subject = form.save(commit=False)
+            subject.school = request.user.school
+            subject.save()
 
             messages.success(
                 request,
@@ -197,7 +218,7 @@ def subject_add_view(request):
 
         messages.error(request, "Correct the error(s) below.")
     else:
-        form = SubjectAddForm()
+        form = SubjectAddForm(school=request.user.school)
 
     return render(
         request,
@@ -212,8 +233,9 @@ def subject_add_view(request):
 @login_required
 @lecturer_required
 def subject_update_view(request, pk):
-    obj = get_object_or_404(Subject, pk=pk)
-    form = SubjectAddForm(request.POST or None, instance=obj)
+    subjects = school_scoped_subjects(request.user)
+    obj = get_object_or_404(subjects, pk=pk)
+    form = SubjectAddForm(request.POST or None, instance=obj, school=request.user.school)
 
     if form.is_valid():
         form.save()
@@ -226,7 +248,8 @@ def subject_update_view(request, pk):
 @login_required
 @lecturer_required
 def subject_delete_view(request, pk):
-    obj = get_object_or_404(Subject, pk=pk)
+    subjects = school_scoped_subjects(request.user)
+    obj = get_object_or_404(subjects, pk=pk)
 
     if request.method == "POST":
         obj.delete()
@@ -239,8 +262,11 @@ def subject_delete_view(request, pk):
 @login_required
 @lecturer_required
 def handle_file_delete(request, slug, file_id):
-    upload = get_object_or_404(Upload, pk=file_id)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
+    upload = get_object_or_404(Upload, pk=file_id, subject=course)
     title = upload.title
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": upload, "cancel_url": "course_detail", "cancel_kwargs": {"slug": slug}})
     upload.delete()
     messages.success(request, f"{title} has been deleted.")
     return redirect("course_detail", slug=slug)
@@ -253,7 +279,7 @@ def handle_file_delete(request, slug, file_id):
 @login_required
 @lecturer_required
 def handle_video_upload(request, slug):
-    course = get_object_or_404(Subject, slug=slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
     if request.method == "POST":
         form = UploadFormVideo(request.POST, request.FILES)
         if form.is_valid():
@@ -278,8 +304,8 @@ def handle_video_upload(request, slug):
 
 @login_required
 def handle_video_single(request, slug, video_slug):
-    course = get_object_or_404(Subject, slug=slug)
-    video = get_object_or_404(UploadVideo, slug=video_slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
+    video = get_object_or_404(UploadVideo, slug=video_slug, subject=course)
 
     return render(
         request,
@@ -291,8 +317,8 @@ def handle_video_single(request, slug, video_slug):
 @login_required
 @lecturer_required
 def handle_video_edit(request, slug, video_slug):
-    course = get_object_or_404(Subject, slug=slug)
-    video = get_object_or_404(UploadVideo, slug=video_slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
+    video = get_object_or_404(UploadVideo, slug=video_slug, subject=course)
 
     if request.method == "POST":
         form = UploadFormVideo(request.POST, request.FILES, instance=video)
@@ -314,8 +340,11 @@ def handle_video_edit(request, slug, video_slug):
 @login_required
 @lecturer_required
 def handle_video_delete(request, slug, video_slug):
-    video = get_object_or_404(UploadVideo, slug=video_slug)
+    course = get_object_or_404(school_scoped_subjects(request.user), slug=slug)
+    video = get_object_or_404(UploadVideo, slug=video_slug, subject=course)
     title = video.title
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": video, "cancel_url": "course_detail", "cancel_kwargs": {"slug": slug}})
     video.delete()
     messages.success(request, f"{title} has been deleted.")
     return redirect("course_detail", slug=slug)
@@ -329,25 +358,20 @@ def handle_video_delete(request, slug, video_slug):
 @student_required
 def course_registration(request):
 
-    student = get_object_or_404(Student, student__id=request.user.id)
-    current_term = Term.objects.filter(is_current=True).first()
-    term_to_quarter = {
-        "T1": "Q1",
-        "T2": "Q2",
-        "T3": "Q3",
-        "T4": "Q4",
-    }
-    current_quarter = term_to_quarter.get(
-        current_term.name,
-        "Q1",
-    ) if current_term else "Q1"
+    student = get_object_or_404(Student, student__id=request.user.id, student__school=request.user.school)
+    current_term = Term.objects.filter(is_current=True, school=request.user.school).first()
+    current_quarter = get_current_quarter(getattr(request.user, "school", None))
 
     if request.method == "POST":
         course_ids = request.POST.getlist("course_ids")
 
         for cid in course_ids:
             try:
-                course = Subject.objects.get(pk=cid)
+                course = Subject.objects.get(
+                    pk=cid,
+                    school=request.user.school,
+                    class_assigned=student.student_class,
+                )
 
                 TakenCourse.objects.get_or_create(
                     student=student,
@@ -366,14 +390,16 @@ def course_registration(request):
         return render(request, "course/course_registration.html", {})
 
     taken_ids = TakenCourse.objects.filter(
-        student__student__id=request.user.id
+        student__student__id=request.user.id,
+        school=request.user.school,
     ).values_list("course_id", flat=True)
 
     courses = Subject.objects.filter(
-        class_assigned=student.student_class
+        school=request.user.school,
+        class_assigned=student.student_class,
     ).exclude(id__in=taken_ids)
 
-    registered_courses = Subject.objects.filter(id__in=taken_ids)
+    registered_courses = Subject.objects.filter(school=request.user.school, id__in=taken_ids)
 
     return render(request, "course/course_registration.html", {
         "student": student,
@@ -387,12 +413,12 @@ def course_registration(request):
 @student_required
 def course_drop(request):
     if request.method == "POST":
-        student = get_object_or_404(Student, student__pk=request.user.id)
+        student = get_object_or_404(Student, student__pk=request.user.id, student__school=request.user.school)
         course_ids = request.POST.getlist("course_ids")
 
         for course_id in course_ids:
-            course = get_object_or_404(Subject, pk=course_id)
-            TakenCourse.objects.filter(student=student, course=course).delete()
+            course = get_object_or_404(Subject, pk=course_id, school=request.user.school)
+            TakenCourse.objects.filter(student=student, course=course, school=request.user.school).delete()
 
         messages.success(request, "Courses dropped successfully!")
         return redirect("course_registration")
@@ -408,7 +434,7 @@ def user_course_list(request):
     #  STUDENT VIEW
     if request.user.is_student:
 
-        student = get_object_or_404(Student, student=request.user)
+        student = get_object_or_404(Student, student=request.user, student__school=request.user.school)
 
         if not student.student_class:
             return render(request, "course/user_course_list.html", {
@@ -418,8 +444,9 @@ def user_course_list(request):
             })
 
         courses = Subject.objects.filter(
-            class_assigned=student.student_class
-        )
+            school=request.user.school,
+            class_assigned=student.student_class,
+        ).select_related("class_assigned", "teacher")
 
         return render(request, "course/user_course_list.html", {
             "courses": courses,
@@ -430,8 +457,9 @@ def user_course_list(request):
     if request.user.is_lecturer:
 
         courses = Subject.objects.filter(
+            school=request.user.school,
             teacher=request.user
-        )
+        ).select_related("class_assigned", "teacher")
 
         return render(request, "course/user_course_list.html", {
             "courses": courses,
@@ -440,11 +468,15 @@ def user_course_list(request):
     return render(request, "course/user_course_list.html")
 
 @login_required
+@admin_required
 def assign_class_view(request, student_id):
 
-    student = get_object_or_404(Student, id=student_id)
+    students = Student.objects.select_related("student", "student_class")
+    if request.user.school:
+        students = students.filter(student__school=request.user.school)
+    student = get_object_or_404(students, id=student_id)
 
-    form = AssignClassForm(request.POST or None, instance=student)
+    form = AssignClassForm(request.POST or None, instance=student, school=request.user.school)
 
     if request.method == "POST" and form.is_valid():
         form.save()

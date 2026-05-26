@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth import logout
@@ -23,10 +25,13 @@ from accounts.forms import (
     StudentAddForm,
 )
 from accounts.models import Parent, Student, User
-from accounts.utils import send_new_account_email
-from core.models import Session, Term
+from accounts.utils import generate_password, send_new_account_sms
+from core.models import SCHOOL_PLAN_UNLIMITED, School, Session, Term
 from course.models import Subject
 from result.models import TakenCourse
+from django.utils.http import url_has_allowed_host_and_scheme
+
+logger = logging.getLogger(__name__)
 
 # ########################################################
 # Utility Functions
@@ -42,6 +47,14 @@ def render_to_pdf(template_name, context):
     if pdf.err:
         return HttpResponse("We had some problems generating the PDF")
     return response
+
+
+def school_scoped_users(request, **filters):
+    qs = User.objects.filter(**filters)
+    school = getattr(request.user, "school", None)
+    if school:
+        qs = qs.filter(school=school)
+    return qs
 
 
 # ########################################################
@@ -98,8 +111,7 @@ def custom_login_view(request):
     if request.method == "POST":
         identifier = request.POST.get("username")
         password = request.POST.get("password")
-
-        print("LOGIN INPUT:", identifier)
+        next_url = request.POST.get("next") or request.GET.get("next")
 
         user_obj = None
 
@@ -122,23 +134,30 @@ def custom_login_view(request):
 
         user = authenticate(request, username=identifier, password=password)
 
-        print("AUTH RESULT:", user)
-
         if user is not None:
             login(request, user)
 
-            # role routing
-            if hasattr(user, "is_student") and user.is_student:
+            if next_url and url_has_allowed_host_and_scheme(
+                next_url,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
+                return redirect(next_url)
+
+            if user.is_student:
                 return redirect("student_dashboard")
 
-            if hasattr(user, "is_lecturer") and user.is_lecturer:
-                return redirect("lecturer_dashboard")
+            if user.is_lecturer:
+                return redirect("teacher_dashboard")
+
+            if user.is_superuser and user.school_id:
+                return redirect("principal_dashboard")
 
             return redirect("dashboard")
 
         messages.error(request, "Invalid ID or Password")
 
-    return render(request, "registration/login.html")
+    return render(request, "registration/login.html", {"next": request.GET.get("next", "")})
 
 def health_check_view(request):
     return render(request, "core/health_check.html", {
@@ -155,9 +174,9 @@ def health_check_view(request):
 @login_required
 def profile(request):
     """Show profile of the current user."""
-    current_session = Session.objects.filter(is_current=True).first()
+    current_session = Session.objects.filter(is_current=True, school=request.user.school).first()
     current_semester = Term.objects.filter(
-        is_current=True, session=current_session
+        is_current=True, session=current_session, school=request.user.school
     ).first()
 
     context = {
@@ -168,21 +187,19 @@ def profile(request):
 
     if request.user.is_lecturer:
 
-        courses = Subject.objects.filter(teacher_id=request.user.id)
+        courses = Subject.objects.filter(teacher_id=request.user.id, school=request.user.school)
 
-        print(courses)
-        print(type(request.user))
-        print(request.user.__class__) 
         context.update({
             "user_type": "Lecturer",
             "courses": courses,
         })
 
     if request.user.is_student:
-        student = get_object_or_404(Student, student__pk=request.user.id)
+        student = get_object_or_404(Student, student__pk=request.user.id, student__school=request.user.school)
         parent = Parent.objects.filter(student=student).first()
         courses = TakenCourse.objects.filter(
-            student__student__id=request.user.id
+            student__student__id=request.user.id,
+            school=request.user.school,
         )
         context.update(
             {
@@ -194,7 +211,7 @@ def profile(request):
         return render(request, "accounts/profile.html", context)
 
     # For superuser or other staff
-    staff = User.objects.filter(is_lecturer=True)
+    staff = school_scoped_users(request, is_lecturer=True)
     context["staff"] = staff
     return render(request, "accounts/profile.html", context)
 
@@ -206,11 +223,11 @@ def profile_single(request, user_id):
     if request.user.id == user_id:
         return redirect("profile")
 
-    current_session = Session.objects.filter(is_current=True).first()
+    current_session = Session.objects.filter(is_current=True, school=request.user.school).first()
     current_semester = Term.objects.filter(
-        is_current=True, session=current_session
+        is_current=True, session=current_session, school=request.user.school
     ).first()
-    user = get_object_or_404(User, pk=user_id)
+    user = get_object_or_404(school_scoped_users(request), pk=user_id)
 
     context = {
         "title": user.get_full_name,
@@ -221,7 +238,8 @@ def profile_single(request, user_id):
 
     if user.is_lecturer:
         courses = Subject.objects.filter(
-            allocated_subjects__teacher__pk=user_id
+            allocated_subjects__teacher__pk=user_id,
+            school=user.school,
         )
         context.update(
             {
@@ -230,9 +248,10 @@ def profile_single(request, user_id):
             }
         )
     elif user.is_student:
-        student = get_object_or_404(Student, student__pk=user_id)
+        student = get_object_or_404(Student, student__pk=user_id, student__school=user.school)
         courses = TakenCourse.objects.filter(
-            student__student__id=user_id
+            student__student__id=user_id,
+            school=user.school,
         )
         context.update(
             {
@@ -304,11 +323,17 @@ def staff_add_view(request):
             form.instance.school = request.user.school
             lecturer = form.save()
             full_name = lecturer.get_full_name
-            email = lecturer.email
+            phone = lecturer.phone
+            raw_password = request.POST.get("password1")
+            if not raw_password:
+                raw_password = generate_password()
+                lecturer.set_password(raw_password)
+                lecturer.save(update_fields=["password"])
+            send_new_account_sms(lecturer, raw_password)
             messages.success(
                 request,
                 f"Account for lecturer {full_name} has been created. "
-                f"An email with account credentials will be sent to {email} within a minute.",
+                f"Login credentials will be sent by SMS to {phone} within a minute.",
             )
             return redirect("lecturer_list")
     else:
@@ -321,7 +346,7 @@ def staff_add_view(request):
 @login_required
 @admin_required
 def edit_staff(request, pk):
-    lecturer = get_object_or_404(User, is_lecturer=True, pk=pk)
+    lecturer = get_object_or_404(school_scoped_users(request, is_lecturer=True), pk=pk)
     if request.method == "POST":
         form = ProfileUpdateForm(request.POST, request.FILES, instance=lecturer)
         if form.is_valid():
@@ -344,7 +369,7 @@ class LecturerFilterView(FilterView):
     paginate_by = 10
 
     def get_queryset(self):
-        qs = User.objects.filter(is_lecturer=True)
+        qs = User.objects.select_related("school").filter(is_lecturer=True)
         school = getattr(self.request.user, "school", None)
         if school:
             qs = qs.filter(school=school)
@@ -359,7 +384,7 @@ class LecturerFilterView(FilterView):
 @login_required
 @admin_required
 def render_lecturer_pdf_list(request):
-    lecturers = User.objects.filter(is_lecturer=True)
+    lecturers = User.objects.select_related("school").filter(is_lecturer=True)
     if request.user.school:
         lecturers = lecturers.filter(school=request.user.school)
     template_path = "pdf/lecturer_list.html"
@@ -377,8 +402,10 @@ def render_lecturer_pdf_list(request):
 @login_required
 @admin_required
 def delete_staff(request, pk):
-    lecturer = get_object_or_404(User, is_lecturer=True, pk=pk)
+    lecturer = get_object_or_404(school_scoped_users(request, is_lecturer=True), pk=pk)
     full_name = lecturer.get_full_name
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": lecturer, "cancel_url": "lecturer_list"})
     lecturer.delete()
     messages.success(request, f"Lecturer {full_name} has been deleted.")
     return redirect("lecturer_list")
@@ -394,30 +421,41 @@ def student_add_view(request):
         form = StudentAddForm(request.POST, school=request.user.school)
 
         if form.is_valid():
+            # Enforce student limit based on school plan
+            school = getattr(request.user, "school", None)
+            if school and not school.is_unlimited:
+                current_student_count = User.objects.filter(school=school, is_student=True).count()
+                if current_student_count >= school.max_students:
+                    messages.error(
+                        request,
+                        f"Student limit reached ({current_student_count}/{school.max_students}). "
+                        f"Please upgrade your plan to add more students."
+                    )
+                    return render(
+                        request,
+                        "accounts/add_student.html",
+                        {"title": "Add Student", "form": form}
+                    )
+
             form.instance.school = request.user.school
             student = form.save()
 
             full_name = student.get_full_name
-            email = student.email
+            phone = student.phone
 
-            #  IMPORTANT: retrieve password ONLY if your form generates it
             raw_password = request.POST.get("password1")
 
-            send_new_account_email(student, raw_password)
+            send_new_account_sms(student, raw_password)
 
             messages.success(
                 request,
                 f"Account for {full_name} created successfully. "
-                f"Login credentials sent to {email}."
+                f"Login credentials sent by SMS to {phone}."
             )
 
             return redirect("student_list")
-        print(" FORM INVALID")
-        print(form.errors)              
-        print(form.non_field_errors())  
-
+        logger.info("Student add form failed validation for school_id=%s", request.user.school_id)
         messages.error(request, "Correct the error(s) below.")
-        print("form not valid")
 
     else:
         form = StudentAddForm(school=request.user.school)
@@ -431,7 +469,7 @@ def student_add_view(request):
 @login_required
 @admin_required
 def edit_student(request, pk):
-    student_user = get_object_or_404(User, is_student=True, pk=pk)
+    student_user = get_object_or_404(school_scoped_users(request, is_student=True), pk=pk)
     if request.method == "POST":
         form = ProfileUpdateForm(request.POST, request.FILES, instance=student_user)
         if form.is_valid():
@@ -454,7 +492,7 @@ class StudentListView(FilterView):
     paginate_by = 10
 
     def get_queryset(self):
-        qs = Student.objects.all()
+        qs = Student.objects.select_related("student", "student_class")
         school = getattr(self.request.user, "school", None)
         if school:
             qs = qs.filter(student__school=school)
@@ -469,7 +507,7 @@ class StudentListView(FilterView):
 @login_required
 @admin_required
 def render_student_pdf_list(request):
-    students = Student.objects.all()
+    students = Student.objects.select_related("student", "student_class")
     if request.user.school:
         students = students.filter(student__school=request.user.school)
     template_path = "pdf/student_list.html"
@@ -487,8 +525,13 @@ def render_student_pdf_list(request):
 @login_required
 @admin_required
 def delete_student(request, pk):
-    student = get_object_or_404(Student, pk=pk)
+    students = Student.objects.select_related("student", "student_class")
+    if request.user.school:
+        students = students.filter(student__school=request.user.school)
+    student = get_object_or_404(students, pk=pk)
     full_name = student.student.get_full_name
+    if request.method != "POST":
+        return render(request, "core/confirm_delete.html", {"object": student, "cancel_url": "student_list"})
     student.delete()
     messages.success(request, f"Student {full_name} has been deleted.")
     return redirect("student_list")

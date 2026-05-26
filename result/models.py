@@ -114,6 +114,12 @@ class TakenCourse(models.Model):
     point = models.DecimalField(max_digits=5, decimal_places=2, default=0, editable=False)
     comment = models.CharField(max_length=10, choices=COMMENT_CHOICES, blank=True, editable=False)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["school", "student", "quarter"], name="taken_school_student_q_idx"),
+            models.Index(fields=["school", "course", "quarter"], name="taken_school_course_q_idx"),
+        ]
+
     def __str__(self):
         return self.student.student.get_full_name()
 
@@ -186,6 +192,12 @@ class Result(models.Model):
     total_points = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     average = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     comment = models.CharField(max_length=10, choices=COMMENT_CHOICES, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["school", "student", "quarter"], name="result_school_student_q_idx"),
+            models.Index(fields=["school", "session", "quarter"], name="result_school_period_idx"),
+        ]
 
     def __str__(self):
         return f"Result - {self.student} ({self.session}, {self.quarter})"

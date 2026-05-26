@@ -6,6 +6,8 @@ from django.views import defaults as default_views
 from django.conf.urls.i18n import i18n_patterns
 from django.views.i18n import JavaScriptCatalog
 from django.shortcuts import redirect
+from accounts.views import custom_login_view, logout_view
+
 
 admin.site.site_header = "LearnSphere School Management"
 admin.site.site_title = "School Management Admin"
@@ -14,7 +16,9 @@ admin.site.index_title = "Principal Administration"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
-    path("", include("django.contrib.auth.urls")),
+    path("login/", custom_login_view, name="login"),
+    path("logout/", logout_view, name="logout"),
+    #path("", include("django.contrib.auth.urls")),
     path("", include("core.urls")),
 ]
 
@@ -31,9 +35,8 @@ urlpatterns += i18n_patterns(
    
 )
 
-if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit

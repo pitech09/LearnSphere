@@ -5,68 +5,92 @@
 
 {% block content %}
 
-<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-    <li class="breadcrumb-item active">{% trans 'Classes' %}</li>
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb bg-light px-3 py-2 rounded-3">
+    <li class="breadcrumb-item"><a href="/" class="text-decoration-none">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active fw-semibold text-primary">{% trans 'Classes' %}</li>
   </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div class="title-1">
-    <i class="fas fa-school"></i> {% trans "Classes" %}
+<!-- Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h3 class="mb-0 fw-bold">
+      <i class="fas fa-school text-primary me-2"></i>
+      {% trans "Classes" %}
+    </h3>
+    <small class="text-muted">{% trans "Manage all school classes and their assigned teachers" %}</small>
   </div>
 
-  <a href="{% url 'add_class' %}" class="btn btn-primary">
-    <i class="fas fa-plus"></i> {% trans "Add Class" %}
+  <a href="{% url 'add_class' %}" class="btn btn-primary shadow-sm px-3">
+    <i class="fas fa-plus me-1"></i> {% trans "Add Class" %}
   </a>
 </div>
 
 {% include 'snippets/messages.html' %}
 
-<div class="card p-3">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>#</th>
-          <th>{% trans "Name" %}</th>
-          <th>{% trans "Level" %}</th>
-          <th>{% trans "Class Teacher" %}</th>
-          <th class="text-center">{% trans "Actions" %}</th>
-        </tr>
-      </thead>
+<!-- Card -->
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body p-0">
 
-      <tbody>
-        {% for cls in classes %}
-        <tr>
-          <td>{{ forloop.counter }}</td>
-          <td><strong>{{ cls.name }}</strong></td>
-          <td>{{ cls.level }}</td>
-          <td>{{ cls.class_teacher }}</td>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">#</th>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Level" %}</th>
+            <th>{% trans "Class Teacher" %}</th>
+            <th class="text-center pe-3">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
 
-          <td class="text-center">
-            <a href="{% url 'edit_class' cls.id %}" class="btn btn-sm btn-warning">
-              <i class="fas fa-edit"></i>
-            </a>
+        <tbody>
+          {% for cls in classes %}
+          <tr>
+            <td class="ps-3 fw-semibold text-muted">{{ forloop.counter }}</td>
 
-            <a href="{% url 'delete_class' cls.id %}" class="btn btn-sm btn-danger"
-               onclick="return confirm('{% trans "Are you sure?" %}')">
-              <i class="fas fa-trash"></i>
-            </a>
-          </td>
-        </tr>
+            <td>
+              <div class="fw-semibold text-dark">{{ cls.name }}</div>
+              <small class="text-muted">{% trans "Class record" %}</small>
+            </td>
 
-        {% empty %}
-        <tr>
-          <td colspan="5" class="text-center text-muted">
-            {% trans "No classes available." %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
+            <td>
+              <span class="badge bg-secondary-subtle text-dark border">
+                {{ cls.level }}
+              </span>
+            </td>
 
-    </table>
+            <td>
+              <i class="fas fa-chalkboard-user text-muted me-1"></i>
+              {{ cls.class_teacher|default:"-" }}
+            </td>
+
+            <td class="text-center pe-3">
+              <div class="btn-group btn-group-sm">
+                <a href="{% url 'edit_class' cls.id %}" class="btn btn-outline-warning">
+                  <i class="fas fa-pen"></i>
+                </a>
+
+                <a href="{% url 'delete_class' cls.id %}" class="btn btn-outline-danger">
+                  <i class="fas fa-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center py-5 text-muted">
+              <i class="fas fa-chalkboard fa-2x mb-2 d-block"></i>
+              {% trans "No classes available." %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+      </table>
+    </div>
+
   </div>
 </div>
 

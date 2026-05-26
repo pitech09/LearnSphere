@@ -24,9 +24,13 @@
       <div class="text-muted">{% trans 'Platform overview' %}</div>
     {% endif %}
   </div>
-  <a class="btn btn-outline-primary" href="{% url 'admin:index' %}">
-    <i class="fas fa-sliders-h me-1"></i>{% trans 'Open Admin' %}
-  </a>
+  <div>
+    {% if school %}
+    <a class="btn btn-outline-primary" href="{% url 'current_quarter_update' %}">
+      <i class="fas fa-calendar-week me-1"></i>{{ school.get_current_quarter_display }}
+    </a>
+    {% endif %}
+  </div>
 </div>
 
 <div class="row users-count px-3">

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Schools Dashboard' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Schools' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="title-1 mb-1">{% trans 'Registered Schools' %}</h1>
+    <div class="text-muted">{% trans 'Platform billing and tenant access control' %}</div>
+  </div>
+  <div>
+    <form class="d-inline" method="post" action="{% url 'platform_suspend_overdue_schools' %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit">
+        <i class="fas fa-ban me-1"></i>{% trans 'Suspend Overdue' %}
+      </button>
+    </form>
+    <a class="btn btn-outline-primary" href="{% url 'admin:core_school_add' %}">
+      <i class="fas fa-plus me-1"></i>{% trans 'Add School' %}
+    </a>
+  </div>
+</div>
+
+<div class="row users-count px-3 mb-3">
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <small>{% trans 'Total Schools' %}</small>
+      <h2>{{ total_schools }}</h2>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <small>{% trans 'Active' %}</small>
+      <h2>{{ active_count }}</h2>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <small>{% trans 'Suspended' %}</small>
+      <h2>{{ suspended_count }}</h2>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3">
+      <small>{% trans 'Monthly Revenue' %}</small>
+      <h2>{{ monthly_revenue|floatformat:2 }}</h2>
+    </div>
+  </div>
+</div>
+
+<form class="mb-3" method="get">
+  <div class="input-group" style="max-width: 360px;">
+    <select class="form-select" name="status">
+      <option value="">{% trans 'All statuses' %}</option>
+      <option value="trial" {% if status_filter == 'trial' %}selected{% endif %}>{% trans 'Trial' %}</option>
+      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>{% trans 'Active' %}</option>
+      <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>{% trans 'Suspended' %}</option>
+    </select>
+    <button class="btn btn-primary" type="submit">{% trans 'Filter' %}</button>
+  </div>
+</form>
+
+<div class="table-responsive bg-white border">
+  <table class="table table-striped align-middle mb-0">
+    <thead>
+      <tr>
+        <th>{% trans 'School' %}</th>
+        <th>{% trans 'Status' %}</th>
+        <th>{% trans 'Plan' %}</th>
+        <th>{% trans 'Current Quarter' %}</th>
+        <th>{% trans 'Last Payment' %}</th>
+        <th>{% trans 'Next Due' %}</th>
+        <th>{% trans 'Subscription' %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for school in schools %}
+      <tr>
+        <td>
+          <strong>{{ school.name }}</strong>
+          <div class="text-muted small">{{ school.email }} {{ school.phone }}</div>
+          {% if school.suspended_reason %}
+          <div class="text-danger small">{{ school.suspended_reason }}</div>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge {% if school.status == 'suspended' %}bg-danger{% elif school.payment_is_overdue %}bg-warning text-dark{% else %}bg-success{% endif %}">
+            {{ school.get_status_display }}
+          </span>
+          {% if school.payment_is_overdue %}
+          <div class="text-warning small">{% trans 'Payment overdue' %}</div>
+          {% endif %}
+        </td>
+        <td>{{ school.get_plan_display }}</td>
+        <td>{{ school.get_current_quarter_display }}</td>
+        <td>{{ school.last_payment_on|default:'-' }}</td>
+        <td>{{ school.next_payment_due_on|default:'-' }}</td>
+        <td>{{ school.subscription_amount|floatformat:2 }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'platform_school_update' school.pk %}">
+            {% trans 'Manage' %}
+          </a>
+          {% if school.status == 'suspended' %}
+          <form class="d-inline" method="post" action="{% url 'platform_school_reactivate' school.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-success" type="submit">{% trans 'Reactivate' %}</button>
+          </form>
+          {% else %}
+          <form class="d-inline" method="post" action="{% url 'platform_school_suspend' school.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="suspended_reason" value="Service suspended for non-payment.">
+            <button class="btn btn-sm btn-danger" type="submit">{% trans 'Suspend' %}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-4">{% trans 'No schools registered yet.' %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

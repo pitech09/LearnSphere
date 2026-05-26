@@ -23,7 +23,7 @@
     <div class="col-md-3 mx-auto">
         <div class="card  p-2">
             <div class="text-center">
-                <img src="{{ user.picture.url }}" class="w-100">
+                <img src="{% if user.picture %}{{ user.picture.url }}{% else %}/media/default.png{% endif %}" class="w-100">
                 <ul class="px-2 list-unstyled">
                     <li>{{ user.get_full_name|title }}</li>
                     <li><strong>{% trans 'Last login' %}: </strong>{{ user.last_login|date }}</li>
@@ -88,14 +88,6 @@
                     <p><strong>{% trans 'Last Name' %}:</strong> {{ user.last_name|title }}</p>
                     <p><strong>{% trans 'ID No.' %}:</strong> {{ user.username }}</p>
                 </div>
-                {% if user.is_student %}
-                <hr>
-                <p class="fw-bold"><i class="me-2 fas fa-graduation-cap"></i> {% trans 'Student Info' %}</p>
-                <div class="dashboard-description">
-                    <p><strong>{% trans 'School' %}: </strong>Maboee Archbishop High School</p>
-                    <p><strong>{% trans 'Class' %}: </strong>{{ user.student_class }}</p>
-                </div>
-                {% endif %}
     
                 <hr>
                 <p class="fw-bold"><i class="me-2 fas fa-phone-square-alt"></i>{% trans 'Contact Info' %}</p>

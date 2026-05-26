@@ -1770,7 +1770,7 @@ msgid "No completed exams for you"
 msgstr ""
 
 #: templates/registration/login.html:3
-msgid "Dj Learning Management System - Login"
+msgid "LearnSphere - Login"
 msgstr ""
 
 #: templates/registration/login.html:11
