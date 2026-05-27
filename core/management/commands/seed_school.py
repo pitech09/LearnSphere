@@ -4,9 +4,11 @@ import csv
 import os
 import random
 
+from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from faker import Faker
 
 from accounts.models import Parent, Student, User
 from core.models import (
@@ -22,22 +24,63 @@ from course.models import Subject
 from result.models import TakenCourse
 
 
+fake = Faker()
+
 # =========================================================
 # CONFIG
 # =========================================================
 
-STUDENTS_PER_SCHOOL = 30
-TEACHERS_PER_SCHOOL = 8
+STUDENTS_PER_CLASS = 15
+TEACHERS_PER_SCHOOL = 10
 
-SUBJECT_POOL = [
-    ("Mathematics", "MATH"),
-    ("English", "ENG"),
-    ("Science", "SCI"),
-    ("History", "HIS"),
-    ("Geography", "GEO"),
-    ("Computer Studies", "CS"),
-    ("Life Skills", "LS"),
-]
+DEFAULT_PASSWORDS = {
+    "platform_owner": "PlatformOwner123!",
+    "school_admin": "SchoolAdmin123!",
+    "teacher": "Teacher123!",
+    "student": "Student123!",
+    "parent": "Parent123!",
+}
+
+HASHED_PASSWORDS = {
+    role: make_password(password)
+    for role, password in DEFAULT_PASSWORDS.items()
+}
+
+LEVEL_SUBJECTS = {
+    "F1": [
+        ("Mathematics", "MATH"),
+        ("English", "ENG"),
+        ("Science", "SCI"),
+        ("Geography", "GEO"),
+        ("Life Skills", "LS"),
+    ],
+    "F2": [
+        ("Mathematics", "MATH"),
+        ("English", "ENG"),
+        ("Science", "SCI"),
+        ("History", "HIS"),
+        ("Computer Studies", "CS"),
+    ],
+    "F3": [
+        ("Mathematics", "MATH"),
+        ("English", "ENG"),
+        ("Science", "SCI"),
+        ("History", "HIS"),
+        ("Computer Studies", "CS"),
+    ],
+    "F4": [
+        ("Mathematics", "MATH"),
+        ("English", "ENG"),
+        ("Computer Studies", "CS"),
+        ("Geography", "GEO"),
+    ],
+    "F5": [
+        ("Mathematics", "MATH"),
+        ("English", "ENG"),
+        ("Computer Studies", "CS"),
+        ("History", "HIS"),
+    ],
+}
 
 PLATFORM_OWNER = (
     "platform_owner",
@@ -64,7 +107,7 @@ SCHOOLS = [
 
 class Command(BaseCommand):
 
-    help = "LearnSphere LMS Stress Seeder"
+    help = "LearnSphere LMS Advanced Stress Seeder"
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -73,9 +116,10 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write(
-            self.style.SUCCESS("🚀 STARTING LEARNSPHERE STRESS SEED...")
+            self.style.SUCCESS(
+                "🚀 STARTING LEARNSPHERE ADVANCED SEED..."
+            )
         )
-        self.stdout.write("")
 
         self.create_platform_owner()
 
@@ -87,21 +131,27 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write(
-            self.style.SUCCESS("✅ SEEDING COMPLETE")
+            self.style.SUCCESS(
+                "✅ SEEDING COMPLETE"
+            )
         )
-        self.stdout.write("")
 
     # =========================================================
-    # SCHOOL SEEDER
+    # SCHOOL SEED
     # =========================================================
 
     def seed_school(self, data):
 
         school = self.create_school(data)
 
+        self.stdout.write("")
         self.stdout.write(
-            self.style.WARNING(f"\n🏫 Seeding {school.name}...")
+            self.style.WARNING(
+                f"🏫 Seeding {school.name}"
+            )
         )
+
+        school_admin = self.create_school_admin(school)
 
         teachers = self.create_teachers(school)
 
@@ -110,9 +160,21 @@ class Command(BaseCommand):
             teachers=teachers,
         )
 
+        subjects_by_class = self.create_subjects(
+            school=school,
+            classes=classes,
+            teachers=teachers,
+        )
+
         students = self.create_students(
             school=school,
             classes=classes,
+        )
+
+        self.assign_subjects_to_students(
+            students=students,
+            subjects_by_class=subjects_by_class,
+            school=school,
         )
 
         self.create_parents(
@@ -120,22 +182,11 @@ class Command(BaseCommand):
             students=students,
         )
 
-        subjects = self.create_subjects(
-            school=school,
-            teachers=teachers,
-        )
-
         session = self.create_session(school)
 
         term = self.create_term(
             school=school,
             session=session,
-        )
-
-        self.create_results(
-            school=school,
-            students=students,
-            subjects=subjects,
         )
 
         self.create_fees(
@@ -187,18 +238,45 @@ class Command(BaseCommand):
                 "last_name": last,
                 "email": "owner@learnsphere.test",
                 "phone": "+26650000000",
-                "is_staff": True,
                 "is_superuser": True,
+                "is_staff": True,
                 "is_active": True,
+                "password": HASHED_PASSWORDS["platform_owner"],
             },
         )
-
-        user.set_password(password)
-        user.save()
 
         self.credentials.append(
             ("Platform", "Owner", username, password)
         )
+
+    # =========================================================
+    # SCHOOL ADMIN
+    # =========================================================
+
+    def create_school_admin(self, school):
+
+        username = f"{school.subdomain}_admin"
+        password = DEFAULT_PASSWORDS["school_admin"]
+
+        user, _ = User.objects.update_or_create(
+            username=username,
+            defaults={
+                "school": school,
+                "first_name": "School",
+                "last_name": "Admin",
+                "email": f"{username}@test.com",
+                "phone": "+26650000000",
+                "is_staff": True,
+                "is_active": True,
+                "password": HASHED_PASSWORDS["school_admin"],
+            },
+        )
+
+        self.credentials.append(
+            (school.name, "School Admin", username, password)
+        )
+
+        return user
 
     # =========================================================
     # TEACHERS
@@ -211,33 +289,31 @@ class Command(BaseCommand):
         for i in range(TEACHERS_PER_SCHOOL):
 
             username = f"{school.subdomain}_teacher_{i}"
-            password = "Teacher123!"
-
-            self.stdout.write(
-                f"👨‍🏫 Creating teacher {i + 1}/{TEACHERS_PER_SCHOOL}"
-            )
 
             user, _ = User.objects.update_or_create(
                 username=username,
                 defaults={
                     "school": school,
-                    "first_name": f"Teacher{i}",
-                    "last_name": "Staff",
+                    "first_name": fake.first_name(),
+                    "last_name": fake.last_name(),
                     "email": f"{username}@test.com",
                     "phone": "+26650000000",
                     "is_staff": True,
                     "is_lecturer": True,
                     "is_active": True,
+                    "password": HASHED_PASSWORDS["teacher"],
                 },
             )
-
-            user.set_password(password)
-            user.save()
 
             teachers.append(user)
 
             self.credentials.append(
-                (school.name, "Teacher", username, password)
+                (
+                    school.name,
+                    "Teacher",
+                    username,
+                    DEFAULT_PASSWORDS["teacher"],
+                )
             )
 
         return teachers
@@ -279,6 +355,48 @@ class Command(BaseCommand):
         return classes
 
     # =========================================================
+    # SUBJECTS
+    # =========================================================
+
+    def create_subjects(
+        self,
+        school,
+        classes,
+        teachers,
+    ):
+
+        subjects_by_class = {}
+
+        for school_class in classes:
+
+            level_subjects = LEVEL_SUBJECTS.get(
+                school_class.level,
+                [],
+            )
+
+            class_subjects = []
+
+            for title, code in level_subjects:
+
+                teacher = random.choice(teachers)
+
+                subject, _ = Subject.objects.update_or_create(
+                    school=school,
+                    code=f"{school_class.name}-{code}",
+                    defaults={
+                        "title": title,
+                        "teacher": teacher,
+                        "school_class": school_class,
+                    },
+                )
+
+                class_subjects.append(subject)
+
+            subjects_by_class[school_class.id] = class_subjects
+
+        return subjects_by_class
+
+    # =========================================================
     # STUDENTS
     # =========================================================
 
@@ -286,48 +404,89 @@ class Command(BaseCommand):
 
         students = []
 
-        for i in range(STUDENTS_PER_SCHOOL):
+        for school_class in classes:
 
-            username = f"{school.subdomain}_student_{i}"
-            password = "Student123!"
+            for i in range(STUDENTS_PER_CLASS):
 
-            self.stdout.write(
-                f"🎓 Creating student {i + 1}/{STUDENTS_PER_SCHOOL}"
-            )
+                username = (
+                    f"{school.subdomain}_"
+                    f"{school_class.name.lower()}_"
+                    f"student_{i}"
+                )
 
-            user, _ = User.objects.update_or_create(
-                username=username,
-                defaults={
-                    "school": school,
-                    "first_name": f"Student{i}",
-                    "last_name": "Learner",
-                    "email": f"{username}@test.com",
-                    "phone": "+26650000000",
-                    "is_student": True,
-                    "is_active": True,
-                },
-            )
+                user, _ = User.objects.update_or_create(
+                    username=username,
+                    defaults={
+                        "school": school,
+                        "first_name": fake.first_name(),
+                        "last_name": fake.last_name(),
+                        "email": f"{username}@test.com",
+                        "phone": "+26650000000",
+                        "is_student": True,
+                        "is_active": True,
+                        "password": HASHED_PASSWORDS["student"],
+                    },
+                )
 
-            user.set_password(password)
-            user.save()
+                student, _ = Student.objects.update_or_create(
+                    student=user,
+                    defaults={
+                        "level": school_class.level,
+                        "student_class": school_class,
+                    },
+                )
 
-            assigned_class = random.choice(classes)
+                students.append(student)
 
-            student, _ = Student.objects.update_or_create(
-                student=user,
-                defaults={
-                    "level": assigned_class.level,
-                    "student_class": assigned_class,
-                },
-            )
-
-            students.append(student)
-
-            self.credentials.append(
-                (school.name, "Student", username, password)
-            )
+                self.credentials.append(
+                    (
+                        school.name,
+                        "Student",
+                        username,
+                        DEFAULT_PASSWORDS["student"],
+                    )
+                )
 
         return students
+
+    # =========================================================
+    # SUBJECT ASSIGNMENT
+    # =========================================================
+
+    def assign_subjects_to_students(
+        self,
+        students,
+        subjects_by_class,
+        school,
+    ):
+
+        bulk = []
+
+        for student in students:
+
+            student_class = student.student_class
+
+            class_subjects = subjects_by_class.get(
+                student_class.id,
+                [],
+            )
+
+            for subject in class_subjects:
+
+                bulk.append(
+                    TakenCourse(
+                        school=school,
+                        student=student,
+                        course=subject,
+                        quarter="Q1",
+                    )
+                )
+
+        TakenCourse.objects.bulk_create(
+            bulk,
+            batch_size=500,
+            ignore_conflicts=True,
+        )
 
     # =========================================================
     # PARENTS
@@ -338,27 +497,20 @@ class Command(BaseCommand):
         for i, student in enumerate(students):
 
             username = f"{school.subdomain}_parent_{i}"
-            password = "Parent123!"
-
-            self.stdout.write(
-                f"👨‍👩‍👧 Creating parent {i + 1}/{len(students)}"
-            )
 
             user, _ = User.objects.update_or_create(
                 username=username,
                 defaults={
                     "school": school,
-                    "first_name": f"Parent{i}",
-                    "last_name": "Guardian",
+                    "first_name": fake.first_name(),
+                    "last_name": fake.last_name(),
                     "email": f"{username}@test.com",
                     "phone": "+26650000000",
                     "is_parent": True,
                     "is_active": True,
+                    "password": HASHED_PASSWORDS["parent"],
                 },
             )
-
-            user.set_password(password)
-            user.save()
 
             Parent.objects.update_or_create(
                 user=user,
@@ -369,33 +521,13 @@ class Command(BaseCommand):
             )
 
             self.credentials.append(
-                (school.name, "Parent", username, password)
+                (
+                    school.name,
+                    "Parent",
+                    username,
+                    DEFAULT_PASSWORDS["parent"],
+                )
             )
-
-    # =========================================================
-    # SUBJECTS
-    # =========================================================
-
-    def create_subjects(self, school, teachers):
-
-        subjects = []
-
-        for title, code in SUBJECT_POOL:
-
-            teacher = random.choice(teachers)
-
-            subject, _ = Subject.objects.update_or_create(
-                school=school,
-                code=f"{school.subdomain}-{code}",
-                defaults={
-                    "title": title,
-                    "teacher": teacher,
-                },
-            )
-
-            subjects.append(subject)
-
-        return subjects
 
     # =========================================================
     # SESSION
@@ -431,40 +563,16 @@ class Command(BaseCommand):
         return term
 
     # =========================================================
-    # RESULTS
-    # =========================================================
-
-    def create_results(self, school, students, subjects):
-
-        bulk = []
-
-        for student in students:
-            for subject in subjects:
-
-                bulk.append(
-                    TakenCourse(
-                        school=school,
-                        student=student,
-                        course=subject,
-                        quarter="Q1",
-                        assignment=Decimal(random.randint(40, 95)),
-                        mid_exam=Decimal(random.randint(40, 95)),
-                        quiz=Decimal(random.randint(40, 95)),
-                        attendance=Decimal(random.randint(50, 100)),
-                        final_exam=Decimal(random.randint(40, 95)),
-                    )
-                )
-
-        TakenCourse.objects.bulk_create(
-            bulk,
-            batch_size=100,
-        )
-
-    # =========================================================
     # FEES
     # =========================================================
 
-    def create_fees(self, school, students, session, term):
+    def create_fees(
+        self,
+        school,
+        students,
+        session,
+        term,
+    ):
 
         fees = []
 
@@ -476,7 +584,7 @@ class Command(BaseCommand):
                     student=student,
                     session=session,
                     term=term,
-                    description="Term 1 fees",
+                    description="Term 1 Fees",
                     amount_due=Decimal("1500.00"),
                     discount=Decimal("0.00"),
                     due_date=timezone.localdate() + timedelta(days=14),
@@ -486,7 +594,7 @@ class Command(BaseCommand):
 
         fee_objs = SchoolFee.objects.bulk_create(
             fees,
-            batch_size=100,
+            batch_size=500,
         )
 
         payments = []
@@ -505,7 +613,7 @@ class Command(BaseCommand):
 
         FeePayment.objects.bulk_create(
             payments,
-            batch_size=100,
+            batch_size=500,
         )
 
     # =========================================================
@@ -529,7 +637,7 @@ class Command(BaseCommand):
 
             self.stdout.write(
                 f"{school:<30} | "
-                f"{role:<10} | "
+                f"{role:<15} | "
                 f"{username:<40} | "
                 f"{password}"
             )
@@ -559,7 +667,6 @@ class Command(BaseCommand):
             "credentials.csv",
         )
 
-        # TXT
         with open(txt_file, "w", encoding="utf-8") as f:
 
             f.write("LEARNSPHERE GENERATED CREDENTIALS\n")
@@ -570,12 +677,11 @@ class Command(BaseCommand):
 
                 f.write(
                     f"{school:<30} | "
-                    f"{role:<10} | "
+                    f"{role:<15} | "
                     f"{username:<40} | "
                     f"{password}\n"
                 )
 
-        # CSV
         with open(csv_file, "w", newline="", encoding="utf-8") as f:
 
             writer = csv.writer(f)
