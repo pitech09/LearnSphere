@@ -100,11 +100,11 @@ class SchoolDataLoader:
             is_current=True,
         ).first()
 
-@staticmethod
-def refresh_student(student):
+        @staticmethod
+        def refresh_student(student):
 
-    store = DataStore.get_school_store(
-        student.student.school.id
-    )
+            store = DataStore.get_school_store(
+                student.student.school.id
+            )
 
-    store["students_by_id"][student.id] = student
+            store["students_by_id"][student.id] = student
