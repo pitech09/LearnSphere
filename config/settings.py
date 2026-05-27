@@ -51,7 +51,7 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
-    "127.0.0.1,localhost,learnsphere.onrender.com",
+    "127.0.0.1,localhost,learnsphere-app.onrender.com,.onrender.com",
 )
 
 
