@@ -330,6 +330,7 @@ def staff_add_view(request):
                 lecturer.set_password(raw_password)
                 lecturer.save(update_fields=["password"])
             send_new_account_sms(lecturer, raw_password)
+            
             messages.success(
                 request,
                 f"Account for lecturer {full_name} has been created. "

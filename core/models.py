@@ -223,14 +223,18 @@ class Term(models.Model):
 # =========================================================
 
 class ActivityLog(models.Model):
+    school = models.ForeignKey('core.School', on_delete=models.CASCADE, related_name='activity_logs')
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['school', '-created_at']),
+        ]
 
     def __str__(self):
         return self.message[:60]
-
 
 # =========================================================
 # 👤 USER SYSTEM

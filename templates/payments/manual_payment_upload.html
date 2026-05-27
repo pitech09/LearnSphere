@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Manual Payment' %} | {% trans 'Learning management system' %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{% trans 'Bank Transfer Details' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>{% trans 'Bank' %}:</strong> {{ bank_details.bank_name }}</p>
+                    <p><strong>{% trans 'Account Name' %}:</strong> {{ bank_details.account_name }}</p>
+                    <p><strong>{% trans 'Account Number' %}:</strong> {{ bank_details.account_number }}</p>
+                    <p><strong>{% trans 'Branch' %}:</strong> {{ bank_details.branch }}</p>
+                    <p><strong>{% trans 'SWIFT Code' %}:</strong> {{ bank_details.swift_code }}</p>
+                </div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">{% trans 'Mobile Money' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>M-Pesa:</strong> {{ mobile_money_details.mpesa }}</p>
+                    <p><strong>EcoCash:</strong> {{ mobile_money_details.ecocash }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">{% trans 'Upload Proof of Payment' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p>{% trans 'Invoice #:' %} <strong>{{ invoice.invoice_code }}</strong></p>
+                    <p>{% trans 'Amount:' %} <strong>M{{ invoice.amount }}</strong></p>
+                    <hr>
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                       <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">{{ form.payment_method.label }}</label>
+                                <div>
+                                    {% for radio in form.payment_method %}
+                                    <div class="form-check">
+                                        {{ radio.tag }}
+                                        <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                            {{ radio.choice_label }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if form.payment_method.errors %}
+                                    <div class="text-danger small">{{ form.payment_method.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">{{ form.proof_of_payment.label }}</label>
+                                {{ form.proof_of_payment }}
+                                {% if form.proof_of_payment.help_text %}
+                                    <div class="form-text">{{ form.proof_of_payment.help_text }}</div>
+                                {% endif %}
+                                {% if form.proof_of_payment.errors %}
+                                    <div class="text-danger small">{{ form.proof_of_payment.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">{% trans 'Submit Proof' %}</button>
+                            <a href="{% url 'home' %}" class="btn btn-secondary">{% trans 'Cancel' %}</a>
+                        </form>
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

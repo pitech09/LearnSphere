@@ -140,15 +140,15 @@ WSGI_APPLICATION = "config.wsgi.application"
 # -------------------------------------------------
 # DATABASE
 # -------------------------------------------------
-"""DATABASES = {
+DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
     }
-}"""
+}
 
 
-DATABASES = {
+"""DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('DB_NAME'),
@@ -160,8 +160,7 @@ DATABASES = {
             'sslmode': 'require',
         },
     }
-}
-
+}"""
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -284,6 +283,13 @@ TEXTBEE_API_KEY = config("TEXTBEE_API_KEY", default="")
 TEXTBEE_DEVICE_ID = config("TEXTBEE_DEVICE_ID", default="")
 TEXTBEE_BASE_URL = config("TEXTBEE_BASE_URL", default="https://api.textbee.dev")
 
+
+SCHOOL_PLANS = {
+    'starter': {'name': 'Starter (monthly)', 'amount': 250, 'max_students': 100},
+    'growth': {'name': 'Growth (monthly)', 'amount': 400, 'max_students': 300},
+    'enterprise': {'name': 'Enterprise (monthly)', 'amount': 750, 'max_students': 800},
+    'unlimited': {'name': 'Unlimited (One-Time)', 'amount': 10000, 'max_students': 0},
+}
 
 # -------------------------------------------------
 # LOGGING (LMS ACTIVITY DEBUGGING)

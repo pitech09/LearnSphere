@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Confirm Invoice' %} | {% trans 'Learning management system' %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4>{% trans 'Confirm Your Subscription' %}</h4>
+        </div>
+        <div class="card-body">
+            <p>{% trans 'Plan' %}: <strong>{{ plan.name }}</strong></p>
+            <p>{% trans 'Amount' %}: <strong>M{{ amount }}</strong></p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">{% trans 'Proceed to Payment' %}</button>
+                <a href="{% url 'select_plan' %}" class="btn btn-secondary">{% trans 'Change Plan' %}</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

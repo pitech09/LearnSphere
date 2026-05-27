@@ -1,50 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}PayPal{% endblock title %}
-{% load static %}
+{% load i18n %}
 
-{% block header %}
-<script src="https://use.fontawesome.com/aade6c6330.js"></script>
-{% endblock %}
+{% block title %}{% trans 'Payment Verified' %} | {% trans 'Learning management system' %}{% endblock %}
 
 {% block content %}
-<style type="text/css">
-	.counter-wrapper {
-		background-color: #d1e5e1;
-		padding: 10px 20px;
-	}
-	.bg-counter {
-		padding: 5px 10px;
-		border-radius: 5px;
-		background-color: #aae9df;
-	}
-</style>
-<div class="container">
-	<center>
-		<h3><i class="fa fa-check-circle-o text-success" aria-hidden="true"></i> Payment Succeed, You has been make payment successfuly.</h3>
-		<div class="counter-wrapper">Redirect to the invoice in </span><span class="bg-counter" id="counter">8</div>
-	</center>
-
+<div class="container text-center mt-5">
+    <div class="card shadow">
+        <div class="card-body p-5">
+            <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+            <h2>{% trans 'Payment Verified!' %}</h2>
+            <p class="lead">{% trans 'Your payment has been verified and your invoice is marked as paid.' %}</p>
+            <a href="{% url 'user_course_list' %}" class="btn btn-primary mt-3">{% trans 'Go to My Courses' %}</a>
+        </div>
+    </div>
 </div>
-{% endblock content %}
-
-{% block js %}
-
-<script type="text/javascript">
-	var counterEl = document.getElementById('counter');
-	var num = parseInt(counterEl.innerText);
-
-	var invoice_code = "{{ invoice_session }}"
-
-	setInterval(counter, 1000)
-	function counter() {
-		num = num - 1;
-		if (num < 0) { return }
-		counterEl.innerText = num;
-	}
-	setTimeout(changeWindowLocation, 9000)
-	function changeWindowLocation() {
-		window.location = "/";
-	}
-</script>
-
 {% endblock %}

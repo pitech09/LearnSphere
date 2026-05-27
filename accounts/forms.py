@@ -191,6 +191,49 @@ class StaffAddForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
+        fields = ["username", "first_name", "last_name", "email", "phone", "address", "gender", "password1", "password2"]
+
+    def clean_username(self):
+        """Clean and validate username, auto-generate if empty."""
+        username = self.cleaned_data.get("username", "").strip()
+        if not username:
+            # Auto-generate a unique username from first and last name
+            first_name = self.cleaned_data.get("first_name", "").strip().lower()
+            last_name = self.cleaned_data.get("last_name", "").strip().lower()
+            
+            # Build base username, handling empty parts
+            parts = [p for p in [first_name, last_name] if p]
+            if parts:
+                base_username = ".".join(parts)
+            else:
+                # Fallback: use email prefix or random string
+                email = self.cleaned_data.get("email", "")
+                if email:
+                    base_username = email.split("@")[0]
+                else:
+                    import uuid
+                    base_username = f"user{uuid.uuid4().hex[:8]}"
+            
+            # Sanitize: keep only alphanumeric, dots, underscores, hyphens
+            base_username = "".join(c for c in base_username if c.isalnum() or c in ['.', '_', '-'])
+            
+            # Ensure it's not empty after sanitization
+            if not base_username:
+                import uuid
+                base_username = f"user{uuid.uuid4().hex[:8]}"
+            
+            # Check if username exists and add number if needed
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+        else:
+            # Validate that the provided username is unique
+            if User.objects.filter(username__iexact=username).exists():
+                raise forms.ValidationError("This username is already taken.")
+        
+        return username
 
     @transaction.atomic()
     def save(self, commit=True):
@@ -318,8 +361,51 @@ class StudentAddForm(UserCreationForm):
     #     if User.objects.filter(email__iexact=email, is_active=True).exists():
     #         raise forms.ValidationError("Email has taken, try another email address. ")
 
+    def clean_username(self):
+        """Clean and validate username, auto-generate if empty."""
+        username = self.cleaned_data.get("username", "").strip()
+        if not username:
+            # Auto-generate a unique username from first and last name
+            first_name = self.cleaned_data.get("first_name", "").strip().lower()
+            last_name = self.cleaned_data.get("last_name", "").strip().lower()
+            
+            # Build base username, handling empty parts
+            parts = [p for p in [first_name, last_name] if p]
+            if parts:
+                base_username = ".".join(parts)
+            else:
+                # Fallback: use email prefix or random string
+                email = self.cleaned_data.get("email", "")
+                if email:
+                    base_username = email.split("@")[0]
+                else:
+                    import uuid
+                    base_username = f"user{uuid.uuid4().hex[:8]}"
+            
+            # Sanitize: keep only alphanumeric, dots, underscores, hyphens
+            base_username = "".join(c for c in base_username if c.isalnum() or c in ['.', '_', '-'])
+            
+            # Ensure it's not empty after sanitization
+            if not base_username:
+                import uuid
+                base_username = f"user{uuid.uuid4().hex[:8]}"
+            
+            # Check if username exists and add number if needed
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+        else:
+            # Validate that the provided username is unique
+            if User.objects.filter(username__iexact=username).exists():
+                raise forms.ValidationError("This username is already taken.")
+        
+        return username
+
     class Meta(UserCreationForm.Meta):
         model = User
+        fields = ["username", "first_name", "last_name", "email", "phone", "address", "gender", "level", "class_assigned", "password1", "password2"]
 
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)

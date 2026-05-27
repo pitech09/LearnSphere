@@ -8,7 +8,9 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'course_detail' video.subject.slug %}">{{ video.subject }}</a></li>
+        <li class="breadcrumb-item">
+            <a href="{% url 'course_detail' class_id=course.class_assigned.id subject_slug=course.slug %}">{{ course }}</a>
+        </li>
         <li class="breadcrumb-item active" aria-current="page">{{ video.title }}</li>
     </ol>
 </nav>
@@ -17,12 +19,17 @@
 <br><br>
 
 <div class="col-md-10 mx-auto d-block">
-    <div class=""><video src="{{ video.video.url }}" controls ></video></div>
+    <div class="video-container">
+        <video controls preload="metadata" style="width:100%; max-width:100%;">
+            <source src="{{ video.video.url }}" type="video/mp4">
+            {% trans 'Your browser does not support the video tag.' %}
+        </video>
+    </div>
     <p><i class="fas fa-calendar"></i> {{ video.timestamp|timesince }} {% trans 'ago' %}</p>
     {% if video.summary %}
     <p class="text-orange text-center">{{ video.summary }}</p>
     {% else %}
-    {% trans 'No video description set.' %}
+    <p>{% trans 'No video description set.' %}</p>
     {% endif %}
 </div>
 

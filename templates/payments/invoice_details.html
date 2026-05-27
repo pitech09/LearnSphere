@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Invoice Detail' %} | {% trans 'Learning management system' %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4>{% trans 'Invoice' %} #{{ invoice.invoice_code }}</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>{% trans 'Amount' %}:</strong> M{{ invoice.amount }}</p>
+            <p><strong>{% trans 'Status' %}:</strong> 
+                {% if invoice.payment_verified %}
+                    <span class="badge bg-success">{% trans 'Verified' %}</span>
+                {% else %}
+                    <span class="badge bg-warning">{% trans 'Pending Verification' %}</span>
+                {% endif %}
+            </p>
+            <p><strong>{% trans 'Payment Method' %}:</strong> {{ invoice.get_payment_method_display|default:"Not selected" }}</p>
+            {% if invoice.proof_of_payment %}
+                <p><strong>{% trans 'Proof of Payment' %}:</strong> <a href="{{ invoice.proof_of_payment.url }}" target="_blank">{% trans 'View uploaded file' %}</a></p>
+            {% endif %}
+            <p><strong>{% trans 'Created' %}:</strong> {{ invoice.created_at }}</p>
+            <a href="{% url 'home' %}" class="btn btn-secondary">{% trans 'Back' %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

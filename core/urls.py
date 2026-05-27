@@ -1,5 +1,7 @@
 from django.urls import path
 from django.views.generic import TemplateView
+
+# Core app views
 from .views import (
     home_view,
     post_add,
@@ -30,6 +32,24 @@ from .views import (
     subject_delete_view,
 )
 
+# Course app views (for URLs that use class_id + subject_slug)
+from course.views import (
+    course_single,
+    course_edit,
+    subject_delete,
+    handle_file_upload,
+    handle_file_edit,
+    handle_file_delete,
+    handle_video_upload,
+    handle_video_single,
+    handle_video_edit,
+    handle_video_delete,
+    course_registration,
+    course_drop,
+    user_course_list,
+    assign_class_view,
+)
+
 
 urlpatterns = [
     # Accounts url
@@ -37,10 +57,14 @@ urlpatterns = [
     path("add_item/", post_add, name="add_item"),
     path("item/<int:pk>/edit/", edit_post, name="edit_post"),
     path("item/<int:pk>/delete/", delete_post, name="delete_post"),
+
+    # Session URLs
     path("session/", session_list_view, name="session_list"),
     path("session/add/", session_add_view, name="add_session"),
     path("session/<int:pk>/edit/", session_update_view, name="edit_session"),
     path("session/<int:pk>/delete/", session_delete_view, name="delete_session"),
+
+    # Dashboard URLs
     path("dashboard/", dashboard_view, name="dashboard"),
     path("dashboard/principal/", principal_dashboard, name="principal_dashboard"),
     path("dashboard/teacher/", teacher_dashboard, name="teacher_dashboard"),
@@ -52,14 +76,46 @@ urlpatterns = [
     path("dashboard/schools/<int:pk>/reactivate/", platform_school_reactivate, name="platform_school_reactivate"),
     path("dashboard/schools/suspend-overdue/", platform_suspend_overdue_schools, name="platform_suspend_overdue_schools"),
     path("settings/current-quarter/", current_quarter_update, name="current_quarter_update"),
+
+    # Class URLs
     path("class/", class_list_view, name="class_list"),
     path("class/add/", class_add_view, name="add_class"),
     path("class/<int:pk>/edit/", class_update_view, name="edit_class"),
     path("class/<int:pk>/delete/", class_delete_view, name="delete_class"),
+
+    # Subject (old) URLs – keep for compatibility
     path('subjects/', subject_list_view, name='subject_list_view'),
     path('add_subject/', subject_add_view, name='add_subject_view'),
     path('edit_subject/<int:pk>', subject_update_view, name='edit_subject_view'),
     path('delete_subject/<int:pk>', subject_delete_view, name='delete_subject_view'),
-    path("legal/", TemplateView.as_view(template_name="legal/privacy_terms.html"), name="legal"),
 
+    # Course (new) URLs using class_id and subject_slug (from course.views)
+    path("class/<int:class_id>/course/<slug:subject_slug>/detail/", course_single, name="course_detail"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/edit/", course_edit, name="edit_course"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/delete/", subject_delete, name="delete_course"),
+    path("course/registration/", course_registration, name="course_registration"),
+    path("course/drop/", course_drop, name="course_drop"),
+    path("my_courses/", user_course_list, name="user_course_list"),
+    path("students/<int:student_id>/assign-class/", assign_class_view, name="assign_class_view"),
+
+    # File upload URLs (new)
+    path("class/<int:class_id>/course/<slug:subject_slug>/documentations/upload/",
+         handle_file_upload, name="upload_file_view"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/documentations/<int:file_id>/edit/",
+         handle_file_edit, name="upload_file_edit"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/documentations/<int:file_id>/delete/",
+         handle_file_delete, name="upload_file_delete"),
+
+    # Video upload URLs (new)
+    path("class/<int:class_id>/course/<slug:subject_slug>/video_tutorials/upload/",
+         handle_video_upload, name="upload_video"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/video_tutorials/<slug:video_slug>/detail/",
+         handle_video_single, name="video_single"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/video_tutorials/<slug:video_slug>/edit/",
+         handle_video_edit, name="upload_video_edit"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/video_tutorials/<slug:video_slug>/delete/",
+         handle_video_delete, name="upload_video_delete"),
+
+    # Legal page
+    path("legal/", TemplateView.as_view(template_name="legal/privacy_terms.html"), name="legal"),
 ]

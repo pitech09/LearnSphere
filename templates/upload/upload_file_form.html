@@ -8,10 +8,9 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-<<<<<<< HEAD
-        <li class="breadcrumb-item"><a href="{% url 'course_detail' course.slug %}">{{ course }}</a></li>
-=======
->>>>>>> ef562c4f54c28916734dc3d8cd243c1f53037030
+        <li class="breadcrumb-item">
+            <a href="{% url 'course_detail' class_id=course.class_assigned.id subject_slug=course.slug %}">{{ course }}</a>
+        </li>
         <li class="breadcrumb-item active" aria-current="page">{% trans 'File upload' %}</li>
     </ol>
 </nav>
@@ -32,9 +31,10 @@
                     
                     <div class="form-group">
                         <button class="btn btn-primary" type="submit">{% trans 'Upload' %}</button>
-                        <a class="btn btn-danger" href="{% url 'course_detail' course.slug %}" style="float: right;">{% trans 'Cancel' %}</a>
+                        <a class="btn btn-danger" href="{% url 'course_detail' class_id=course.class_assigned.id subject_slug=course.slug %}" style="float: right;">{% trans 'Cancel' %}</a>
                     </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 </div>

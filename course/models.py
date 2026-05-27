@@ -30,11 +30,11 @@ class CourseManager(models.Manager):
 
 
 # =========================================================
-# COURSE (HIGH SCHOOL VERSION)
+# SUBJECT (COURSE)
 # =========================================================
 class Subject(models.Model):
     school = models.ForeignKey("core.School", on_delete=models.CASCADE, null=True, blank=True)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(blank=True)   # unique per school+class (enforced by constraint)
     title = models.CharField(max_length=200)
     code = models.CharField(max_length=200)
     summary = models.TextField(max_length=200, blank=True)
@@ -45,15 +45,18 @@ class Subject(models.Model):
     objects = CourseManager()
 
     class Meta:
-        unique_together = ("school", "class_assigned", "code")
+        #unique_together = ("school", "class_assigned", "code")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['school', 'class_assigned', 'slug'],
+                name='unique_subject_slug_per_class'
+            )
+        ]
         indexes = [
             models.Index(fields=["school", "class_assigned"], name="subject_school_class_idx"),
             models.Index(fields=["school", "teacher"], name="subject_school_teacher_idx"),
             models.Index(fields=["school", "code"], name="subject_school_code_idx"),
         ]
-
-    def __str__(self):
-        return f"{self.title} ({self.code})"
 
     def save(self, *args, **kwargs):
         if not self.school_id:
@@ -61,61 +64,63 @@ class Subject(models.Model):
                 self.school = self.class_assigned.school
             elif self.teacher_id:
                 self.school = self.teacher.school
-        
+
         if not self.slug:
-            self.slug = slugify(f"{self.title}-{self.code}")
+            base_slug = slugify(f"{self.title}-{self.code}")
+            slug = base_slug
+            counter = 2
+            while Subject.objects.filter(
+                school=self.school,
+                class_assigned=self.class_assigned,
+                slug=slug
+            ).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse("course_detail", kwargs={"slug": self.slug})
+        return reverse("course_detail", kwargs={
+            "class_id": self.class_assigned.id,
+            "subject_slug": self.slug
+        }) 
 
-    @property
-    def is_current(self):
-        current = Session.objects.filter(is_current=True).first()
-        return bool(current) 
+    def __str__(self):
+        return f"{self.title} ({self.code})"
+
 
 # =========================================================
-# SIGNALS
+# SIGNALS FOR SUBJECT
 # =========================================================
-@receiver(pre_save, sender=Subject)
-def subject_pre_save_receiver(sender, instance, **kwargs):
-    if not instance.slug:
-        instance.slug = unique_slug_generator(instance)
-
-
 @receiver(post_save, sender=Subject)
 def log_subject_save(sender, instance, created, **kwargs):
     verb = "created" if created else "updated"
-    ActivityLog.objects.create(
-        message=_(f"The subject '{instance}' has been {verb}.")
-    )
-
+    if instance.school:   # safety guard
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=_(f"The subject '{instance}' has been {verb}.")
+        )
 
 @receiver(post_delete, sender=Subject)
 def log_subject_delete(sender, instance, **kwargs):
-    ActivityLog.objects.create(
-        message=_(f"The subject '{instance}' has been deleted.")
-    )
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=_(f"The subject '{instance}' has been deleted.")
+        )
 
 
+# =========================================================
+# SUBJECT ALLOCATION
+# =========================================================
 class SubjectAllocation(models.Model):
     teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="allocated_teacher",
     )
-
-    subjects = models.ManyToManyField(
-        "Subject",
-        related_name="allocated_subjects"
-    )
-
-    session = models.ForeignKey(
-        Session,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
+    subjects = models.ManyToManyField("Subject", related_name="allocated_subjects")
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.teacher.get_full_name() or self.teacher.username
@@ -128,8 +133,9 @@ class SubjectAllocation(models.Model):
             models.Index(fields=["teacher", "session"], name="alloc_teacher_session_idx"),
         ]
 
+
 # =========================================================
-# UPLOADS
+# FILE UPLOADS
 # =========================================================
 class Upload(models.Model):
     title = models.CharField(max_length=100)
@@ -144,7 +150,6 @@ class Upload(models.Model):
             ])
         ],
     )
-
     updated_date = models.DateTimeField(auto_now=True)
     upload_time = models.DateTimeField(auto_now_add=True)
 
@@ -160,24 +165,27 @@ class Upload(models.Model):
 @receiver(post_save, sender=Upload)
 def log_upload_save(sender, instance, created, **kwargs):
     action = "uploaded" if created else "updated"
-    ActivityLog.objects.create(
-        message=_(f"The file '{instance.title}' has been {action} in '{instance.subject}'.")
-    )
-
+    if instance.subject and instance.subject.school:
+        ActivityLog.objects.create(
+            school=instance.subject.school,
+            message=_(f"The file '{instance.title}' has been {action} in '{instance.subject}'.")
+        )
 
 @receiver(post_delete, sender=Upload)
 def log_upload_delete(sender, instance, **kwargs):
-    ActivityLog.objects.create(
-        message=_(f"The file '{instance.title}' was deleted from '{instance.subject}'.")
-    )
+    if instance.subject and instance.subject.school:
+        ActivityLog.objects.create(
+            school=instance.subject.school,
+            message=_(f"The file '{instance.title}' was deleted from '{instance.subject}'.")
+        )
 
 
 # =========================================================
-# VIDEO UPLOAD
+# VIDEO UPLOADS
 # =========================================================
 class UploadVideo(models.Model):
     title = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, blank=True)   # keep unique globally, but may change later
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     video = models.FileField(
         upload_to="course_videos/",
@@ -187,7 +195,6 @@ class UploadVideo(models.Model):
             )
         ],
     )
-
     summary = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -195,11 +202,11 @@ class UploadVideo(models.Model):
         return self.title
 
     def get_absolute_url(self):
-        return reverse(
-            "video_single",
-            kwargs={"slug": self.subject.slug, "video_slug": self.slug},
-        )
-
+        return reverse("video_single", kwargs={
+            "class_id": self.subject.class_assigned.id,
+            "subject_slug": self.subject.slug,
+            "video_slug": self.slug
+        })
     class Meta:
         indexes = [
             models.Index(fields=["subject", "-timestamp"], name="video_subject_time_idx"),
@@ -211,26 +218,29 @@ def video_pre_save_receiver(sender, instance, **kwargs):
     if not instance.slug:
         instance.slug = unique_slug_generator(instance)
 
-
 @receiver(post_save, sender=UploadVideo)
 def log_uploadvideo_save(sender, instance, created, **kwargs):
     action = "uploaded" if created else "updated"
-    ActivityLog.objects.create(
-        message=_(f"The video '{instance.title}' has been {action} in '{instance.subject}'.")
-    )
+    if instance.subject and instance.subject.school:
+        ActivityLog.objects.create(
+            school=instance.subject.school,
+            message=_(f"The video '{instance.title}' has been {action} in '{instance.subject}'.")
+        )
 
 @receiver(post_delete, sender=UploadVideo)
 def log_uploadvideo_delete(sender, instance, **kwargs):
-    ActivityLog.objects.create(
-        message=_(f"The video '{instance.title}' was deleted from '{instance.subject}'.")
-    )
+    if instance.subject and instance.subject.school:
+        ActivityLog.objects.create(
+            school=instance.subject.school,
+            message=_(f"The video '{instance.title}' was deleted from '{instance.subject}'.")
+        )
+
 
 # =========================================================
-# COURSE OFFER (optional admin grouping)
+# COURSE OFFER (optional)
 # =========================================================
 class CourseOffer(models.Model):
     dep_head = models.ForeignKey("accounts.DepartmentHead", on_delete=models.CASCADE)
 
     def __str__(self):
         return str(self.dep_head)
-        

@@ -1,190 +1,126 @@
-import stripe
 import uuid
-import json
 import logging
 
-from django.shortcuts import render
-from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
-from django.shortcuts import redirect
-from django.views.generic.base import TemplateView
 from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
+from django.core.files.storage import default_storage
+from django.contrib import messages
 
-from django.http import JsonResponse
-
-import gopay
-from gopay.enums import Recurrence, PaymentInstrument, BankSwiftCode, Currency, Language
 from .models import Invoice
+from .models import Invoice
+from .form import ManualPaymentForm 
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
-def payment_paypal(request):
-    return render(request, "payments/paypal.html", context={})
+def create_invoice(request):
+    from django.conf import settings
+    plan_key = request.session.get('selected_plan')
+    if not plan_key:
+        return redirect('select_plan')
+    
+    plan = settings.SCHOOL_PLANS.get(plan_key)
+    if not plan:
+        return redirect('select_plan')
+    
+    amount = plan['amount']
+    
+    if request.method == "POST":
+        # Create invoice with the plan amount
+        invoice = Invoice.objects.create(
+            user=request.user,
+            amount=amount,
+            total=amount,
+            invoice_code=str(uuid.uuid4()),
+        )
+        request.session["invoice_session"] = invoice.invoice_code
+        # Clear selected plan from session
+        del request.session['selected_plan']
+        return redirect("manual_payment_upload")
+    
+    # For GET, just show confirmation (you could skip this and redirect directly)
+    return render(request, 'payments/create_invoice.html', {'plan': plan, 'amount': amount})
+
+@login_required
+def select_plan(request):
+    """Display available plans and let user choose."""
+    from django.conf import settings
+    plans = settings.SCHOOL_PLANS
+    if request.method == 'POST':
+        plan_key = request.POST.get('plan')
+        if plan_key in plans:
+            # Store selected plan in session and redirect to invoice creation
+            request.session['selected_plan'] = plan_key
+            return redirect('create_invoice')
+        else:
+            messages.error(request, "Invalid plan selected.")
+    return render(request, 'payments/select_plan.html', {'plans': plans})
+
+@login_required
+def manual_payment_upload(request):
+    """Display payment details and a form to upload proof of payment."""
+    invoice_code = request.session.get("invoice_session")
+    if not invoice_code:
+        return redirect("create_invoice")
+    
+    invoice = get_object_or_404(Invoice, invoice_code=invoice_code, user=request.user)
+    
+    if invoice.payment_verified:
+        messages.info(request, "This invoice has already been paid and verified.")
+        return redirect("payment_succeed")
+    
+    if request.method == "POST":
+        form = ManualPaymentForm(request.POST, request.FILES)
+        if form.is_valid():
+            invoice.payment_method = form.cleaned_data["payment_method"]
+            invoice.proof_of_payment = form.cleaned_data["proof_of_payment"]
+            invoice.save()
+            # Clear session so the same invoice is not reused
+            del request.session["invoice_session"]
+            messages.success(request, "Proof of payment uploaded. We will verify it shortly.")
+            return redirect("payment_pending_verification")
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = ManualPaymentForm()
+    
+    # Payment details to show
+    bank_details = {
+        "bank_name": "Example Bank",
+        "account_name": "Your School Name",
+        "account_number": "1234567890",
+        "branch": "Main Branch",
+        "swift_code": "EXBKZAJJ",
+    }
+    mobile_money_details = {
+        "mpesa": "68578790",
+        "ecocash": "57843443",
+    }
+    
+    return render(request, "payments/manual_payment_upload.html", {
+        "form": form,
+        "invoice": invoice,
+        "bank_details": bank_details,
+        "mobile_money_details": mobile_money_details,
+    })
 
 
 @login_required
-def payment_stripe(request):
-    return render(request, "payments/stripe.html", context={})
-
-
-@login_required
-def payment_coinbase(request):
-    return render(request, "payments/coinbase.html", context={})
-
-
-@login_required
-def payment_paylike(request):
-    return render(request, "payments/paylike.html", context={})
+def payment_pending_verification(request):
+    """Confirmation page after proof upload."""
+    return render(request, "payments/pending_verification.html")
 
 
 @login_required
 def payment_succeed(request):
-    return render(request, "payments/payment_succeed.html", context={})
-
-
-@method_decorator(login_required, name="dispatch")
-class PaymentGetwaysView(TemplateView):
-    template_name = "payments/payment_gateways.html"
-
-    def get_context_data(self, **kwargs):
-        context = super(PaymentGetwaysView, self).get_context_data(**kwargs)
-        context["key"] = settings.STRIPE_PUBLISHABLE_KEY
-        context["amount"] = 500
-        context["description"] = "Stripe Payment"
-        context["invoice_session"] = self.request.session["invoice_session"]
-        return context
+    """Page shown when payment is already verified."""
+    return render(request, "payments/payment_succeed.html")
 
 
 @login_required
-def stripe_charge(request):
-    stripe.api_key = settings.STRIPE_SECRET_KEY
-
-    if request.method == "POST":
-        charge = stripe.Charge.create(
-            amount=500,
-            currency="eur",
-            description="A Django charge",
-            source=request.POST["stripeToken"],
-        )
-        invoice_code = request.session["invoice_session"]
-        invoice = Invoice.objects.get(invoice_code=invoice_code, user=request.user)
-        invoice.payment_complete = True
-        invoice.save()
-        return redirect("completed")
-        # return JsonResponse({"invoice_code": invoice.invoice_code}, status=201)
-        # return render(request, 'payments/charge.html')
-
-
-@login_required
-def gopay_charge(request):
-    if request.method == "POST":
-        user = request.user
-
-        payments = gopay.payments(
-            {
-                "goid": "[PAYMENT_ID]",
-                "clientId": "[GOPAY_CLIENT_ID]",
-                "clientSecret": "[GOPAY_CLIENT_SECRET]",
-                "isProductionMode": False,
-                "scope": gopay.TokenScope.ALL,
-                "language": gopay.Language.ENGLISH,
-                "timeout": 30,
-            }
-        )
-
-        # recurrent payment must have field ''
-        recurrentPayment = {
-            "recurrence": {
-                "recurrence_cycle": Recurrence.DAILY,
-                "recurrence_period": "7",
-                "recurrence_date_to": "2015-12-31",
-            }
-        }
-
-        # pre-authorized payment must have field 'preauthorization'
-        preauthorizedPayment = {"preauthorization": True}
-
-        response = payments.create_payment(
-            {
-                "payer": {
-                    "default_payment_instrument": PaymentInstrument.BANK_ACCOUNT,
-                    "allowed_payment_instruments": [PaymentInstrument.BANK_ACCOUNT],
-                    "default_swift": BankSwiftCode.FIO_BANKA,
-                    "allowed_swifts": [BankSwiftCode.FIO_BANKA, BankSwiftCode.MBANK],
-                    "contact": {
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "email": user.email,
-                        "phone_number": user.phone,
-                        "city": "example city",
-                        "street": "Plana 67",
-                        "postal_code": "373 01",
-                        "country_code": "CZE",
-                    },
-                },
-                "amount": 150,
-                "currency": Currency.CZECH_CROWNS,
-                "order_number": "001",
-                "order_description": "pojisteni01",
-                "items": [
-                    {"name": "item01", "amount": 50},
-                    {"name": "item02", "amount": 100},
-                ],
-                "additional_params": [{"name": "invoicenumber", "value": "2015001003"}],
-                "callback": {
-                    "return_url": "http://www.your-url.tld/return",
-                    "notification_url": "http://www.your-url.tld/notify",
-                },
-                "lang": Language.CZECH,  # if lang is not specified, then default lang is used
-            }
-        )
-
-        if response.has_succeed():
-            logger.info("GoPay payment succeeded for user_id=%s", user.id)
-        else:
-            logger.warning("GoPay payment failed for user_id=%s status=%s", user.id, response.status_code)
-        return JsonResponse({"message": str(response)})
-
-    return JsonResponse({"message": "GET requested"})
-
-
-@login_required
-def paymentComplete(request):
-    if request.method == "POST":
-        invoice_id = request.session["invoice_session"]
-        invoice = Invoice.objects.get(id=invoice_id, user=request.user)
-        invoice.payment_complete = True
-        invoice.save()
-    if request.body:
-        json.loads(request.body)
-    return JsonResponse("Payment completed!", safe=False)
-
-
-@login_required
-def create_invoice(request):
-    if request.method == "POST":
-        invoice = Invoice.objects.create(
-            user=request.user,
-            amount=request.POST.get("amount"),
-            total=26,
-            invoice_code=str(uuid.uuid4()),
-        )
-        request.session["invoice_session"] = invoice.invoice_code
-        return redirect("payment_gateways")
-    return render(
-        request,
-        "invoices.html",
-        context={"invoices": Invoice.objects.filter(user=request.user)},
-    )
-
-
-@login_required
-def invoice_detail(request, slug):
-    return render(
-        request,
-        "invoice_detail.html",
-        context={"invoice": Invoice.objects.get(invoice_code=slug, user=request.user)},
-    )
+def invoice_detail(request, invoice_code):
+    """Display details of a specific invoice."""
+    invoice = get_object_or_404(Invoice, invoice_code=invoice_code, user=request.user)
+    return render(request, "payments/invoice_detail.html", {"invoice": invoice})

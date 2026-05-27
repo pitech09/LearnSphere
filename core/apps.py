@@ -14,4 +14,5 @@ class CoreConfig(AppConfig):
         schools = School.objects.all()
 
         for school in schools:
-            SchoolDataLoader.load_school(school)
+            #SchoolDataLoader.load_school(school)
+            pass

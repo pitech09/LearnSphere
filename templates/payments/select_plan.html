@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Select Subscription Plan' %} | {% trans 'Learning management system' %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4">{% trans 'Choose Your Plan' %}</h2>
+    <div class="row">
+        {% for key, plan in plans.items %}
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-header text-center bg-primary text-white">
+                    <h4>{{ plan.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-center">M{{ plan.amount }}</h3>
+                    <p class="text-center text-muted">{{ plan.description }}</p>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check-circle text-success"></i> {% if plan.max_students == 0 %}Unlimited students{% else %}Up to {{ plan.max_students }} students{% endif %}</li>
+                    </ul>
+                </div>
+                <div class="card-footer text-center">
+                    <form method="post" action="{% url 'select_plan' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="plan" value="{{ key }}">
+                        <button type="submit" class="btn btn-primary">{% trans 'Select Plan' %}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

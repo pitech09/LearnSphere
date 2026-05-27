@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Payment Pending Verification' %} | {% trans 'Learning management system' %}{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <div class="card shadow">
+        <div class="card-body p-5">
+            <i class="fas fa-hourglass-half fa-4x text-warning mb-3"></i>
+            <h2>{% trans 'Proof of Payment Received' %}</h2>
+            <p class="lead">{% trans 'Thank you. Your proof of payment has been uploaded successfully.' %}</p>
+            <p>{% trans 'Our finance team will verify it shortly. You will be notified once your payment is confirmed.' %}</p>
+            <a href="{% url 'home' %}" class="btn btn-primary mt-3">{% trans 'Back to Home' %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

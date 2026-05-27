@@ -20,6 +20,7 @@ urlpatterns = [
     path("logout/", logout_view, name="logout"),
     #path("", include("django.contrib.auth.urls")),
     path("", include("core.urls")),
+   
 ]
 
 urlpatterns += i18n_patterns(
@@ -32,15 +33,18 @@ urlpatterns += i18n_patterns(
     path("search/", include("search.urls")),
     path("quiz/", include("quiz.urls")),
     path("payments/", include("payments.urls")),
-   
+
 )
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+
+
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit
     # these url in browser to see how these error pages look like.
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += [
         path(
             "400/",
