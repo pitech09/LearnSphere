@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -434,7 +435,6 @@ def delete_post(request, pk):
 # SESSION MANAGEMENT (NO SEMESTER ANYMORE)
 # =========================================================
 @login_required
-@lecturer_required
 def session_list_view(request):
     sessions = Session.objects.all().order_by("-is_current", "-session")
     if request.user.school:
@@ -445,28 +445,67 @@ def session_list_view(request):
 
 
 @login_required
-@lecturer_required
 def session_add_view(request):
-    if not request.user.school:
-        messages.error(request, "A school account is required to manage sessions.")
-        return redirect("dashboard")
+    is_platform_owner = request.user.is_superuser and not getattr(request.user, 'school', None)
+    selected_school = None
 
-    if request.method == "POST":
+    # Platform owner: show school selection on GET
+    if is_platform_owner and request.method == 'GET':
+        schools = School.objects.all()
+        return render(request, "core/session_update.html", {
+            'form': SessionForm(),
+            'schools': schools,
+        })
+
+    # Platform owner: process POST with school selection
+    if is_platform_owner and request.method == 'POST':
+        school_id = request.POST.get('school')
+        if not school_id:
+            messages.error(request, "Please select a school.")
+            return render(request, "core/session_update.html", {
+                'form': SessionForm(),
+                'schools': School.objects.all(),
+            })
+        selected_school = get_object_or_404(School, pk=school_id)
+    else:
+        # Normal user (already belongs to a school)
+        if not request.user.school:
+            messages.error(request, "A school account is required to manage sessions.")
+            return redirect("dashboard")
+        selected_school = request.user.school
+
+    # Handle POST for all users (including platform owner after school selection)
+    if request.method == 'POST':
         form = SessionForm(request.POST)
-
         if form.is_valid():
+            # If this session is set as current, unset any other current session for the same school
             if form.cleaned_data.get("is_current"):
-                Session.objects.filter(school=request.user.school, is_current=True).update(is_current=False)
+                Session.objects.filter(school=selected_school, is_current=True).update(is_current=False)
 
             session = form.save(commit=False)
-            session.school = request.user.school
-            session.save()
-            messages.success(request, "Session added.")
-            return redirect("session_list")
+            session.school = selected_school
+            try:
+                session.save()
+                messages.success(request, "Session added.")
+                return redirect("session_list")
+            except IntegrityError:
+                messages.error(request, f"A session named '{session.session}' already exists for this school. Please use a different name.")
+                # Re-render form with errors; platform owners need the school dropdown again
+                context = {'form': form}
+                if is_platform_owner:
+                    context['schools'] = School.objects.all()
+                    # Optionally, pre-select the previously chosen school in the dropdown
+                    # by adding a 'selected' attribute in the template logic
+                return render(request, "core/session_update.html", context)
+        # else: form invalid, will re-render with errors
     else:
         form = SessionForm()
 
-    return render(request, "core/session_update.html", {"form": form})
+    # Prepare context for GET (or re-render after error)
+    context = {'form': form}
+    if is_platform_owner:
+        context['schools'] = School.objects.all()
+    return render(request, "core/session_update.html", context)
 
 
 @login_required

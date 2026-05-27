@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
-
 {% load quiz_tags %}
-
 
 {% block title %} {{ quiz.title}} | {% trans 'Learning management system' %} {% endblock %}
 {% block description %} {% trans "Quiz Results for" %} {{ quiz.title }} {% endblock %}
@@ -10,13 +8,13 @@
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
-	<ol class="breadcrumb">
-		<li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-		<li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
-		<li class="breadcrumb-item"><a href="{% url 'quiz_index' course.slug %}">{% trans 'Quizzes' %}</a></li>
-		<li class="breadcrumb-item"><a href="{% url 'quiz_take' course.id quiz.slug %}">{{ quiz.title|title }}</a></li>
-		<li class="breadcrumb-item active" aria-current="page">{% trans 'Result' %}</li>
-	</ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quiz_index' class_id=course.class_assigned.id subject_slug=course.slug %}">{% trans 'Quizzes' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quiz_take' class_id=course.class_assigned.id subject_slug=course.slug pk=quiz.id %}">{{ quiz.title|title }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Result' %}</li>
+    </ol>
 </nav>
 
 <div id="progress-card">
@@ -59,8 +57,8 @@
                       {% endif %}
                     {% endif %}
                     </td>
-                  {% endif %}
                   </tr>
+                {% endif %}
               {% endfor %}
             </tbody>
           </table>
@@ -91,12 +89,12 @@
   <div class="card bg-white p-3">
     <div class="header-title-xl text-center">{% trans "Quiz result" %}</div>
     <div class="title-line"></div>
-	<p class="text-center">
-	  <small class="muted">{% trans "Quiz title" %}: </small>
-	  <strong>{{ quiz.title }}</strong></p>
+    <p class="text-center">
+      <small class="muted">{% trans "Quiz title" %}: </small>
+      <strong>{{ quiz.title }}</strong></p>
 
-	<p class="lead text-center">
-	  {% trans "You scored" %} {{ score }} {% trans "out of" %} {{ max_score }} {% trans "marks" %}, {% trans "giving you" %} {{ percent }}{% trans "% correct" %}
+    <p class="lead text-center">
+      {% trans "You scored" %} {{ score }} {% trans "out of" %} {{ max_score }} {% trans "marks" %}, {% trans "giving you" %} {{ percent }}{% trans "% correct" %}
     </p>
     {% if sitting.has_unmarked_questions %}
     <p class="alert alert-warning text-center">
@@ -110,9 +108,10 @@
         style="height: {{ percent }}%;" ></div>
     </div><br>
 
-	{% if quiz.pass_mark %}
-  <div class="card p-1" style="border: 1px solid #fd7e14;">
-    <p class="lead bg-light p-3 text-orange"><span class="fa-1x">&CircleDot;</span> {{ sitting.result_message }}</p>
+    {% if quiz.pass_mark %}
+    <div class="card p-1" style="border: 1px solid #fd7e14;">
+      <p class="lead bg-light p-3 text-orange"><span class="fa-1x">&CircleDot;</span> {{ sitting.result_message }}</p>
+    </div>
     {% endif %}
     <ul>
       <li>{% trans "Review the questions below and try the quiz again in the future"%}.</li>
@@ -132,7 +131,7 @@
   {% if possible %}
 
   <p class="lead">
-	{% trans "Your session score is" %} {{ session }} {% trans "out of a possible" %} {{ possible }}
+    {% trans "Your session score is" %} {{ session }} {% trans "out of a possible" %} {{ possible }}
   </p>
 
   <hr>
@@ -145,29 +144,29 @@
     {% for question in questions %}
 
       <p class="lead">
-		    {{ forloop.counter }}, {{ question.content }}
-	    </p>
+        {{ forloop.counter }}, {{ question.content }}
+      </p>
 
-	  <p><strong>{% trans "Explanation" %}:</strong></p>
-    {% if question.explanation %}
-    <p class="p-2 alert alert-info">
-      {{ question.explanation|safe }}
-    </p>
-    {% else %}
-    <p class="p-2 alert alert-warning">
-      {% trans "No explanation set for this question." %}
-    </p>
-    {% endif %}
-    
-    {% correct_answer_for_all question %}
-    
-    {% if question.user_answer %}
-    <p><span class="bg-secondary px-3 py-1 text-light">{% trans "Your answer" %}: {{ question|answer_choice_to_string:question.user_answer }}</span></p>
-    {% endif %}
+      <p><strong>{% trans "Explanation" %}:</strong></p>
+      {% if question.explanation %}
+      <p class="p-2 alert alert-info">
+        {{ question.explanation|safe }}
+      </p>
+      {% else %}
+      <p class="p-2 alert alert-warning">
+        {% trans "No explanation set for this question." %}
+      </p>
+      {% endif %}
+      
+      {% correct_answer_for_all question %}
+      
+      {% if question.user_answer %}
+      <p><span class="bg-secondary px-3 py-1 text-light">{% trans "Your answer" %}: {{ question|answer_choice_to_string:question.user_answer }}</span></p>
+      {% endif %}
 
-    <hr>
+      <hr>
 
-  {% endfor %}
+    {% endfor %}
   </div>
 
   {% endif %}
@@ -179,7 +178,6 @@
 {% block js %}
 <script>
     // loader
-    // document.getElementById('progress-main').style.display = 'none';
     var timer = setInterval(function(){
         document.getElementById('progress-card').style.display = 'none';
         document.getElementById('progress-main').style.display = 'block';

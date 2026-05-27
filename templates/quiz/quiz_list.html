@@ -9,12 +9,18 @@
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'course_detail' course.slug %}">{{ course }}</a></li>
+        <li class="breadcrumb-item">
+            <a href="{% url 'course_detail' class_id=course.class_assigned.id subject_slug=course.slug %}">{{ course }}</a>
+        </li>
         <li class="breadcrumb-item active" aria-current="page">{% trans 'Quizzes' %}</li>
+    </ol>
+</nav>
 
 {% if request.user.is_superuser or request.user.is_lecturer %}
 <div class="manage-wrap">
-    <a class="btn btn-primary" href="{% url 'quiz_create' course.slug %}"><i class="fas fa-plus"></i>{% trans 'Add Quiz' %}</a>
+    <a class="btn btn-primary" href="{% url 'quiz_create' class_id=course.class_assigned.id subject_slug=course.slug %}">
+        <i class="fas fa-plus"></i> {% trans 'Add Quiz' %}
+    </a>
 </div>
 {% endif %}
 
@@ -53,7 +59,9 @@
                     {% if request.user.is_student and quiz.category == "exam" and quiz.id in completed_exam_ids %}
                     <button class="btn btn-block btn-secondary w-100" disabled>{% trans "Completed" %}</button>
                     {% else %}
-                    <a class="btn btn-block btn-secondary w-100" href="{% url 'quiz_take' pk=course.pk slug=quiz.slug %}">{% trans "Start quiz" %} &raquo;</a>
+                    <a class="btn btn-block btn-secondary w-100" href="{% url 'quiz_take' class_id=course.class_assigned.id subject_slug=course.slug pk=quiz.id %}">
+                        {% trans "Start quiz" %} &raquo;
+                    </a>
                     {% endif %}
 
                     {% if request.user.is_superuser or request.user.is_lecturer %}
@@ -61,16 +69,24 @@
                             <button class="btn btn-sm p-0 ms-2" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v m-0"></i></button>
                             <div class="dropdown-menu" aria-labelledby="dropdown01">
                                 <div class="dropdown-item">
-                                    <a href="{% url 'quiz_update' slug=course.slug pk=quiz.id %}" class="update"><i class="unstyled me-2 fas fa-pencil-alt"></i>{% trans 'Edit' %}</a>
+                                    <a href="{% url 'quiz_update' class_id=course.class_assigned.id subject_slug=course.slug pk=quiz.id %}" class="update">
+                                        <i class="unstyled me-2 fas fa-pencil-alt"></i>{% trans 'Edit' %}
+                                    </a>
                                 </div>
                                 <div class="dropdown-item">
-                                    <a href="{% url 'mc_create' slug=course.slug quiz_id=quiz.id %}" class="update"><i class="unstyled me-2 fas fa-list-check"></i>{% trans 'Add MCQ' %}</a>
+                                    <a href="{% url 'mc_create' class_id=course.class_assigned.id subject_slug=course.slug quiz_id=quiz.id %}" class="update">
+                                        <i class="unstyled me-2 fas fa-list-check"></i>{% trans 'Add MCQ' %}
+                                    </a>
                                 </div>
                                 <div class="dropdown-item">
-                                    <a href="{% url 'essay_create' slug=course.slug quiz_id=quiz.id %}" class="update"><i class="unstyled me-2 fas fa-pen"></i>{% trans 'Add short answer / essay' %}</a>
+                                    <a href="{% url 'essay_create' class_id=course.class_assigned.id subject_slug=course.slug quiz_id=quiz.id %}" class="update">
+                                        <i class="unstyled me-2 fas fa-pen"></i>{% trans 'Add short answer / essay' %}
+                                    </a>
                                 </div>
                                 <div class="dropdown-item">
-                                    <a href="{% url 'quiz_delete' slug=course.slug pk=quiz.id %}" class="delete"><i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Delete' %}</a>
+                                    <a href="{% url 'quiz_delete' class_id=course.class_assigned.id subject_slug=course.slug pk=quiz.id %}" class="delete">
+                                        <i class="unstyled me-2 fas fa-trash-alt"></i>{% trans 'Delete' %}
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -91,9 +107,7 @@
 
 {% block js %}
 <script>
-    // #####################################
     // loader
-    // document.getElementById('progress-main').style.display = 'none';
     var timer = setInterval(function(){
         document.getElementById('progress-card').style.display = 'none';
         document.getElementById('progress-main').style.display = 'block';

@@ -32,11 +32,7 @@
             </a>
             {% endif %}
         </div>
-        <div class="ms-auto">
-            <a class="btn btn-sm btn-warning" href="{% url 'quiz_index' course.slug %}"><i class="fas fa-list"></i>
-                {% trans 'Take a Quiz' %}
-            </a>
-        </div>
+        <!-- Removed Take a Quiz button from here -->
     </div>
 </div>
 
@@ -46,6 +42,15 @@
 {% include 'snippets/messages.html' %}
 
 <div class="container">
+
+    <!-- Take a Quiz button placed above Video Tutorials table -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a class="btn btn-warning" href="{% url 'quiz_index' class_id=course.class_assigned.id subject_slug=course.slug %}">
+                <i class="fas fa-list"></i> {% trans 'Take a Quiz' %}
+            </a>
+        </div>
+    </div>
 
     <div class="row mb-5">
         <div class="col-md-12 p-0">
@@ -112,9 +117,7 @@
                                     </a>
                                 </span>
                             </td>
-                            <td></td>
-                            <td></td>
-                        </tr>
+                            <td>\n                            <td>\n                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -175,9 +178,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td></td>
-                            <td></td>
-                            <td>
+                            <td>\n                            <td>\n                            <td>
                                 <span class="text-danger">
                                     {% trans 'No File Uploaded.' %}
                                     {% if request.user.is_superuser or request.user.is_lecturer %}
@@ -188,10 +189,7 @@
                                         {% endif %}
                                     </a>
                                 </span>
-                            </td>
-                            <td></td>
-                            <td></td>
-                        </tr>
+                            \n                            <td>\n                            <td>\n                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>

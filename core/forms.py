@@ -62,19 +62,22 @@ class NewsAndEventsForm(forms.ModelForm):
 # =========================================================
 # 📅 SESSION FORM
 # =========================================================
+from django.core.exceptions import ValidationError
+from .models import Session
+
 class SessionForm(forms.ModelForm):
     class Meta:
         model = Session
-        fields = ["session", "is_current", "next_session_begins"]
-        widgets = {
-            "next_session_begins": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-        }
+        fields = ['session', 'is_current', 'next_session_begins']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({"class": "form-control"})
-
+    def clean(self):
+        cleaned_data = super().clean()
+        session_name = cleaned_data.get('session')
+        school = getattr(self, 'school', None)  # You'll need to pass school to the form
+        if school and session_name:
+            if Session.objects.filter(school=school, session=session_name).exists():
+                raise ValidationError("A session with this name already exists for your school.")
+        return cleaned_data
 
 # =========================================================
 # 📆 TERM FORM (UPDATED - replaces SemesterForm)

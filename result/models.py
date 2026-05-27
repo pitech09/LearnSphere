@@ -85,7 +85,8 @@ GRADE_POINT_MAPPING = {
     NG: 0.0,
 }
 
-TEST_FIELDS = ("assignment", "mid_exam", "quiz")
+# Fields used to calculate test average (assignment and mid_exam only – no quiz)
+TEST_FIELDS = ("assignment", "mid_exam")
 
 
 # =========================================================
@@ -103,12 +104,14 @@ class TakenCourse(models.Model):
     )
     quarter = models.CharField(max_length=2, choices=QUARTER_CHOICES, default=Q1)
 
+    # Teacher‑entered scores (all out of 100)
     assignment = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     mid_exam = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    quiz = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    attendance = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    quiz = models.DecimalField(max_digits=5, decimal_places=2, default=0)      # stored but not used in grading
+    attendance = models.DecimalField(max_digits=5, decimal_places=2, default=0) # stored but not used
     final_exam = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
+    # Automatically calculated fields
     total = models.DecimalField(max_digits=5, decimal_places=2, default=0, editable=False)
     grade = models.CharField(max_length=2, choices=GRADE_CHOICES, blank=True, editable=False)
     point = models.DecimalField(max_digits=5, decimal_places=2, default=0, editable=False)
@@ -124,9 +127,10 @@ class TakenCourse(models.Model):
         return self.student.student.get_full_name()
 
     # =====================================================
-    # TEST AVERAGE
+    # TEST AVERAGE (average of assignment and mid_exam only)
     # =====================================================
     def get_test_average(self):
+        """Average of assignment and mid_exam (quiz excluded)."""
         test_total = sum(Decimal(getattr(self, field)) for field in TEST_FIELDS)
         return (test_total / Decimal(len(TEST_FIELDS))).quantize(
             Decimal("0.01"),
@@ -134,17 +138,14 @@ class TakenCourse(models.Model):
         )
 
     # =====================================================
-    # FINAL MARK: 40% TESTS + 60% EXAM
+    # FINAL MARK = FINAL EXAM SCORE ONLY
     # =====================================================
     def get_total(self):
-        weighted_mark = (
-            self.get_test_average() * Decimal("0.40")
-            + Decimal(self.final_exam) * Decimal("0.60")
-        )
-        return weighted_mark.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
+        """40% test average + 60% final exam."""
+        weighted = self.get_test_average() * Decimal("0.40") + Decimal(self.final_exam) * Decimal("0.60")
+        return weighted.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     # =====================================================
-    # GRADE CALCULATION
+    # GRADE CALCULATION (based on final exam score)
     # =====================================================
     def get_grade(self):
         for boundary, grade in GRADE_BOUNDARIES:
@@ -153,13 +154,13 @@ class TakenCourse(models.Model):
         return NG
 
     # =====================================================
-    # PASS / FAIL
+    # PASS / FAIL (based on final exam score)
     # =====================================================
     def get_comment(self):
         return PASS if self.grade not in [F, NG] else FAIL
 
     # =====================================================
-    # POINTS ARE NOT USED FOR HIGH SCHOOL RESULTS
+    # POINTS NOT USED
     # =====================================================
     def get_point(self):
         return Decimal("0.00")
@@ -171,8 +172,8 @@ class TakenCourse(models.Model):
         if not self.school_id:
             self.school = self.student.student.school
 
-        self.total = self.get_total()
-        self.grade = self.get_grade()
+        self.total = self.get_total()          # final exam only
+        self.grade = self.get_grade()          # based on total
         self.point = self.get_point()
         self.comment = self.get_comment()
         super().save(*args, **kwargs)

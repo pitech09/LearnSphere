@@ -5,12 +5,12 @@
 {% block content %}
 
 <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
-	<ol class="breadcrumb">
-		<li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
-		<li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
-		<li class="breadcrumb-item"><a href="{% url 'quiz_index' course.slug %}">{% trans 'Quizzes' %}</a></li>
-		<li class="breadcrumb-item active" aria-current="page">{{ quiz.title|title }}</li>
-	</ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}">{{ course }}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quiz_index' class_id=course.class_assigned.id subject_slug=course.slug %}">{% trans 'Quizzes' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ quiz.title|title }}</li>
+    </ol>
 </nav>
 
 <div class="title-1 mb-3">{% trans 'Add questions' %} [{{ quiz_obj|truncatechars:15 }}]</div>
@@ -28,7 +28,7 @@
 <div class="container">
     <div class="mb-3 bg-secondary text-light py-1 px-3">{{ quiz_questions_count }} {% trans 'question added' %}</div>
     <div class="mb-3">
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'essay_create' slug=course.slug quiz_id=quiz_obj.id %}">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'essay_create' class_id=course.class_assigned.id subject_slug=course.slug quiz_id=quiz_obj.id %}">
             {% trans 'Add short answer / essay question' %}
         </a>
     </div>

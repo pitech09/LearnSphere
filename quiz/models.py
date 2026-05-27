@@ -407,6 +407,8 @@ class Sitting(models.Model):
 
     @property
     def has_unmarked_questions(self):
+        if not self.pk:
+            return False
         return self.question_grades.filter(awarded_marks__isnull=True).exists()
 
     @property

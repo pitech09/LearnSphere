@@ -274,9 +274,15 @@ def log_news_delete(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Session)
 def log_session_save(sender, instance, created, **kwargs):
-    ActivityLog.objects.create(
-        message=f"Session '{instance.session}' was {'created' if created else 'updated'}."
-    )
+    # Only create log if the session has a school (should always have)
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=f"Session '{instance.session}' was {'created' if created else 'updated'}."
+        )
+    else:
+        # fallback: log without school? but better to raise or skip
+        pass
 
 
 @receiver(post_save, sender=Term)

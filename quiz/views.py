@@ -44,16 +44,19 @@ QUIZ_RESULT_FIELDS = {
 }
 
 
-def school_scoped_courses(user):
+def school_scoped_courses(user, class_id=None, subject_slug=None):
     qs = Course.objects.all()
     school = getattr(user, "school", None)
     if school:
         qs = qs.filter(school=school)
+    if class_id and subject_slug:
+        qs = qs.filter(class_assigned_id=class_id, slug=subject_slug)
     return qs
 
 
-def get_school_scoped_course(user, **filters):
-    return get_object_or_404(school_scoped_courses(user), **filters)
+def get_school_scoped_course(user, class_id, subject_slug):
+    return get_object_or_404(school_scoped_courses(user, class_id, subject_slug), 
+                             class_assigned_id=class_id, slug=subject_slug)
 
 
 def school_scoped_quizzes(user):
@@ -76,22 +79,40 @@ class QuizCreateView(CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
-        initial["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        initial["course"] = get_school_scoped_course(
+            self.request.user, 
+            class_id=self.kwargs["class_id"], 
+            subject_slug=self.kwargs["subject_slug"]
+        )
         return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["course"] = get_school_scoped_course(
+            self.request.user, 
+            class_id=self.kwargs["class_id"], 
+            subject_slug=self.kwargs["subject_slug"]
+        )
         context["is_create"] = True
         return context
 
     def form_valid(self, form):
-        form.instance.course = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        form.instance.course = get_school_scoped_course(
+            self.request.user, 
+            class_id=self.kwargs["class_id"], 
+            subject_slug=self.kwargs["subject_slug"]
+        )
         with transaction.atomic():
             self.object = form.save()
         if form.cleaned_data.get("question_type") == QUESTION_TYPE_ESSAY:
-            return redirect("essay_create", slug=self.kwargs["slug"], quiz_id=self.object.id)
-        return redirect("mc_create", slug=self.kwargs["slug"], quiz_id=self.object.id)
+            return redirect("essay_create", 
+                            class_id=self.kwargs["class_id"], 
+                            subject_slug=self.kwargs["subject_slug"], 
+                            quiz_id=self.object.id)
+        return redirect("mc_create", 
+                        class_id=self.kwargs["class_id"], 
+                        subject_slug=self.kwargs["subject_slug"], 
+                        quiz_id=self.object.id)
 
 
 @method_decorator([login_required, lecturer_required], name="dispatch")
@@ -105,30 +126,40 @@ class QuizUpdateView(UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["course"] = get_school_scoped_course(
+            self.request.user, 
+            class_id=self.kwargs["class_id"], 
+            subject_slug=self.kwargs["subject_slug"]
+        )
         context["quiz"] = self.object
         return context
 
     def form_valid(self, form):
         with transaction.atomic():
             self.object = form.save()
-        return redirect("quiz_index", self.kwargs["slug"])
+        return redirect("quiz_index", 
+                        class_id=self.kwargs["class_id"], 
+                        subject_slug=self.kwargs["subject_slug"])
 
 
 @login_required
 @lecturer_required
-def quiz_delete(request, slug, pk):
+def quiz_delete(request, class_id, subject_slug, pk):
     quiz = get_object_or_404(school_scoped_quizzes(request.user), pk=pk)
     if request.method != "POST":
-        return render(request, "core/confirm_delete.html", {"object": quiz, "cancel_url": "quiz_index", "cancel_kwargs": {"slug": slug}})
+        return render(request, "core/confirm_delete.html", {
+            "object": quiz, 
+            "cancel_url": "quiz_index", 
+            "cancel_kwargs": {"class_id": class_id, "subject_slug": subject_slug}
+        })
     quiz.delete()
     messages.success(request, "Quiz deleted successfully.")
-    return redirect("quiz_index", slug=slug)
+    return redirect("quiz_index", class_id=class_id, subject_slug=subject_slug)
 
 
 @login_required
-def quiz_list(request, slug):
-    course = get_school_scoped_course(request.user, slug=slug)
+def quiz_list(request, class_id, subject_slug):
+    course = get_school_scoped_course(request.user, class_id, subject_slug)
     quizzes = Quiz.objects.filter(course=course).order_by("-timestamp")
     completed_exam_ids = []
     if request.user.is_authenticated and request.user.is_student:
@@ -162,7 +193,11 @@ class MCQuestionCreate(CreateView):
         context = super().get_context_data(**kwargs)
         quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
 
-        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["course"] = get_school_scoped_course(
+            self.request.user, 
+            class_id=self.kwargs["class_id"], 
+            subject_slug=self.kwargs["subject_slug"]
+        )
         context["quiz_obj"] = quiz
         context["quiz_questions_count"] = Question.objects.filter(quiz=quiz).count()
 
@@ -190,9 +225,14 @@ class MCQuestionCreate(CreateView):
             formset.save()
 
         if "another" in self.request.POST:
-            return redirect("mc_create", slug=self.kwargs["slug"], quiz_id=quiz.id)
+            return redirect("mc_create", 
+                            class_id=self.kwargs["class_id"], 
+                            subject_slug=self.kwargs["subject_slug"], 
+                            quiz_id=quiz.id)
 
-        return redirect("quiz_index", slug=self.kwargs["slug"])
+        return redirect("quiz_index", 
+                        class_id=self.kwargs["class_id"], 
+                        subject_slug=self.kwargs["subject_slug"])
 
 
 @method_decorator([login_required, lecturer_required], name="dispatch")
@@ -204,7 +244,11 @@ class EssayQuestionCreate(CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
-        context["course"] = get_school_scoped_course(self.request.user, slug=self.kwargs["slug"])
+        context["course"] = get_school_scoped_course(
+            self.request.user, 
+            class_id=self.kwargs["class_id"], 
+            subject_slug=self.kwargs["subject_slug"]
+        )
         context["quiz_obj"] = quiz
         context["quiz_questions_count"] = Question.objects.filter(quiz=quiz).count()
         return context
@@ -216,13 +260,22 @@ class EssayQuestionCreate(CreateView):
             self.object.quiz.add(quiz)
 
         if "another" in self.request.POST:
-            return redirect("essay_create", slug=self.kwargs["slug"], quiz_id=quiz.id)
+            return redirect("essay_create", 
+                            class_id=self.kwargs["class_id"], 
+                            subject_slug=self.kwargs["subject_slug"], 
+                            quiz_id=quiz.id)
 
-        return redirect("quiz_index", slug=self.kwargs["slug"])
+        return redirect("quiz_index", 
+                        class_id=self.kwargs["class_id"], 
+                        subject_slug=self.kwargs["subject_slug"])
 
 
 # ========================================================
 # 📊 QUIZ PROGRESS
+# ========================================================
+
+# ========================================================
+# 📊 QUIZ PROGRESS (UPDATED)
 # ========================================================
 
 @method_decorator([login_required], name="dispatch")
@@ -231,14 +284,25 @@ class QuizUserProgressView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        progress, _ = Progress.objects.get_or_create(user=self.request.user)
+        user = self.request.user
 
-        context["cat_scores"] = progress.list_all_cat_scores
-        context["exams"] = progress.show_exams()
-        context["exams_counter"] = context["exams"].count()
+        # Get all completed sittings for this user
+        completed_sittings = Sitting.objects.filter(user=user, complete=True).select_related('quiz', 'course')
+
+        # Group by quiz category
+        assignments = completed_sittings.filter(quiz__category='assignment')
+        exams = completed_sittings.filter(quiz__category='exam')
+        practices = completed_sittings.filter(quiz__category='practice')
+
+        context.update({
+            'assignments': assignments,
+            'exams': exams,
+            'practices': practices,
+            'total_assignments': assignments.count(),
+            'total_exams': exams.count(),
+            'total_practices': practices.count(),
+        })
         return context
-
-
 # ========================================================
 # 🧠 QUIZ MARKING (LECTURER)
 # ========================================================
@@ -369,30 +433,41 @@ class QuizTake(FormView):
     result_template_name = "quiz/result.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.course = get_school_scoped_course(request.user, pk=self.kwargs["pk"])
+        # Get course using class_id and subject_slug from URL
+        self.course = get_school_scoped_course(
+            request.user,
+            class_id=self.kwargs["class_id"],
+            subject_slug=self.kwargs["subject_slug"]
+        )
 
         if not request.user.is_student:
             messages.error(request, "Only students can take assessments.")
-            return redirect("quiz_index", slug=self.course.slug)
+            return redirect("quiz_index", 
+                            class_id=self.kwargs["class_id"], 
+                            subject_slug=self.kwargs["subject_slug"])
+
         self.quiz = get_object_or_404(
             school_scoped_quizzes(request.user),
-            slug=self.kwargs["slug"],
+            pk=self.kwargs["pk"],   # quiz primary key
             course=self.course,
         )
 
         if not Question.objects.filter(quiz=self.quiz).exists():
             messages.warning(request, "This quiz has no questions.")
-            return redirect("quiz_index", slug=self.course.slug)
+            return redirect("quiz_index", 
+                            class_id=self.kwargs["class_id"], 
+                            subject_slug=self.kwargs["subject_slug"])
 
         self.sitting = Sitting.objects.user_sitting(request.user, self.quiz, self.course)
         if not self.sitting:
             messages.info(request, "You already completed this exam.")
-            return redirect("quiz_index", slug=self.course.slug)
+            return redirect("quiz_index", 
+                            class_id=self.kwargs["class_id"], 
+                            subject_slug=self.kwargs["subject_slug"])
 
         self.question = self.sitting.get_first_question()
         self.progress = self.sitting.progress()
         return super().dispatch(request, *args, **kwargs)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
