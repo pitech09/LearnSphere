@@ -260,36 +260,35 @@ class CustomUserManager(UserManager):
 
 @receiver(post_save, sender=NewsAndEvents)
 def log_news_save(sender, instance, created, **kwargs):
-    ActivityLog.objects.create(
-        message=f"News/Event '{instance.title}' was {'created' if created else 'updated'}."
-    )
-
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=f"News/Event '{instance.title}' was {'created' if created else 'updated'}."
+        )
 
 @receiver(post_delete, sender=NewsAndEvents)
 def log_news_delete(sender, instance, **kwargs):
-    ActivityLog.objects.create(
-        message=f"News/Event '{instance.title}' was deleted."
-    )
-
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=f"News/Event '{instance.title}' was deleted."
+        )
 
 @receiver(post_save, sender=Session)
 def log_session_save(sender, instance, created, **kwargs):
-    # Only create log if the session has a school (should always have)
     if instance.school:
         ActivityLog.objects.create(
             school=instance.school,
             message=f"Session '{instance.session}' was {'created' if created else 'updated'}."
         )
-    else:
-        # fallback: log without school? but better to raise or skip
-        pass
-
 
 @receiver(post_save, sender=Term)
 def log_term_save(sender, instance, created, **kwargs):
-    ActivityLog.objects.create(
-        message=f"Term '{instance}' was {'created' if created else 'updated'}."
-    )
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=f"Term '{instance}' was {'created' if created else 'updated'}."
+        )
 
 # =========================================================
 #  SCHOOL CLASS (FORM 1A, FORM 2B, etc.)

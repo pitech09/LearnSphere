@@ -1,8 +1,11 @@
 from django.urls import path
 from django.views.generic import TemplateView
 
+from quiz import views
+
 # Core app views
 from .views import (
+    bulk_fee_add,
     home_view,
     post_add,
     edit_post,
@@ -30,6 +33,17 @@ from .views import (
     subject_add_view,
     subject_update_view,
     subject_delete_view,
+    fee_add,
+    fee_edit,
+    fee_delete,
+    fee_list,
+    fee_detail,
+    payment_add,
+    exam_list,
+    exam_add,
+    exam_edit,
+    exam_delete,
+    exam_detail
 )
 
 # Course app views (for URLs that use class_id + subject_slug)
@@ -116,6 +130,22 @@ urlpatterns = [
     path("class/<int:class_id>/course/<slug:subject_slug>/video_tutorials/<slug:video_slug>/delete/",
          handle_video_delete, name="upload_video_delete"),
 
+    # Fee URLs
+    path('fees/', fee_list, name='fee_list'),
+    path('fees/add/', fee_add, name='fee_add'),
+    path('fees/<int:pk>/edit/', fee_edit, name='fee_edit'),
+    path('fees/<int:pk>/delete/', fee_delete, name='fee_delete'),
+    path('fees/<int:pk>/', fee_detail, name='fee_detail'),
+    path('fees/<int:fee_pk>/pay/', payment_add, name='payment_add'),
+    path('fees/bulk-add/', bulk_fee_add, name='bulk_fee_add'),
+
+    path('exams/', exam_list, name='exam_list'),
+    path('exams/add/', exam_add, name='exam_add'),
+    path('exams/<int:pk>/edit/', exam_edit, name='exam_edit'),
+    path('exams/<int:pk>/delete/', exam_delete, name='exam_delete'),
+    path('exams/<int:pk>/', exam_detail, name='exam_detail'),
     # Legal page
+
+
     path("legal/", TemplateView.as_view(template_name="legal/privacy_terms.html"), name="legal"),
 ]

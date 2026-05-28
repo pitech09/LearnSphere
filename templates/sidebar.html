@@ -56,9 +56,10 @@
 		<!-- New Routes -->
 		{% url 'class_list' as class_list %}
 		{% url 'subject_list_view' as subject_list %}
-		{% url 'admin:core_schoolfee_changelist' as fee_admin %}
+		{% url 'fee_list' as fee_list_url %}
+		{% url 'bulk_fee_add' as bulk_fee_add_url %}
+		{% url 'exam_list' as exam_list_url %}                     <!-- Custom Exam List -->
 		{% url 'admin:core_attendancerecord_changelist' as attendance_admin %}
-		{% url 'admin:core_exam_changelist' as exam_admin %}
 		{% url 'admin:core_timetableentry_changelist' as timetable_admin %}
 		{% url 'admin:core_markentry_changelist' as marks_admin %}
 		{% url 'admin:accounts_parent_changelist' as parent_admin %}
@@ -184,15 +185,25 @@
 				</a>
 			</li>
 
-			<li class="{% if request.path == fee_admin %}active{% endif %}">
-				<a href="{{ fee_admin }}" class="nav-link-custom">
+			<!-- Custom School Fees -->
+			<li class="{% if request.path == fee_list_url %}active{% endif %}">
+				<a href="{{ fee_list_url }}" class="nav-link-custom">
 					<i class="fas fa-coins"></i>
 					<span>{% trans 'School Fees' %}</span>
 				</a>
 			</li>
 
-			<li class="{% if request.path == exam_admin %}active{% endif %}">
-				<a href="{{ exam_admin }}" class="nav-link-custom">
+			<!-- Bulk Fee Add (sub‑item) -->
+			<li class="ps-4 {% if request.path == bulk_fee_add_url %}active{% endif %}">
+				<a href="{{ bulk_fee_add_url }}" class="nav-link-custom small">
+					<i class="fas fa-layer-group"></i>
+					<span>{% trans 'Bulk Fee Add' %}</span>
+				</a>
+			</li>
+
+			<!-- Custom Exams (replaces Django admin) -->
+			<li class="{% if request.path == exam_list_url %}active{% endif %}">
+				<a href="{{ exam_list_url }}" class="nav-link-custom">
 					<i class="fas fa-file-signature"></i>
 					<span>{% trans 'Exams' %}</span>
 				</a>

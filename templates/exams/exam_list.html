@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>{% trans 'Exams' %}</h2>
+        <a class="btn btn-primary" href="{% url 'exam_add' %}"><i class="fas fa-plus"></i> {% trans 'Add Exam' %}</a>
+    </div>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-3">
+            <select name="class" class="form-select">
+                <option value="">{% trans 'All Classes' %}</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}" {% if selected_class == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="session" class="form-select">
+                <option value="">{% trans 'All Sessions' %}</option>
+                {% for s in sessions %}
+                <option value="{{ s.id }}" {% if selected_session == s.id|stringformat:"s" %}selected{% endif %}>{{ s.session }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="term" class="form-select">
+                <option value="">{% trans 'All Terms' %}</option>
+                {% for t in terms %}
+                <option value="{{ t.id }}" {% if selected_term == t.id|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">{% trans 'All Statuses' %}</option>
+                {% for code, label in status_choices %}
+                <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-secondary">{% trans 'Filter' %}</button>
+            <a href="{% url 'exam_list' %}" class="btn btn-outline-secondary">{% trans 'Clear' %}</a>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr><th>{% trans 'Name' %}</th><th>{% trans 'Class' %}</th><th>{% trans 'Session' %}</th><th>{% trans 'Term' %}</th><th>{% trans 'Starts' %}</th><th>{% trans 'Ends' %}</th><th>{% trans 'Status' %}</th><th>{% trans 'Actions' %}</th></tr>
+            </thead>
+            <tbody>
+                {% for exam in page_obj %}
+                <tr>
+                    <td>{{ exam.name }}</td>
+                    <td>{{ exam.school_class.name|default:"-" }}</td>
+                    <td>{{ exam.session|default:"-" }}</td>
+                    <td>{{ exam.term|default:"-" }}</td>
+                    <td>{{ exam.starts_on }}</td>
+                    <td>{{ exam.ends_on }}</td>
+                    <td>{% include 'snippets/badge.html' with status=exam.status %}</td>
+                    <td>
+                        <a href="{% url 'exam_detail' exam.pk %}" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'exam_delete' exam.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this exam?')"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8">{% trans 'No exams found.' %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'snippets/pagination.html' with page_obj=page_obj %}
+</div>
+{% endblock %}

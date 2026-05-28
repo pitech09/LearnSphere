@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between">
+        <h2>{{ exam.name }}</h2>
+        <div>
+            <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> {% trans 'Edit' %}</a>
+            <a href="{% url 'exam_delete' exam.pk %}" class="btn btn-danger" onclick="return confirm('Delete?')"><i class="fas fa-trash"></i> {% trans 'Delete' %}</a>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Class:</strong> {{ exam.school_class.name|default:"-" }}</p>
+            <p><strong>Session:</strong> {{ exam.session|default:"-" }}</p>
+            <p><strong>Term:</strong> {{ exam.term|default:"-" }}</p>
+            <p><strong>Period:</strong> {{ exam.starts_on }} to {{ exam.ends_on }}</p>
+            <p><strong>Status:</strong> {% include 'snippets/badge.html' with status=exam.status %}</p>
+        </div>
+    </div>
+
+    <h4>{% trans 'Schedule' %}</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>Subject</th><th>Date</th><th>Start</th><th>End</th><th>Venue</th><th>Invigilator</th></tr>
+        </thead>
+        <tbody>
+            {% for s in schedules %}
+            <tr>
+                <td>{{ s.subject.title|default:"-" }}</td>
+                <td>{{ s.date }}</td>
+                <td>{{ s.start_time|time:"H:i" }}</td>
+                <td>{{ s.end_time|time:"H:i" }}</td>
+                <td>{{ s.venue|default:"-" }}</td>
+                <td>{{ s.invigilator.get_full_name|default:s.invigilator.username|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <td><td colspan="6">{% trans 'No schedule entries.' %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

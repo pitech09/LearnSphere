@@ -1,0 +1,8 @@
+<span class="badge 
+    {% if status == 'paid' %}bg-success
+    {% elif status == 'partial' %}bg-warning text-dark
+    {% elif status == 'pending' %}bg-secondary
+    {% elif status == 'overdue' %}bg-danger
+    {% else %}bg-light text-dark{% endif %}">
+    {{ status|title }}
+</span>

@@ -40,8 +40,7 @@ def env_list(name, default):
     return [item.strip() for item in str(value).split(",") if item.strip()]
 
 
-DEBUG = env_bool("DEBUG", default=False)
-
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'False'
 SECRET_KEY = config(
     "SECRET_KEY",
     default="unsafe-dev-only-secret-key" if DEBUG else "",

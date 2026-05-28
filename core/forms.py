@@ -1,11 +1,74 @@
 from django import forms
 
 from course.models import Subject
-from .models import NewsAndEvents, School, Session, Term
+from .models import NewsAndEvents, School, Session, Term, Exam, ExamSchedule
 
 from django import forms
 from .models import SchoolClass
-from accounts.models import User
+from accounts.models import User, Student
+from .models import SchoolFee, FeePayment
+
+from django.forms import inlineformset_factory
+
+class ExamForm(forms.ModelForm):
+    class Meta:
+        model = Exam
+        fields = ['name', 'session', 'term', 'school_class', 'starts_on', 'ends_on', 'status']
+        widgets = {
+            'starts_on': forms.DateInput(attrs={'type': 'date'}),
+            'ends_on': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school)
+            self.fields['session'].queryset = Session.objects.filter(school=school)
+            self.fields['term'].queryset = Term.objects.filter(school=school)
+
+class ExamScheduleForm(forms.ModelForm):
+    class Meta:
+        model = ExamSchedule
+        fields = ['subject', 'date', 'start_time', 'end_time', 'venue', 'invigilator']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'start_time': forms.TimeInput(attrs={'type': 'time'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time'}),
+        }
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields['subject'].queryset = Subject.objects.filter(school=school)
+            self.fields['invigilator'].queryset = User.objects.filter(school=school, is_lecturer=True)
+
+ExamScheduleFormSet = inlineformset_factory(
+    Exam, ExamSchedule, form=ExamScheduleForm, extra=1, can_delete=True
+)
+
+class SchoolFeeForm(forms.ModelForm):
+    class Meta:
+        model = SchoolFee
+        fields = ['student', 'session', 'term', 'description', 'amount_due', 'discount', 'due_date']
+        widgets = {
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            # Limit student choices to those in the school
+            self.fields['student'].queryset = Student.objects.filter(student__school=school)
+            self.fields['session'].queryset = Session.objects.filter(school=school)
+            self.fields['term'].queryset = Term.objects.filter(school=school)
+
+class FeePaymentForm(forms.ModelForm):
+    class Meta:
+        model = FeePayment
+        fields = ['amount', 'paid_on', 'method', 'reference', 'notes']
+        widgets = {
+            'paid_on': forms.DateInput(attrs={'type': 'date'}),
+        }
 
 
 class SchoolClassForm(forms.ModelForm):
@@ -44,6 +107,22 @@ class SchoolClassForm(forms.ModelForm):
         fields = ['name', 'level', 'class_teacher']
 
 
+
+class BulkFeeForm(forms.Form):
+    school_class = forms.ModelChoiceField(queryset=SchoolClass.objects.none(), label="Class")
+    session = forms.ModelChoiceField(queryset=Session.objects.none(), label="Session")
+    term = forms.ModelChoiceField(queryset=Term.objects.none(), label="Term", required=False)
+    description = forms.CharField(max_length=160, initial="Tuition fees")
+    amount_due = forms.DecimalField(max_digits=10, decimal_places=2)
+    discount = forms.DecimalField(max_digits=10, decimal_places=2, required=False, initial=0)
+    due_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school)
+            self.fields['session'].queryset = Session.objects.filter(school=school)
+            self.fields['term'].queryset = Term.objects.filter(school=school)
 
 # =========================================================
 # 📢 NEWS & EVENTS FORM

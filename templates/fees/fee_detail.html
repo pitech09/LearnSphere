@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between">
+        <h2>{% trans 'Fee Details' %}</h2>
+        <a class="btn btn-primary" href="{% url 'payment_add' fee.pk %}"><i class="fas fa-money-bill"></i> {% trans 'Record Payment' %}</a>
+    </div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Student:</strong> {{ fee.student.student.get_full_name }}</p>
+            <p><strong>Session:</strong> {{ fee.session|default:"-" }}</p>
+            <p><strong>Term:</strong> {{ fee.term|default:"-" }}</p>
+            <p><strong>Description:</strong> {{ fee.description }}</p>
+            <p><strong>Amount Due:</strong> {{ fee.amount_due }}</p>
+            <p><strong>Discount:</strong> {{ fee.discount }}</p>
+            <p><strong>Total Paid:</strong> {{ fee.total_paid }}</p>
+            <p><strong>Balance:</strong> {{ fee.balance }}</p>
+            <p><strong>Status:</strong> {% include 'snippets/badge.html' with status=fee.status %}</p>
+            <p><strong>Due Date:</strong> {{ fee.due_date|default:"-" }}</p>
+        </div>
+    </div>
+
+    <h4>{% trans 'Payment History' %}</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>{% trans 'Date' %}</th><th>{% trans 'Amount' %}</th><th>{% trans 'Method' %}</th><th>{% trans 'Reference' %}</th><th>{% trans 'Received By' %}</th></tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.paid_on }}</td>
+                <td>{{ p.amount }}</td>
+                <td>{{ p.get_method_display }}</td>
+                <td>{{ p.reference|default:"-" }}</td>
+                <td>{{ p.received_by.get_full_name|default:p.received_by.username }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">{% trans 'No payments recorded.' %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -38,7 +38,7 @@
 					{% if request.user.is_superuser %}
 					<a class="dropdown-item" href="{% url 'admin_panel' %}"><i class="fas fa-user-tie me-2"></i>{% trans 'Admin Panel' %}</a>
 					{% endif %}
-
+					<a class="dropdown-item" href="{% url 'fee_list' %}"><i class="fas fa-coins"></i> {% trans 'School Fees' %}</a>
 					<a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>{% trans 'Profile' %}</a>
 					<a class="dropdown-item" href="{% url 'edit_profile' %}"><i class="fas fa-cog me-2"></i>{% trans 'Setting' %}</a>
 					<a class="dropdown-item" href="{% url 'change_password' %}"><i class="fas fa-key me-2"></i>{% trans 'Change Password' %}</a>

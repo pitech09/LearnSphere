@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum
 from django.utils import timezone
-
+from django.db import transaction
 from accounts.decorators import admin_required, lecturer_required
 from accounts.models import Parent, User, Student
 from course.forms import SubjectAddForm
@@ -12,7 +12,10 @@ from course.models import Subject, SubjectAllocation
 from result.models import TakenCourse
 from result.views import build_quarter_sections, get_current_quarter
 from .forms import (
+    BulkFeeForm,
     CurrentQuarterForm,
+    ExamForm,
+    ExamScheduleFormSet,
     SchoolPlatformForm,
     SessionForm,
     NewsAndEventsForm,
@@ -36,7 +39,294 @@ from .models import (
 )
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.core.paginator import Paginator
+from accounts.models import User, Student
+from .models import SchoolFee, FeePayment, Session, Term
+from .forms import SchoolFeeForm, FeePaymentForm
 
+@login_required
+def exam_list(request):
+    school = getattr(request.user, 'school', None)
+    exams = Exam.objects.select_related('school_class', 'session', 'term')
+    if school:
+        exams = exams.filter(school=school)
+    else:
+        exams = exams.none()
+
+    # Filters
+    class_id = request.GET.get('class')
+    session_id = request.GET.get('session')
+    term_id = request.GET.get('term')
+    status = request.GET.get('status')
+
+    if class_id:
+        exams = exams.filter(school_class_id=class_id)
+    if session_id:
+        exams = exams.filter(session_id=session_id)
+    if term_id:
+        exams = exams.filter(term_id=term_id)
+    if status:
+        exams = exams.filter(status=status)
+
+    paginator = Paginator(exams.order_by('-starts_on'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'classes': SchoolClass.objects.filter(school=school) if school else [],
+        'sessions': Session.objects.filter(school=school) if school else [],
+        'terms': Term.objects.filter(school=school) if school else [],
+        'status_choices': Exam._meta.get_field('status').choices,
+        'selected_class': class_id,
+        'selected_session': session_id,
+        'selected_term': term_id,
+        'selected_status': status,
+    }
+    return render(request, 'exams/exam_list.html', context)
+
+@login_required
+def exam_add(request):
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = ExamForm(request.POST, school=school)
+        formset = ExamScheduleFormSet(request.POST, form_kwargs={'school': school})
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                exam = form.save(commit=False)
+                exam.school = school
+                exam.save()
+                formset.instance = exam
+                formset.save()
+            messages.success(request, f"Exam '{exam.name}' added successfully.")
+            return redirect('exam_list')
+    else:
+        form = ExamForm(school=school)
+        formset = ExamScheduleFormSet(form_kwargs={'school': school})
+
+    return render(request, 'exams/exam_form.html', {
+        'form': form,
+        'formset': formset,
+        'title': 'Add Exam'
+    })
+
+
+@login_required
+def exam_edit(request, pk):
+    school = getattr(request.user, 'school', None)
+    exam = get_object_or_404(Exam, pk=pk, school=school)
+
+    if request.method == 'POST':
+        form = ExamForm(request.POST, instance=exam, school=school)
+        formset = ExamScheduleFormSet(request.POST, instance=exam, form_kwargs={'school': school})
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                formset.save()
+            messages.success(request, f"Exam '{exam.name}' updated.")
+            return redirect('exam_list')
+    else:
+        form = ExamForm(instance=exam, school=school)
+        formset = ExamScheduleFormSet(instance=exam, form_kwargs={'school': school})
+
+    return render(request, 'exams/exam_form.html', {
+        'form': form,
+        'formset': formset,
+        'title': 'Edit Exam'
+    })
+
+
+@login_required
+def exam_delete(request, pk):
+    school = getattr(request.user, 'school', None)
+    exam = get_object_or_404(Exam, pk=pk, school=school)
+    if request.method == 'POST':
+        name = exam.name
+        exam.delete()
+        messages.success(request, f"Exam '{name}' deleted.")
+        return redirect('exam_list')
+    return render(request, 'core/confirm_delete.html', {'object': exam, 'cancel_url': 'exam_list'})
+
+@login_required
+def exam_detail(request, pk):
+    school = getattr(request.user, 'school', None)
+    exam = get_object_or_404(Exam, pk=pk, school=school)
+    schedules = exam.schedule_entries.all().select_related('subject', 'invigilator')
+    return render(request, 'exams/exam_detail.html', {'exam': exam, 'schedules': schedules})
+
+
+@login_required
+def fee_list(request):
+    """List all school fees for the user's school."""
+    fees = SchoolFee.objects.select_related('student__student', 'session', 'term')
+    school = getattr(request.user, 'school', None)
+    if school:
+        fees = fees.filter(school=school)
+    else:
+        fees = fees.none()
+
+    # Filters
+    student_id = request.GET.get('student')
+    session_id = request.GET.get('session')
+    term_id = request.GET.get('term')
+    status = request.GET.get('status')
+
+    if student_id:
+        fees = fees.filter(student_id=student_id)
+    if session_id:
+        fees = fees.filter(session_id=session_id)
+    if term_id:
+        fees = fees.filter(term_id=term_id)
+    if status:
+        fees = fees.filter(status=status)
+
+    # Pagination
+    paginator = Paginator(fees.order_by('-created_at'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'students': Student.objects.filter(student__school=school).select_related('student') if school else [],
+        'sessions': Session.objects.filter(school=school) if school else [],
+        'terms': Term.objects.filter(school=school) if school else [],
+        'status_choices': SchoolFee._meta.get_field('status').choices,
+        'selected_student': student_id,
+        'selected_session': session_id,
+        'selected_term': term_id,
+        'selected_status': status,
+    }
+    return render(request, 'fees/fee_list.html', context)
+
+@login_required
+def fee_add(request):
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('fee_list')
+
+    if request.method == 'POST':
+        form = SchoolFeeForm(request.POST, school=school)
+        if form.is_valid():
+            fee = form.save(commit=False)
+            fee.school = school
+            fee.save()
+            messages.success(request, f"Fee for {fee.student} added successfully.")
+            return redirect('fee_list')
+    else:
+        form = SchoolFeeForm(school=school)
+
+    return render(request, 'fees/fee_form.html', {'form': form, 'title': 'Add Fee'})
+
+@login_required
+def fee_edit(request, pk):
+    school = getattr(request.user, 'school', None)
+    fee = get_object_or_404(SchoolFee, pk=pk, school=school)
+
+    if request.method == 'POST':
+        form = SchoolFeeForm(request.POST, instance=fee, school=school)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Fee for {fee.student} updated.")
+            return redirect('fee_list')
+    else:
+        form = SchoolFeeForm(instance=fee, school=school)
+
+    return render(request, 'fees/fee_form.html', {'form': form, 'title': 'Edit Fee'})
+
+@login_required
+def fee_delete(request, pk):
+    school = getattr(request.user, 'school', None)
+    fee = get_object_or_404(SchoolFee, pk=pk, school=school)
+    if request.method == 'POST':
+        student_name = str(fee.student)
+        fee.delete()
+        messages.success(request, f"Fee for {student_name} deleted.")
+        return redirect('fee_list')
+    return render(request, 'core/confirm_delete.html', {'object': fee, 'cancel_url': 'fee_list'})
+
+@login_required
+def fee_detail(request, pk):
+    school = getattr(request.user, 'school', None)
+    fee = get_object_or_404(SchoolFee, pk=pk, school=school)
+    payments = fee.payments.all().order_by('-paid_on')
+    return render(request, 'fees/fee_detail.html', {'fee': fee, 'payments': payments})
+
+@login_required
+def payment_add(request, fee_pk):
+    school = getattr(request.user, 'school', None)
+    fee = get_object_or_404(SchoolFee, pk=fee_pk, school=school)
+
+    if request.method == 'POST':
+        form = FeePaymentForm(request.POST)
+        if form.is_valid():
+            payment = form.save(commit=False)
+            payment.fee = fee
+            payment.received_by = request.user
+            payment.save()
+            messages.success(request, f"Payment of {payment.amount} recorded.")
+            return redirect('fee_detail', pk=fee.pk)
+    else:
+        form = FeePaymentForm(initial={'paid_on': timezone.localdate()})
+
+    return render(request, 'fees/payment_form.html', {'form': form, 'fee': fee})
+
+
+@login_required
+@admin_required
+def bulk_fee_add(request):
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = BulkFeeForm(request.POST, school=school)
+        if form.is_valid():
+            school_class = form.cleaned_data['school_class']
+            session = form.cleaned_data['session']
+            term = form.cleaned_data['term']
+            description = form.cleaned_data['description']
+            amount_due = form.cleaned_data['amount_due']
+            discount = form.cleaned_data.get('discount', 0)
+            due_date = form.cleaned_data.get('due_date')
+
+            # Get all students in the class
+            students = Student.objects.filter(student_class=school_class, student__school=school)
+            created_count = 0
+            skipped = 0
+            for student in students:
+                # Avoid duplicate fee for same student, session, term, description (optional)
+                if SchoolFee.objects.filter(student=student, session=session, term=term, description=description).exists():
+                    skipped += 1
+                    continue
+                SchoolFee.objects.create(
+                    school=school,
+                    student=student,
+                    session=session,
+                    term=term,
+                    description=description,
+                    amount_due=amount_due,
+                    discount=discount,
+                    due_date=due_date,
+                    status='pending'
+                )
+                created_count += 1
+
+            messages.success(request, f"Created {created_count} fee records. Skipped {skipped} duplicates.")
+            return redirect('fee_list')
+    else:
+        form = BulkFeeForm(school=school)
+
+    return render(request, 'fees/bulk_fee_form.html', {'form': form, 'title': 'Bulk Add Fees'})
 # =========================================================
 # NEWS & EVENTS
 # =========================================================

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+
+{% block content %}
+<div class="container">
+    <h2>{{ title }}</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <h4 class="mt-4">{% trans 'Exam Schedule' %}</h4>
+        {{ formset.management_form }}
+        {% for schedule_form in formset %}
+            <div class="card mb-2 p-2">
+                {{ schedule_form|crispy }}
+                {% if schedule_form.instance.pk %}
+                    <div class="form-check">
+                        {{ schedule_form.DELETE }} <label class="form-check-label">{% trans 'Delete this schedule' %}</label>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">{% trans 'Save' %}</button>
+        <a href="{% url 'exam_list' %}" class="btn btn-secondary">{% trans 'Cancel' %}</a>
+    </form>
+</div>
+{% endblock %}
