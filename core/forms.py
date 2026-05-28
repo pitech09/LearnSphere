@@ -2,13 +2,54 @@ from django import forms
 
 from course.models import Subject
 from .models import NewsAndEvents, School, Session, Term, Exam, ExamSchedule
-
-from django import forms
 from .models import SchoolClass
 from accounts.models import User, Student
 from .models import SchoolFee, FeePayment
-
 from django.forms import inlineformset_factory
+from .models import TimetableEntry
+
+from .models import MarkEntry
+
+class MarkEntryByLevelForm(forms.Form):
+    level = forms.ChoiceField(choices=SchoolClass.LEVEL_CHOICES, label="Level")
+    subject = forms.ModelChoiceField(queryset=Subject.objects.none(), label="Subject")
+    exam = forms.ModelChoiceField(queryset=Exam.objects.none(), label="Exam", required=False)
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields['subject'].queryset = Subject.objects.filter(school=school)
+            self.fields['exam'].queryset = Exam.objects.filter(school=school)
+
+class MarkEntryByLevelForm(forms.Form):
+    level = forms.ChoiceField(choices=SchoolClass.LEVEL_CHOICES, label="Level")
+    subject = forms.ModelChoiceField(queryset=Subject.objects.none(), label="Subject")
+    exam = forms.ModelChoiceField(queryset=Exam.objects.none(), label="Exam", required=False)
+    continuous_assessment = forms.DecimalField(max_digits=5, decimal_places=2, required=False, label="Continuous Assessment (0-100)")
+    exam_mark = forms.DecimalField(max_digits=5, decimal_places=2, required=False, label="Exam Mark (0-100)")
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields['subject'].queryset = Subject.objects.filter(school=school)
+            self.fields['exam'].queryset = Exam.objects.filter(school=school)
+
+
+class TimetableEntryForm(forms.ModelForm):
+    class Meta:
+        model = TimetableEntry
+        fields = ['school_class', 'subject', 'teacher', 'day', 'start_time', 'end_time', 'room', 'is_active']
+        widgets = {
+            'start_time': forms.TimeInput(attrs={'type': 'time'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time'}),
+        }
+
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school)
+            self.fields['subject'].queryset = Subject.objects.filter(school=school)
+            self.fields['teacher'].queryset = User.objects.filter(school=school, is_lecturer=True)
 
 class ExamForm(forms.ModelForm):
     class Meta:

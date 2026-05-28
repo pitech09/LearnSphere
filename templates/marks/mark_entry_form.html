@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+
+{% block content %}
+<div class="container">
+    <h2>{% trans 'Enter Marks by Level' %}</h2>
+    <form method="post" class="mb-4">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">{% trans 'Load Students' %}</button>
+    </form>
+
+    {% if students %}
+    <hr>
+    <form method="post" action="{% url 'save_marks' %}">
+        {% csrf_token %}
+        <input type="hidden" name="subject_id" value="{{ subject.id }}">
+        <input type="hidden" name="exam_id" value="{{ exam.id|default:'' }}">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Student' %}</th>
+                        <th>{% trans 'Continuous Assessment (0-100)' %}</th>
+                        <th>{% trans 'Exam Mark (0-100)' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in mark_entries %}
+                    <tr>
+                        <td>{{ entry.student.student.get_full_name }} ({{ entry.student.student.username }})</td>
+                        <input type="hidden" name="student_id" value="{{ entry.student.id }}">
+                        <input type="hidden" name="mark_id" value="{{ entry.mark_id|default:'' }}">
+                        <td><input type="number" name="ca" value="{{ entry.ca|default:'' }}" step="0.01" min="0" max="100" class="form-control"></td>
+                        <td><input type="number" name="exam_mark" value="{{ entry.exam_mark|default:'' }}" step="0.01" min="0" max="100" class="form-control"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="btn btn-success">{% trans 'Save All Marks' %}</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

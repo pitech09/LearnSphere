@@ -1,4 +1,5 @@
 from django.db import IntegrityError
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -16,6 +17,7 @@ from .forms import (
     CurrentQuarterForm,
     ExamForm,
     ExamScheduleFormSet,
+    MarkEntryByLevelForm,
     SchoolPlatformForm,
     SessionForm,
     NewsAndEventsForm,
@@ -47,6 +49,275 @@ from django.core.paginator import Paginator
 from accounts.models import User, Student
 from .models import SchoolFee, FeePayment, Session, Term
 from .forms import SchoolFeeForm, FeePaymentForm
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from .models import TimetableEntry, SchoolClass
+from .forms import TimetableEntryForm
+from .models import SchoolClass, MarkEntry
+
+from django.shortcuts import render, redirect, reverse
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from accounts.decorators import lecturer_required
+
+
+@login_required
+def mark_entry_by_level(request):
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('dashboard')
+
+    students = []
+    mark_entries = []
+    form = MarkEntryByLevelForm(request.POST or None, school=school)
+    subject = None
+    exam = None
+
+    # Handle POST: redirect to GET with query params
+    if request.method == 'POST' and form.is_valid():
+        level = form.cleaned_data['level']
+        subject = form.cleaned_data['subject']
+        exam = form.cleaned_data.get('exam')
+        url = f"{reverse('mark_entry_by_level')}?level={level}&subject={subject.id}&exam={exam.id if exam else ''}"
+        return redirect(url)
+
+    # Handle GET: load students and existing marks
+    level = request.GET.get('level')
+    subject_id = request.GET.get('subject')
+    exam_id = request.GET.get('exam')
+
+    if level and subject_id:
+        # Pre‑populate the form for display
+        initial = {'level': level, 'subject': subject_id}
+        if exam_id:
+            initial['exam'] = exam_id
+        form = MarkEntryByLevelForm(initial=initial, school=school)
+
+        try:
+            subject = Subject.objects.get(id=subject_id, school=school)
+            exam = Exam.objects.get(id=exam_id) if exam_id else None
+        except Subject.DoesNotExist:
+            messages.error(request, "Subject not found.")
+            return redirect('mark_entry_by_level')
+
+        # Get all classes under the chosen level
+        classes = SchoolClass.objects.filter(school=school, level=level)
+        # Get all students in those classes
+        students = Student.objects.filter(student_class__in=classes, student__school=school).select_related('student')
+
+        # Retrieve existing marks
+        existing = MarkEntry.objects.filter(student__in=students, subject=subject, exam=exam)
+        mark_dict = {me.student_id: me for me in existing}
+
+        for student in students:
+            mark = mark_dict.get(student.id)
+            mark_entries.append({
+                'student': student,
+                'ca': mark.continuous_assessment if mark else '',
+                'exam_mark': mark.exam_mark if mark else '',
+                'mark_id': mark.id if mark else None,
+            })
+
+    return render(request, 'marks/mark_entry_form.html', {
+        'form': form,
+        'students': students,
+        'mark_entries': mark_entries,
+        'subject': subject,
+        'exam': exam,
+    })
+
+@login_required
+def mark_entry_by_level(request):
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated.")
+        return redirect('dashboard')
+
+    students = []
+    mark_entries = []
+    if request.method == 'POST':
+        form = MarkEntryByLevelForm(request.POST, school=school)
+        if form.is_valid():
+            level = form.cleaned_data['level']
+            subject = form.cleaned_data['subject']
+            exam = form.cleaned_data.get('exam')
+
+            # Clear any previous data to avoid Decimal contamination
+            if 'mark_form_data' in request.session:
+                del request.session['mark_form_data']
+
+            # Store only JSON‑serializable values
+            request.session['mark_form_data'] = {
+                'level': str(level),                 # force string
+                'subject_id': int(subject.id),       # force int
+                'exam_id': int(exam.id) if exam else None,
+            }
+            request.session.modified = True      # mark as changed
+
+        else:
+            messages.error(request, "Invalid form.")
+            return render(request, 'marks/mark_entry_form.html', {'form': form})
+    else:
+        form = MarkEntryByLevelForm(school=school)
+
+        # If there is saved data, pre-populate form
+        if 'mark_form_data' in request.session:
+            data = request.session['mark_form_data']
+            form = MarkEntryByLevelForm(initial={
+                'level': data.get('level'),
+                'subject': data.get('subject_id'),
+                'exam': data.get('exam_id'),
+                'continuous_assessment': data.get('ca'),
+                'exam_mark': data.get('exam_mark'),
+            }, school=school)
+
+    return render(request, 'marks/mark_entry_form.html', {
+        'form': form,
+        'students': students,
+        'mark_entries': mark_entries,
+    })
+
+@login_required
+def save_marks(request):
+    if request.method == 'POST':
+        school = getattr(request.user, 'school', None)
+        if not school:
+            return JsonResponse({'error': 'No school'}, status=400)
+
+        # Get list of student IDs and marks
+        student_ids = request.POST.getlist('student_id')
+        ca_marks = request.POST.getlist('ca')
+        exam_marks = request.POST.getlist('exam_mark')
+        mark_ids = request.POST.getlist('mark_id')
+        subject_id = request.POST.get('subject_id')
+        exam_id = request.POST.get('exam_id')
+
+        try:
+            subject = Subject.objects.get(id=subject_id, school=school)
+            exam = Exam.objects.get(id=exam_id) if exam_id else None
+        except (Subject.DoesNotExist, Exam.DoesNotExist):
+            return JsonResponse({'error': 'Invalid subject or exam'}, status=400)
+
+        saved = 0
+        for i, student_id in enumerate(student_ids):
+            if not student_id:
+                continue
+            ca = ca_marks[i] if i < len(ca_marks) else 0
+            exam_m = exam_marks[i] if i < len(exam_marks) else 0
+            mark_id = mark_ids[i] if i < len(mark_ids) else None
+
+            if mark_id:
+                # Update existing
+                mark = MarkEntry.objects.get(id=mark_id, student_id=student_id, subject=subject)
+                mark.continuous_assessment = ca
+                mark.exam_mark = exam_m
+                mark.save()
+            else:
+                # Create new
+                MarkEntry.objects.create(
+                    school=school,
+                    student_id=student_id,
+                    subject=subject,
+                    exam=exam,
+                    continuous_assessment=ca,
+                    exam_mark=exam_m,
+                    status='draft',
+                )
+            saved += 1
+
+        messages.success(request, f"Saved marks for {saved} students.")
+        return redirect('mark_entry_by_level')
+
+    return redirect('mark_entry_by_level')
+
+
+@login_required
+def timetable_list(request):
+    school = getattr(request.user, 'school', None)
+    entries = TimetableEntry.objects.select_related('school_class', 'subject', 'teacher')
+    if school:
+        entries = entries.filter(school=school)
+    else:
+        entries = entries.none()
+
+    # Filters
+    class_id = request.GET.get('class')
+    day = request.GET.get('day')
+    teacher_id = request.GET.get('teacher')
+
+    if class_id:
+        entries = entries.filter(school_class_id=class_id)
+    if day:
+        entries = entries.filter(day=day)
+    if teacher_id:
+        entries = entries.filter(teacher_id=teacher_id)
+
+    paginator = Paginator(entries.order_by('school_class', 'day', 'start_time'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'classes': SchoolClass.objects.filter(school=school) if school else [],
+        'teachers': User.objects.filter(school=school, is_lecturer=True) if school else [],
+        'days': TimetableEntry._meta.get_field('day').choices,
+        'selected_class': class_id,
+        'selected_day': day,
+        'selected_teacher': teacher_id,
+    }
+    return render(request, 'timetable/timetable_list.html', context)
+
+@login_required
+def timetable_add(request):
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = TimetableEntryForm(request.POST, school=school)
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.school = school
+            entry.save()
+            messages.success(request, "Timetable entry added.")
+            return redirect('timetable_list')
+    else:
+        form = TimetableEntryForm(school=school)
+
+    return render(request, 'timetable/timetable_form.html', {'form': form, 'title': 'Add Timetable Entry'})
+
+@login_required
+def timetable_edit(request, pk):
+    school = getattr(request.user, 'school', None)
+    entry = get_object_or_404(TimetableEntry, pk=pk, school=school)
+
+    if request.method == 'POST':
+        form = TimetableEntryForm(request.POST, instance=entry, school=school)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Timetable entry updated.")
+            return redirect('timetable_list')
+    else:
+        form = TimetableEntryForm(instance=entry, school=school)
+
+    return render(request, 'timetable/timetable_form.html', {'form': form, 'title': 'Edit Timetable Entry'})
+
+@login_required
+def timetable_delete(request, pk):
+    school = getattr(request.user, 'school', None)
+    entry = get_object_or_404(TimetableEntry, pk=pk, school=school)
+    if request.method == 'POST':
+        entry.delete()
+        messages.success(request, "Timetable entry deleted.")
+        return redirect('timetable_list')
+    return render(request, 'core/confirm_delete.html', {'object': entry, 'cancel_url': 'timetable_list'})
+
 
 @login_required
 def exam_list(request):

@@ -53,14 +53,16 @@
 		{% url 'platform_schools_dashboard' as platform_schools %}
 		{% url 'current_quarter_update' as current_quarter %}
 
-		<!-- New Routes -->
+		<!-- New custom routes -->
 		{% url 'class_list' as class_list %}
 		{% url 'subject_list_view' as subject_list %}
 		{% url 'fee_list' as fee_list_url %}
 		{% url 'bulk_fee_add' as bulk_fee_add_url %}
-		{% url 'exam_list' as exam_list_url %}                     <!-- Custom Exam List -->
-		{% url 'admin:core_attendancerecord_changelist' as attendance_admin %}
-		{% url 'admin:core_timetableentry_changelist' as timetable_admin %}
+		{% url 'exam_list' as exam_list_url %}
+		{% url 'timetable_list' as timetable_list_url %}
+		{% url 'mark_entry_by_level' as mark_entry_url %}   <!-- NEW: custom mark entry -->
+
+		<!-- Admin links (kept for other modules) -->
 		{% url 'admin:core_markentry_changelist' as marks_admin %}
 		{% url 'admin:accounts_parent_changelist' as parent_admin %}
 		{% url 'admin:accounts_teacherprofile_changelist' as teacher_admin %}
@@ -138,7 +140,7 @@
 			</li>
 			{% endif %}
 
-			<!-- Exams -->
+			<!-- Exams (quiz marking) -->
 			{% if request.user.is_superuser or request.user.is_lecturer %}
 			<li class="{% if request.path == qce %}active{% endif %}">
 				<a href="{% url 'quiz_marking' %}" class="nav-link-custom">
@@ -201,7 +203,7 @@
 				</a>
 			</li>
 
-			<!-- Custom Exams (replaces Django admin) -->
+			<!-- Custom Exams -->
 			<li class="{% if request.path == exam_list_url %}active{% endif %}">
 				<a href="{{ exam_list_url }}" class="nav-link-custom">
 					<i class="fas fa-file-signature"></i>
@@ -209,17 +211,27 @@
 				</a>
 			</li>
 
-			<li class="{% if request.path == marks_admin %}active{% endif %}">
-				<a href="{{ marks_admin }}" class="nav-link-custom">
-					<i class="fas fa-spell-check"></i>
-					<span>{% trans 'Marks Processing' %}</span>
+			<!-- Custom Timetable -->
+			<li class="{% if request.path == timetable_list_url %}active{% endif %}">
+				<a href="{{ timetable_list_url }}" class="nav-link-custom">
+					<i class="fas fa-table"></i>
+					<span>{% trans 'Timetable' %}</span>
 				</a>
 			</li>
 
-			<li class="{% if request.path == timetable_admin %}active{% endif %}">
-				<a href="{{ timetable_admin }}" class="nav-link-custom">
-					<i class="fas fa-table"></i>
-					<span>{% trans 'Timetable' %}</span>
+			<!-- NEW: Mark Entry (by Level) -->
+			<li class="{% if request.path == mark_entry_url %}active{% endif %}">
+				<a href="{{ mark_entry_url }}" class="nav-link-custom">
+					<i class="fas fa-spell-check"></i>
+					<span>{% trans 'Mark Entry' %}</span>
+				</a>
+			</li>
+
+			<!-- Remaining admin links (optional, keep for now) -->
+			<li class="{% if request.path == marks_admin %}active{% endif %}">
+				<a href="{{ marks_admin }}" class="nav-link-custom">
+					<i class="fas fa-chart-line"></i>
+					<span>{% trans 'Marks Processing (Admin)' %}</span>
 				</a>
 			</li>
 
@@ -239,7 +251,7 @@
 
 			{% endif %}
 
-			<!-- Lecturer -->
+			<!-- Lecturer only -->
 			{% if request.user.is_lecturer %}
 			<li class="{% if request.path == ascore %}active{% endif %}">
 				<a href="{% url 'add_score' %}" class="nav-link-custom">
@@ -247,9 +259,17 @@
 					<span>{% trans 'Manage Score' %}</span>
 				</a>
 			</li>
+
+			<!-- Also show Mark Entry for lecturers (if they are allowed) -->
+			<li class="{% if request.path == mark_entry_url %}active{% endif %}">
+				<a href="{{ mark_entry_url }}" class="nav-link-custom">
+					<i class="fas fa-spell-check"></i>
+					<span>{% trans 'Mark Entry' %}</span>
+				</a>
+			</li>
 			{% endif %}
 
-			<!-- Student -->
+			<!-- Student only -->
 			{% if request.user.is_student %}
 
 			<li class="{% if request.path == qpr %}active{% endif %}">
@@ -275,7 +295,7 @@
 
 			{% endif %}
 
-			<!-- Others -->
+			<!-- Settings -->
 			<li class="menu-section mt-4">
 				{% trans 'Settings' %}
 			</li>

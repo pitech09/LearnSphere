@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>{% trans 'Timetable' %}</h2>
+        <a class="btn btn-primary" href="{% url 'timetable_add' %}"><i class="fas fa-plus"></i> {% trans 'Add Entry' %}</a>
+    </div>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-3">
+            <select name="class" class="form-select">
+                <option value="">{% trans 'All Classes' %}</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}" {% if selected_class == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="day" class="form-select">
+                <option value="">{% trans 'All Days' %}</option>
+                {% for code, label in days %}
+                <option value="{{ code }}" {% if selected_day == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="teacher" class="form-select">
+                <option value="">{% trans 'All Teachers' %}</option>
+                {% for t in teachers %}
+                <option value="{{ t.id }}" {% if selected_teacher == t.id|stringformat:"s" %}selected{% endif %}>{{ t.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-secondary">{% trans 'Filter' %}</button>
+            <a href="{% url 'timetable_list' %}" class="btn btn-outline-secondary">{% trans 'Clear' %}</a>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>{% trans 'Class' %}</th>
+                    <th>{% trans 'Subject' %}</th>
+                    <th>{% trans 'Teacher' %}</th>
+                    <th>{% trans 'Day' %}</th>
+                    <th>{% trans 'Start' %}</th>
+                    <th>{% trans 'End' %}</th>
+                    <th>{% trans 'Room' %}</th>
+                    <th>{% trans 'Active' %}</th>
+                    <th>{% trans 'Actions' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in page_obj %}
+                <tr>
+                    <td>{{ entry.school_class.name }}</td>
+                    <td>{{ entry.subject.title }} ({{ entry.subject.code }})</td>
+                    <td>{{ entry.teacher.get_full_name|default:entry.teacher.username }}</td>
+                    <td>{{ entry.get_day_display }}</td>
+                    <td>{{ entry.start_time|time:"H:i" }}</td>
+                    <td>{{ entry.end_time|time:"H:i" }}</td>
+                    <td>{{ entry.room|default:"-" }}</td>
+                    <td>{% if entry.is_active %}<i class="fas fa-check-circle text-success"></i>{% else %}<i class="fas fa-times-circle text-danger"></i>{% endif %}</td>
+                    <td>
+                        <a href="{% url 'timetable_edit' entry.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'timetable_delete' entry.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this entry?')"><i class="fas fa-trash"></i></a>
+                    </td>
+                </td>
+                {% empty %}
+                <td><td colspan="9">{% trans 'No timetable entries found.' %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'snippets/pagination.html' with page_obj=page_obj %}
+</div>
+{% endblock %}

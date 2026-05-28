@@ -7,9 +7,11 @@ from quiz import views
 from .views import (
     bulk_fee_add,
     home_view,
+    mark_entry_by_level,
     post_add,
     edit_post,
     delete_post,
+    save_marks,
     session_list_view,
     session_add_view,
     session_update_view,
@@ -43,7 +45,11 @@ from .views import (
     exam_add,
     exam_edit,
     exam_delete,
-    exam_detail
+    exam_detail,
+    timetable_add,
+    timetable_delete,
+    timetable_edit,
+    timetable_list
 )
 
 # Course app views (for URLs that use class_id + subject_slug)
@@ -144,6 +150,14 @@ urlpatterns = [
     path('exams/<int:pk>/edit/', exam_edit, name='exam_edit'),
     path('exams/<int:pk>/delete/', exam_delete, name='exam_delete'),
     path('exams/<int:pk>/', exam_detail, name='exam_detail'),
+
+    path('timetable/', timetable_list, name='timetable_list'),
+    path('timetable/add/', timetable_add, name='timetable_add'),
+    path('timetable/<int:pk>/edit/', timetable_edit, name='timetable_edit'),
+    path('timetable/<int:pk>/delete/', timetable_delete, name='timetable_delete'),
+
+    path('marks/entry/', mark_entry_by_level, name='mark_entry_by_level'),
+    path('marks/save/', save_marks, name='save_marks'),
     # Legal page
 
 

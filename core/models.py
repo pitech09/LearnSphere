@@ -2,8 +2,6 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
-from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
@@ -12,7 +10,6 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.urls import reverse
-
 from django.utils.text import slugify
 
 from accounts.models import User
@@ -103,7 +100,6 @@ class School(models.Model):
             self.slug = slug
         if not self.subdomain:
             self.subdomain = self.slug
-        # Auto-set pricing and limits based on plan
         plan_config = {
             SCHOOL_PLAN_STARTER: {"max_students": 100, "amount": 250, "unlimited": False},
             SCHOOL_PLAN_GROWTH: {"max_students": 300, "amount": 400, "unlimited": False},
@@ -115,6 +111,7 @@ class School(models.Model):
         self.subscription_amount = config["amount"]
         self.is_unlimited = config["unlimited"]
         super().save(*args, **kwargs)
+
 
 POST_NEWS = "news"
 POST_EVENT = "event"
@@ -129,7 +126,6 @@ class NewsAndEventsQuerySet(models.QuerySet):
     def search(self, query=None):
         if not query:
             return self
-
         return self.filter(
             Q(title__icontains=query) |
             Q(summary__icontains=query) |
@@ -150,7 +146,6 @@ class NewsAndEvents(models.Model):
     title = models.CharField(max_length=200)
     summary = models.TextField(blank=True)
     posted_as = models.CharField(max_length=10, choices=POST_CHOICES)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -171,9 +166,6 @@ class NewsAndEvents(models.Model):
 # =========================================================
 
 class Session(models.Model):
-    """
-    Represents academic year (e.g. 2026)
-    """
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
     session = models.CharField(max_length=200)
     is_current = models.BooleanField(default=False)
@@ -236,6 +228,7 @@ class ActivityLog(models.Model):
     def __str__(self):
         return self.message[:60]
 
+
 # =========================================================
 # 👤 USER SYSTEM
 # =========================================================
@@ -250,8 +243,6 @@ class CustomUserManager(UserManager):
                 Q(last_name__icontains=query)
             )
         return qs
-
-
 
 
 # =========================================================
@@ -290,31 +281,38 @@ def log_term_save(sender, instance, created, **kwargs):
             message=f"Term '{instance}' was {'created' if created else 'updated'}."
         )
 
+
 # =========================================================
-#  SCHOOL CLASS (FORM 1A, FORM 2B, etc.)
+#  SCHOOL CLASS (UPDATED WITH LEVEL CHOICES)
 # =========================================================
 class SchoolClass(models.Model):
+    LEVEL_CHOICES = (
+        ('F1', 'Form 1'),
+        ('F2', 'Form 2'),
+        ('F3', 'Form 3'),
+        ('F4', 'Form 4'),
+        ('F5', 'Form 5'),
+        ('F6', 'Form 6'),
+    )
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=50)  # e.g. Form 1A, Form 1B
-    level = models.CharField(max_length=10)  # e.g. F1, F2, F3
+    name = models.CharField(max_length=50)          # e.g., "Form 1A"
+    level = models.CharField(max_length=2, choices=LEVEL_CHOICES, default='F1')
     class_teacher = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        limit_choices_to={'is_lecturer': True}
+        User, on_delete=models.SET_NULL, null=True, limit_choices_to={'is_lecturer': True}
     )
     is_active = models.BooleanField(default=True)
-
 
     def __str__(self):
         return self.name
 
     class Meta:
-        unique_together = ("school", "level", "name")
         indexes = [
             models.Index(fields=["school", "level", "is_active"], name="class_school_level_idx"),
         ]
 
+# =========================================================
+# FEE & PAYMENT MODELS
+# =========================================================
 
 FEE_STATUS_PENDING = "pending"
 FEE_STATUS_PARTIAL = "partial"
@@ -334,52 +332,6 @@ PAYMENT_METHOD_CHOICES = (
     ("mobile_money", _("Mobile Money")),
     ("card", _("Card")),
     ("other", _("Other")),
-)
-
-ATTENDANCE_PRESENT = "present"
-ATTENDANCE_ABSENT = "absent"
-ATTENDANCE_LATE = "late"
-ATTENDANCE_EXCUSED = "excused"
-
-ATTENDANCE_STATUS_CHOICES = (
-    (ATTENDANCE_PRESENT, _("Present")),
-    (ATTENDANCE_ABSENT, _("Absent")),
-    (ATTENDANCE_LATE, _("Late")),
-    (ATTENDANCE_EXCUSED, _("Excused")),
-)
-
-EXAM_DRAFT = "draft"
-EXAM_SCHEDULED = "scheduled"
-EXAM_IN_PROGRESS = "in_progress"
-EXAM_COMPLETED = "completed"
-EXAM_PUBLISHED = "published"
-
-EXAM_STATUS_CHOICES = (
-    (EXAM_DRAFT, _("Draft")),
-    (EXAM_SCHEDULED, _("Scheduled")),
-    (EXAM_IN_PROGRESS, _("In Progress")),
-    (EXAM_COMPLETED, _("Completed")),
-    (EXAM_PUBLISHED, _("Published")),
-)
-
-DAY_CHOICES = (
-    ("monday", _("Monday")),
-    ("tuesday", _("Tuesday")),
-    ("wednesday", _("Wednesday")),
-    ("thursday", _("Thursday")),
-    ("friday", _("Friday")),
-    ("saturday", _("Saturday")),
-    ("sunday", _("Sunday")),
-)
-
-MARK_STATUS_DRAFT = "draft"
-MARK_STATUS_APPROVED = "approved"
-MARK_STATUS_PUBLISHED = "published"
-
-MARK_STATUS_CHOICES = (
-    (MARK_STATUS_DRAFT, _("Draft")),
-    (MARK_STATUS_APPROVED, _("Approved")),
-    (MARK_STATUS_PUBLISHED, _("Published")),
 )
 
 
@@ -469,10 +421,61 @@ class FeePayment(models.Model):
         fee.refresh_status()
 
 
+# =========================================================
+# ATTENDANCE, EXAM, MARK, TIMETABLE
+# =========================================================
+
+ATTENDANCE_PRESENT = "present"
+ATTENDANCE_ABSENT = "absent"
+ATTENDANCE_LATE = "late"
+ATTENDANCE_EXCUSED = "excused"
+
+ATTENDANCE_STATUS_CHOICES = (
+    (ATTENDANCE_PRESENT, _("Present")),
+    (ATTENDANCE_ABSENT, _("Absent")),
+    (ATTENDANCE_LATE, _("Late")),
+    (ATTENDANCE_EXCUSED, _("Excused")),
+)
+
+EXAM_DRAFT = "draft"
+EXAM_SCHEDULED = "scheduled"
+EXAM_IN_PROGRESS = "in_progress"
+EXAM_COMPLETED = "completed"
+EXAM_PUBLISHED = "published"
+
+EXAM_STATUS_CHOICES = (
+    (EXAM_DRAFT, _("Draft")),
+    (EXAM_SCHEDULED, _("Scheduled")),
+    (EXAM_IN_PROGRESS, _("In Progress")),
+    (EXAM_COMPLETED, _("Completed")),
+    (EXAM_PUBLISHED, _("Published")),
+)
+
+DAY_CHOICES = (
+    ("monday", _("Monday")),
+    ("tuesday", _("Tuesday")),
+    ("wednesday", _("Wednesday")),
+    ("thursday", _("Thursday")),
+    ("friday", _("Friday")),
+    ("saturday", _("Saturday")),
+    ("sunday", _("Sunday")),
+)
+
+MARK_STATUS_DRAFT = "draft"
+MARK_STATUS_APPROVED = "approved"
+MARK_STATUS_PUBLISHED = "published"
+
+MARK_STATUS_CHOICES = (
+    (MARK_STATUS_DRAFT, _("Draft")),
+    (MARK_STATUS_APPROVED, _("Approved")),
+    (MARK_STATUS_PUBLISHED, _("Published")),
+)
+
+
 class AttendanceRecord(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
     student = models.ForeignKey("accounts.Student", on_delete=models.CASCADE, related_name="attendance_records")
-    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name="attendance_records")
+    school_class = models.ForeignKey('core.SchoolClass', on_delete=models.CASCADE, related_name="attendance_records")
     subject = models.ForeignKey("course.Subject", on_delete=models.SET_NULL, null=True, blank=True)
     date = models.DateField(default=timezone.localdate)
     status = models.CharField(max_length=20, choices=ATTENDANCE_STATUS_CHOICES, default=ATTENDANCE_PRESENT)
@@ -507,7 +510,7 @@ class Exam(models.Model):
     name = models.CharField(max_length=160)
     session = models.ForeignKey(Session, on_delete=models.SET_NULL, null=True, blank=True)
     term = models.ForeignKey(Term, on_delete=models.SET_NULL, null=True, blank=True)
-    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name="exams")
+    school_class = models.ForeignKey('core.SchoolClass', on_delete=models.CASCADE, related_name="exams")
     starts_on = models.DateField()
     ends_on = models.DateField()
     status = models.CharField(max_length=20, choices=EXAM_STATUS_CHOICES, default=EXAM_DRAFT)
@@ -558,15 +561,11 @@ class MarkEntry(models.Model):
     subject = models.ForeignKey("course.Subject", on_delete=models.CASCADE, related_name="mark_entries")
     exam = models.ForeignKey(Exam, on_delete=models.SET_NULL, null=True, blank=True, related_name="mark_entries")
     continuous_assessment = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=0,
+        max_digits=5, decimal_places=2, default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     exam_mark = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=0,
+        max_digits=5, decimal_places=2, default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     final_mark = models.DecimalField(max_digits=5, decimal_places=2, default=0, editable=False)
@@ -595,8 +594,7 @@ class MarkEntry(models.Model):
         if not self.school_id:
             self.school = self.student.student.school
         self.final_mark = (
-            self.continuous_assessment * Decimal("0.40")
-            + self.exam_mark * Decimal("0.60")
+            self.continuous_assessment * Decimal("0.40") + self.exam_mark * Decimal("0.60")
         )
         if self.status in {MARK_STATUS_APPROVED, MARK_STATUS_PUBLISHED} and not self.processed_at:
             self.processed_at = timezone.now()
@@ -605,7 +603,7 @@ class MarkEntry(models.Model):
 
 class TimetableEntry(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True)
-    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name="timetable_entries")
+    school_class = models.ForeignKey('core.SchoolClass', on_delete=models.CASCADE, related_name="timetable_entries")
     subject = models.ForeignKey("course.Subject", on_delete=models.CASCADE)
     teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -17,6 +17,7 @@ from xhtml2pdf import pisa
 from django.contrib.auth import authenticate, login
 from accounts.decorators import admin_required
 from accounts.filters import LecturerFilter, StudentFilter
+from django.db.models import Q
 from accounts.forms import (
     ParentAddForm,
     ProfileUpdateForm,
@@ -170,7 +171,6 @@ def health_check_view(request):
 # Profile Views
 # ########################################################
 
-
 @login_required
 def profile(request):
     """Show profile of the current user."""
@@ -186,35 +186,35 @@ def profile(request):
     }
 
     if request.user.is_lecturer:
-
-        courses = Subject.objects.filter(teacher_id=request.user.id, school=request.user.school)
-
+        courses = Subject.objects.filter(
+            teacher_id=request.user.id, school=request.user.school
+        ).distinct()
         context.update({
             "user_type": "Lecturer",
             "courses": courses,
         })
 
     if request.user.is_student:
-        student = get_object_or_404(Student, student__pk=request.user.id, student__school=request.user.school)
+        student = get_object_or_404(
+            Student, student__pk=request.user.id, student__school=request.user.school
+        )
         parent = Parent.objects.filter(student=student).first()
-        courses = TakenCourse.objects.filter(
-            student__student__id=request.user.id,
-            school=request.user.school,
+        # ✅ Get Subject objects (not TakenCourse) for the student's class
+        courses = Subject.objects.filter(
+            class_assigned=student.student_class, school=request.user.school
         )
-        context.update(
-            {
-                "parent": parent,
-                "courses": courses,
-                "level": student.level,
-            }
-        )
+        context.update({
+            "parent": parent,
+            "courses": courses,
+            "level": student.level,
+            "student": student,
+        })
         return render(request, "accounts/profile.html", context)
 
     # For superuser or other staff
     staff = school_scoped_users(request, is_lecturer=True)
     context["staff"] = staff
     return render(request, "accounts/profile.html", context)
-
 
 @login_required
 @admin_required
@@ -238,28 +238,24 @@ def profile_single(request, user_id):
 
     if user.is_lecturer:
         courses = Subject.objects.filter(
-            allocated_subjects__teacher__pk=user_id,
+            Q(teacher_id=user.id) | Q(allocated_subjects__teacher_id=user.id),
             school=user.school,
-        )
-        context.update(
-            {
-                "user_type": "Lecturer",
-                "courses": courses,
-            }
-        )
+        ).distinct()
+        context.update({
+            "user_type": "Lecturer",
+            "courses": courses,
+        })
     elif user.is_student:
         student = get_object_or_404(Student, student__pk=user_id, student__school=user.school)
-        courses = TakenCourse.objects.filter(
-            student__student__id=user_id,
-            school=user.school,
+        # ✅ Get Subject objects for the student's class
+        courses = Subject.objects.filter(
+            class_assigned=student.student_class, school=user.school
         )
-        context.update(
-            {
-                "user_type": "Student",
-                "courses": courses,
-                "student": student,
-            }
-        )
+        context.update({
+            "user_type": "Student",
+            "courses": courses,
+            "student": student,
+        })
     else:
         context["user_type"] = "Superuser"
 
@@ -267,7 +263,6 @@ def profile_single(request, user_id):
         return render_to_pdf("pdf/profile_single.html", context)
 
     return render(request, "accounts/profile_single.html", context)
-
 
 @login_required
 @admin_required
