@@ -5,23 +5,133 @@
 {% block content %}
 <div class="container">
     <h2>{{ title }}</h2>
-    <form method="post">
+    <p class="text-muted small">Subjects shown are from all classes in the same level (e.g., Form 1A and Form 1B).</p>
+    <form method="post" id="examForm">
         {% csrf_token %}
         {{ form|crispy }}
+
         <h4 class="mt-4">{% trans 'Exam Schedule' %}</h4>
-        {{ formset.management_form }}
-        {% for schedule_form in formset %}
-            <div class="card mb-2 p-2">
-                {{ schedule_form|crispy }}
-                {% if schedule_form.instance.pk %}
-                    <div class="form-check">
-                        {{ schedule_form.DELETE }} <label class="form-check-label">{% trans 'Delete this schedule' %}</label>
-                    </div>
-                {% endif %}
-            </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-primary">{% trans 'Save' %}</button>
-        <a href="{% url 'exam_list' %}" class="btn btn-secondary">{% trans 'Cancel' %}</a>
+        <div id="schedule-forms">
+            {{ formset.management_form }}
+            {% for schedule_form in formset %}
+                <div class="schedule-form card mb-2 p-2">
+                    {{ schedule_form|crispy }}
+                    {% if schedule_form.instance.pk %}
+                        <div class="form-check">
+                            {{ schedule_form.DELETE }} <label class="form-check-label">{% trans 'Delete this schedule' %}</label>
+                        </div>
+                    {% else %}
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-schedule">{% trans 'Remove' %}</button>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" id="add-schedule" class="btn btn-outline-primary mb-3">
+            <i class="fas fa-plus"></i> {% trans 'Add another schedule' %}
+        </button>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">{% trans 'Save' %}</button>
+            <a href="{% url 'exam_list' %}" class="btn btn-secondary">{% trans 'Cancel' %}</a>
+        </div>
     </form>
 </div>
+
+<script>
+    // Get the class select element (from the main form)
+    const classSelect = document.getElementById('id_school_class');
+    if (classSelect) {
+        classSelect.addEventListener('change', function() {
+            const classId = this.value;
+            if (classId) {
+                fetch(`/en-us/api/subjects-by-class/?class_id=${classId}`)
+                    .then(response => response.json())
+                    .then(subjects => {
+                        // Update all subject selects in the formset
+                        document.querySelectorAll('select[name$="-subject"]').forEach(select => {
+                            const currentValue = select.value;
+                            select.innerHTML = '<option value="">---------</option>';
+                            subjects.forEach(subj => {
+                                const option = document.createElement('option');
+                                option.value = subj.id;
+                                option.textContent = `${subj.title} (${subj.code})`;
+                                if (currentValue == subj.id) {
+                                    option.selected = true;
+                                }
+                                select.appendChild(option);
+                            });
+                        });
+                    });
+            } else {
+                // Clear all subject selects
+                document.querySelectorAll('select[name$="-subject"]').forEach(select => {
+                    select.innerHTML = '<option value="">---------</option>';
+                });
+            }
+        });
+    }
+
+    // Add new schedule row with dynamic subject population
+    const addButton = document.getElementById('add-schedule');
+    const formsetContainer = document.getElementById('schedule-forms');
+    let formCount = parseInt(document.getElementById('id_schedule_entries-TOTAL_FORMS').value);
+
+    addButton.addEventListener('click', function() {
+        const template = formsetContainer.children[0].cloneNode(true);
+        template.innerHTML = template.innerHTML.replace(/schedule_entries-\d+/g, `schedule_entries-${formCount}`);
+        template.querySelectorAll('label').forEach(label => {
+            label.htmlFor = label.htmlFor.replace(/schedule_entries-\d+/g, `schedule_entries-${formCount}`);
+        });
+        // Clear input values
+        template.querySelectorAll('input, select, textarea').forEach(input => {
+            if (input.type !== 'checkbox' && input.type !== 'radio') {
+                input.value = '';
+            } else if (input.type === 'checkbox') {
+                input.checked = false;
+            }
+        });
+        // Add remove button
+        let removeBtn = template.querySelector('.remove-schedule');
+        if (!removeBtn) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-danger remove-schedule mt-2';
+            btn.textContent = '{% trans "Remove" %}';
+            template.appendChild(btn);
+            btn.addEventListener('click', () => template.remove());
+        } else {
+            removeBtn.addEventListener('click', () => template.remove());
+        }
+        // If a class is already selected, populate the subject select
+        if (classSelect && classSelect.value) {
+            const subjectSelect = template.querySelector('select[name$="-subject"]');
+            if (subjectSelect) {
+                fetch(`/en-us/api/subjects-by-class/?class_id=${classSelect.value}`)
+                    .then(response => response.json())
+                    .then(subjects => {
+                        subjectSelect.innerHTML = '<option value="">---------</option>';
+                        subjects.forEach(subj => {
+                            const option = document.createElement('option');
+                            option.value = subj.id;
+                            option.textContent = `${subj.title} (${subj.code})`;
+                            subjectSelect.appendChild(option);
+                        });
+                    });
+            }
+        }
+        formsetContainer.appendChild(template);
+        formCount++;
+        document.getElementById('id_schedule_entries-TOTAL_FORMS').value = formCount;
+    });
+
+    // Attach remove event to existing remove buttons
+    document.querySelectorAll('.remove-schedule').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.schedule-form').remove();
+            formCount--;
+            document.getElementById('id_schedule_entries-TOTAL_FORMS').value = formCount;
+        });
+    });
+</script>
 {% endblock %}

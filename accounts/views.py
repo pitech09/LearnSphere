@@ -465,7 +465,9 @@ def student_add_view(request):
 @login_required
 @admin_required
 def edit_student(request, pk):
-    student_user = get_object_or_404(school_scoped_users(request, is_student=True), pk=pk)
+    student = get_object_or_404(Student, pk=pk, student__school=request.user.school)
+    student_user = student.student
+
     if request.method == "POST":
         form = ProfileUpdateForm(request.POST, request.FILES, instance=student_user)
         if form.is_valid():

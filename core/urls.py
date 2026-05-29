@@ -6,6 +6,7 @@ from quiz import views
 # Core app views
 from .views import (
     bulk_fee_add,
+    get_subjects_by_class,
     home_view,
     mark_entry_by_level,
     post_add,
@@ -158,7 +159,8 @@ urlpatterns = [
 
     path('marks/entry/', mark_entry_by_level, name='mark_entry_by_level'),
     path('marks/save/', save_marks, name='save_marks'),
-    # Legal page
+
+    path('api/subjects-by-class/', get_subjects_by_class, name='get_subjects_by_class'),    # Legal page
 
 
     path("legal/", TemplateView.as_view(template_name="legal/privacy_terms.html"), name="legal"),

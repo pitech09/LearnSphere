@@ -64,6 +64,26 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import lecturer_required
 
+from django.http import JsonResponse
+from course.models import Subject
+
+@login_required
+def get_subjects_by_class(request):
+    class_id = request.GET.get('class_id')
+    if class_id:
+        from core.models import SchoolClass
+        try:
+            school_class = SchoolClass.objects.get(id=class_id)
+            level = school_class.level
+            # Get all subjects from any class with the same level and same school
+            subjects = Subject.objects.filter(
+                class_assigned__school=school_class.school,
+                class_assigned__level=level
+            ).values('id', 'title', 'code').distinct()
+            return JsonResponse(list(subjects), safe=False)
+        except SchoolClass.DoesNotExist:
+            pass
+    return JsonResponse([], safe=False)
 
 @login_required
 def mark_entry_by_level(request):
