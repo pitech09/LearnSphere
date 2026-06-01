@@ -154,6 +154,9 @@ def custom_login_view(request):
             if user.is_superuser and user.school_id:
                 return redirect("principal_dashboard")
 
+            if user.is_parent:
+                return redirect("parent_dashboard")
+
             return redirect("dashboard")
 
         messages.error(request, "Invalid ID or Password")

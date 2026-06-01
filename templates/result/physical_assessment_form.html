@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} | {% trans 'Learning Management System' %}{% endblock %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'physical_assessment_list' %}">{% trans 'Physical Assessments' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>{{ title }}</h4>
+            </div>
+            <div class="card-body">
+                {% include 'snippets/messages.html' %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_subject" class="form-label">{% trans 'Subject' %} *</label>
+                        {{ form.subject }}
+                        {% if form.subject.errors %}
+                        <div class="text-danger small">{{ form.subject.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">{% trans 'Assessment Title' %} *</label>
+                        {{ form.title }}
+                        <small class="form-text text-muted">{% trans "e.g., 'Test 1', 'Mid-term Assignment', 'Quiz 3'" %}</small>
+                        {% if form.title.errors %}
+                        <div class="text-danger small">{{ form.title.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_assessment_type" class="form-label">{% trans 'Assessment Type' %} *</label>
+                            {{ form.assessment_type }}
+                            {% if form.assessment_type.errors %}
+                            <div class="text-danger small">{{ form.assessment_type.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_max_marks" class="form-label">{% trans 'Maximum Marks' %} *</label>
+                            {{ form.max_marks }}
+                            <small class="form-text text-muted">{% trans "The highest possible score for this assessment" %}</small>
+                            {% if form.max_marks.errors %}
+                            <div class="text-danger small">{{ form.max_marks.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_date_conducted" class="form-label">{% trans 'Date Conducted' %}</label>
+                        {{ form.date_conducted }}
+                        {% if form.date_conducted.errors %}
+                        <div class="text-danger small">{{ form.date_conducted.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">{% trans 'Description' %}</label>
+                        {{ form.description }}
+                        <small class="form-text text-muted">{% trans "Optional: Add any notes about this assessment" %}</small>
+                        {% if form.description.errors %}
+                        <div class="text-danger small">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'physical_assessment_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>{% trans 'Cancel' %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>{% trans 'Save and Enter Marks' %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

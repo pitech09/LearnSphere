@@ -171,7 +171,7 @@ class BulkFeeForm(forms.Form):
 class NewsAndEventsForm(forms.ModelForm):
     class Meta:
         model = NewsAndEvents
-        fields = ("title", "summary", "posted_as")
+        fields = ("title", "summary", "posted_as", "target_audience")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -290,3 +290,79 @@ class SchoolPlatformForm(forms.ModelForm):
         self.fields["subscription_amount"].widget.attrs["readonly"] = True
         self.fields["max_students"].widget.attrs["readonly"] = True
         self.fields["is_unlimited"].widget.attrs["disabled"] = True
+
+
+# =========================================================
+# AUTO TIMETABLE GENERATION FORM
+# =========================================================
+from .models import DAY_CHOICES
+
+
+class AutoTimetableForm(forms.Form):
+    """
+    Form for configuring auto-timetable generation.
+    """
+    periods_per_day = forms.IntegerField(
+        min_value=1,
+        max_value=12,
+        initial=8,
+        label="Periods per Day",
+        help_text="Number of class periods per day",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 1, "max": 12})
+    )
+    
+    period_duration = forms.IntegerField(
+        min_value=15,
+        max_value=120,
+        initial=45,
+        label="Period Duration (minutes)",
+        help_text="Duration of each period in minutes",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 15, "max": 120})
+    )
+    
+    start_time = forms.TimeField(
+        initial="08:00",
+        label="Start Time",
+        help_text="Time when first period starts",
+        widget=forms.TimeInput(attrs={"type": "time", "class": "form-control"})
+    )
+    
+    school_hours = forms.IntegerField(
+        min_value=4,
+        max_value=12,
+        initial=8,
+        label="School Hours per Day",
+        help_text="Total school hours per day (used to calculate periods)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 4, "max": 12})
+    )
+    
+    max_subject_per_day = forms.IntegerField(
+        min_value=1,
+        max_value=6,
+        initial=2,
+        label="Max Same Subject per Day",
+        help_text="Maximum number of times the same subject can appear in a single day",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 1, "max": 6})
+    )
+    
+    days = forms.MultipleChoiceField(
+        choices=[
+            ("monday", "Monday"),
+            ("tuesday", "Tuesday"),
+            ("wednesday", "Wednesday"),
+            ("thursday", "Thursday"),
+            ("friday", "Friday"),
+        ],
+        initial=["monday", "tuesday", "wednesday", "thursday", "friday"],
+        label="School Days",
+        help_text="Select which days to include in the timetable",
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"})
+    )
+    
+    clear_existing = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Clear Existing Timetable",
+        help_text="Remove all existing timetable entries before generating new ones",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )

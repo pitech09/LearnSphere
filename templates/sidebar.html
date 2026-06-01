@@ -46,6 +46,7 @@
 		{% url 'edit_profile' as ep %}
 		{% url 'change_password' as cp %}
 		{% url 'quiz_progress' as qpr %}
+		{% url 'ready_assessments' as ready_assessments_url %}
 		{% url 'quiz_marking' as qce %}
 		{% url 'user_course_list' as ucl %}
 		{% url 'admin_panel' as admin_p %}
@@ -61,6 +62,8 @@
 		{% url 'exam_list' as exam_list_url %}
 		{% url 'timetable_list' as timetable_list_url %}
 		{% url 'mark_entry_by_level' as mark_entry_url %}   <!-- NEW: custom mark entry -->
+		{% url 'physical_assessment_list' as physical_assessment_url %}   <!-- Physical assessments -->
+		{% url 'elective_subjects_list' as elective_subjects_url %}   <!-- Elective subjects -->
 
 		<!-- Admin links (kept for other modules) -->
 		{% url 'admin:core_markentry_changelist' as marks_admin %}
@@ -84,6 +87,16 @@
 				<a href="{% url 'platform_schools_dashboard' %}" class="nav-link-custom">
 					<i class="fas fa-building"></i>
 					<span>{% trans 'Registered Schools' %}</span>
+				</a>
+			</li>
+			{% endif %}
+
+			<!-- Parent Portal -->
+			{% if request.user.is_parent %}
+			<li class="{% if request.resolver_match.url_name == 'parent_dashboard' or request.resolver_match.url_name == 'parent_child_detail' or request.resolver_match.url_name == 'parent_grade_reports' or request.resolver_match.url_name == 'parent_announcements' or request.resolver_match.url_name == 'parent_fees' or request.resolver_match.url_name == 'parent_fees_student' %}active{% endif %}">
+				<a href="{% url 'parent_dashboard' %}" class="nav-link-custom">
+					<i class="fas fa-users"></i>
+					<span>{% trans 'Parent Portal' %}</span>
 				</a>
 			</li>
 			{% endif %}
@@ -136,6 +149,12 @@
 				<a href="{% url 'user_course_list' %}" class="nav-link-custom">
 					<i class="fas fa-book-open"></i>
 					<span>{% trans 'My Courses' %}</span>
+				</a>
+			</li>
+			<li class="{% if request.path == ready_assessments_url %}active{% endif %}">
+				<a href="{% url 'ready_assessments' %}" class="nav-link-custom">
+					<i class="fas fa-clipboard-list"></i>
+					<span>{% trans 'Ready Quizzes & Tests' %}</span>
 				</a>
 			</li>
 			{% endif %}
@@ -259,18 +278,24 @@
 					<span>{% trans 'Manage Score' %}</span>
 				</a>
 			</li>
-
-			<!-- Also show Mark Entry for lecturers (if they are allowed) -->
-			<li class="{% if request.path == mark_entry_url %}active{% endif %}">
-				<a href="{{ mark_entry_url }}" class="nav-link-custom">
-					<i class="fas fa-spell-check"></i>
-					<span>{% trans 'Mark Entry' %}</span>
+			
+			<li class="{% if request.path == physical_assessment_url %}active{% endif %}">
+				<a href="{% url 'physical_assessment_list' %}" class="nav-link-custom">
+					<i class="fas fa-clipboard-list"></i>
+					<span>{% trans 'Physical Tests/Assignments' %}</span>
 				</a>
 			</li>
 			{% endif %}
 
 			<!-- Student only -->
 			{% if request.user.is_student %}
+
+			<li class="{% if request.path == elective_subjects_url %}active{% endif %}">
+				<a href="{% url 'elective_subjects_list' %}" class="nav-link-custom">
+					<i class="fas fa-book-reader"></i>
+					<span>{% trans 'Elective Subjects' %}</span>
+				</a>
+			</li>
 
 			<li class="{% if request.path == qpr %}active{% endif %}">
 				<a href="{% url 'quiz_progress' %}" class="nav-link-custom">

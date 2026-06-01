@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'parent_dashboard' %}">{% trans 'Parent Portal' %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'parent_child_detail' student.id %}">{{ student.student.get_full_name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans 'Grade Reports' %}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            <i class="fas fa-chart-line text-success me-2"></i>
+            {% trans 'Grade Reports' %} - {{ student.student.get_full_name }}
+        </h3>
+        {% if current_session %}
+        <span class="badge bg-info fs-6 px-3">{{ current_session.session }}</span>
+        {% endif %}
+    </div>
+
+    {% if quarters %}
+        {% for quarter, courses in quarters.items %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    {% if quarter == 'Q1' %}{% trans 'Quarter 1' %}
+                    {% elif quarter == 'Q2' %}{% trans 'Quarter 2' %}
+                    {% elif quarter == 'Q3' %}{% trans 'Quarter 3' %}
+                    {% elif quarter == 'Q4' %}{% trans 'Quarter 4' %}
+                    {% else %}{{ quarter }}
+                    {% endif %}
+                </h5>
+                <div>
+                    <span class="badge bg-light text-dark me-2">
+                        {% trans 'Subjects' %}: {{ courses|length }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if courses %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans 'Subject' %}</th>
+                                <th>{% trans 'Assignment' %}</th>
+                                <th>{% trans 'Mid Exam' %}</th>
+                                <th>{% trans 'Final Exam' %}</th>
+                                <th>{% trans 'Total' %}</th>
+                                <th>{% trans 'Grade' %}</th>
+                                <th>{% trans 'Status' %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for course in courses %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ course.course.title }}</td>
+                                <td>{{ course.assignment }}</td>
+                                <td>{{ course.mid_exam }}</td>
+                                <td>{{ course.final_exam }}</td>
+                                <td><strong>{{ course.total }}</strong></td>
+                                <td>
+                                    <span class="badge {% if course.grade == 'F' or course.grade == 'NG' %}bg-danger{% elif course.grade == 'D' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                        {{ course.grade }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if course.comment == 'PASS' %}
+                                    <span class="badge bg-success">{% trans 'PASS' %}</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{% trans 'FAIL' %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if quarter_stats and quarter_stats|default:'' %}
+                {% with stat=quarter_stats|default:'' %}
+                <div class="row mt-3">
+                    <div class="col-md-3 col-6 mb-2">
+                        <div class="border rounded p-2 text-center">
+                            <small class="text-muted">{% trans 'Total Subjects' %}</small>
+                            <h5 class="mb-0">{{ courses|length }}</h5>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+                {% endif %}
+
+                {% else %}
+                <p class="text-muted text-center py-3 mb-0">{% trans 'No grade records for this quarter.' %}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="card shadow-sm border-0">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-file-alt fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">{% trans 'No Grade Reports Available' %}</h5>
+            <p class="text-muted mb-0">{% trans 'Grade reports have not been published yet.' %}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

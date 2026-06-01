@@ -30,6 +30,9 @@
             <a class="btn btn-sm btn-primary" href="{% url 'upload_video' class_id=course.class_assigned.id subject_slug=course.slug %}">
                 <i class="fas fa-plus"></i> {% trans 'Upload new video' %}
             </a>
+            <a class="btn btn-sm btn-warning" href="{% url 'quiz_create' class_id=course.class_assigned.id subject_slug=course.slug %}?category=assignment">
+                <i class="fas fa-clipboard-list"></i> {% trans 'Create Assignment' %}
+            </a>
             {% endif %}
         </div>
         <!-- Removed Take a Quiz button from here -->
@@ -47,7 +50,7 @@
     <div class="row mb-3">
         <div class="col-md-12">
             <a class="btn btn-warning" href="{% url 'quiz_index' class_id=course.class_assigned.id subject_slug=course.slug %}">
-                <i class="fas fa-list"></i> {% trans 'Take a Quiz' %}
+                <i class="fas fa-list"></i> {% trans 'Assessments' %}
             </a>
         </div>
     </div>

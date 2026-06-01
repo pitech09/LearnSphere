@@ -1,0 +1,54 @@
+{% load i18n %}
+
+<div class="list-group list-group-flush">
+  {% for assessment in assessments %}
+  <div class="list-group-item px-0">
+    <div class="d-flex justify-content-between gap-2 align-items-start">
+      <div>
+        <div class="fw-semibold">{{ assessment.title }}</div>
+        <div class="small text-muted">
+          {{ assessment.course.title }}{% if assessment.course.class_assigned %} - {{ assessment.course.class_assigned }}{% endif %}
+        </div>
+        {% if assessment.test_date %}
+        <div class="small text-muted">
+          {% trans 'Date' %}: {{ assessment.test_date }}
+        </div>
+        {% endif %}
+        <div class="small text-muted">
+          {% if assessment.question_count %}
+            {{ assessment.question_count }} {% trans 'questions' %}
+          {% elif assessment.category == 'exam' %}
+            {% trans 'Physical test' %}
+          {% else %}
+            {% trans 'No questions added yet' %}
+          {% endif %}
+        </div>
+      </div>
+      {% if request.user.is_student and assessment.completed_sitting %}
+      <a class="btn btn-sm btn-success" href="{% url 'assessment_result_detail' sitting_id=assessment.completed_sitting.id %}">
+        {% trans 'Results' %}
+      </a>
+      {% else %}
+      {% if request.user.is_student %}
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'quiz_take' class_id=assessment.course.class_assigned.id subject_slug=assessment.course.slug pk=assessment.id %}">
+        {% trans 'Start' %}
+      </a>
+      {% else %}
+      <div class="d-flex gap-1">
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'quiz_index' class_id=assessment.course.class_assigned.id subject_slug=assessment.course.slug %}">
+          {% trans 'View' %}
+        </a>
+        {% if assessment.category == 'exam' %}
+        <a class="btn btn-sm btn-outline-warning" href="{% url 'test_mark_entry' quiz_id=assessment.id %}">
+          {% trans 'Marks' %}
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="text-muted py-3">{{ empty_text }}</div>
+  {% endfor %}
+</div>

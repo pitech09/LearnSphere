@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans 'Physical Assessments' %} | {% trans 'Learning Management System' %}{% endblock %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Physical Assessments' %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-list me-2"></i>{% trans 'Physical Assessments' %}</h2>
+    <a href="{% url 'physical_assessment_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>{% trans 'Create New Assessment' %}
+    </a>
+</div>
+
+{% include 'snippets/messages.html' %}
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-filter me-1"></i>{% trans 'Filters' %}
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="subject" class="form-label">{% trans 'Subject' %}</label>
+                <select name="subject" id="subject" class="form-select">
+                    <option value="">{% trans 'All Subjects' %}</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}" {% if selected_subject == subject.id|stringformat:"s" %}selected{% endif %}>
+                        {{ subject.title }} ({{ subject.code }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="type" class="form-label">{% trans 'Assessment Type' %}</label>
+                <select name="type" id="type" class="form-select">
+                    <option value="">{% trans 'All Types' %}</option>
+                    {% for value, label in assessment_types %}
+                    <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>{% trans 'Filter' %}
+                </button>
+                <a href="{% url 'physical_assessment_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i>{% trans 'Clear' %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Assessments Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>{% trans 'Title' %}</th>
+                        <th>{% trans 'Subject' %}</th>
+                        <th>{% trans 'Type' %}</th>
+                        <th>{% trans 'Max Marks' %}</th>
+                        <th>{% trans 'Date Conducted' %}</th>
+                        <th>{% trans 'Created' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assessment in assessments %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ assessment.title }}</td>
+                        <td>{{ assessment.subject.title }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if assessment.assessment_type == 'test' %}bg-primary
+                                {% elif assessment.assessment_type == 'assignment' %}bg-success
+                                {% elif assessment.assessment_type == 'quiz' %}bg-info
+                                {% elif assessment.assessment_type == 'project' %}bg-warning
+                                {% else %}bg-secondary{% endif %}">
+                                {{ assessment.get_assessment_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ assessment.max_marks }}</td>
+                        <td>{{ assessment.date_conducted|default:"-" }}</td>
+                        <td>{{ assessment.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'physical_assessment_enter_marks' assessment.id %}" 
+                                   class="btn btn-sm btn-success" title="{% trans 'Enter Marks' %}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'physical_assessment_view_marks' assessment.id %}" 
+                                   class="btn btn-sm btn-info" title="{% trans 'View Marks' %}">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'physical_assessment_edit' assessment.id %}" 
+                                   class="btn btn-sm btn-warning" title="{% trans 'Edit' %}">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </a>
+                                <a href="{% url 'physical_assessment_delete' assessment.id %}" 
+                                   class="btn btn-sm btn-danger" title="{% trans 'Delete' %}">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            {% trans 'No physical assessments found. Create one to get started!' %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

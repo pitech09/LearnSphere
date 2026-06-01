@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+
+{% block title %}{% trans 'Add Test' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'ready_assessments' %}">{% trans 'Ready Assessments' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Add Test' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="title-1">{% trans 'Add Physical Test' %}</div>
+<p class="text-muted">{{ course.title }}</p>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card p-3">
+        {{ form.title|as_crispy_field }}
+        {{ form.test_date|as_crispy_field }}
+        {{ form.description|as_crispy_field }}
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary my-3" type="submit">
+    <i class="fas fa-save"></i> {% trans 'Create Test' %}
+  </button>
+</form>
+{% endblock content %}

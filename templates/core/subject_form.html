@@ -30,6 +30,17 @@
           {{ form.code|as_crispy_field }}
           {{ form.class_assigned|as_crispy_field }}  
           {{ form.teacher|as_crispy_field }}
+          
+          <!-- Electable Subject Checkbox -->
+          <div class="form-check mt-3 p-3 bg-light rounded">
+            {{ form.is_electable }}
+            <label class="form-check-label" for="id_is_electable">
+              <strong>{% trans "Electable Subject" %}</strong>
+            </label>
+            <div class="form-text text-muted">
+              {% trans "Check this if students can optionally add this subject to their class subjects" %}
+            </div>
+          </div>
         </div>
 
       </div>

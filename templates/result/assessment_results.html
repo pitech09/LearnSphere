@@ -258,4 +258,80 @@
 
 {% endfor %}
 
+<!-- Physical Assessments Section -->
+{% if physical_assessments_by_subject %}
+<div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+  <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="fw-bold mb-1">
+          <i class="fas fa-clipboard-list text-primary me-2"></i>
+          {% trans 'Physical Tests & Assignments' %}
+        </h5>
+        <small class="text-muted">
+          {% trans 'Marks from physically conducted tests and assignments' %}
+        </small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="table-responsive">
+    <table class="table align-middle table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">#</th>
+          <th>{% trans 'Subject' %}</th>
+          <th>{% trans 'Assessment' %}</th>
+          <th>{% trans 'Type' %}</th>
+          <th>{% trans 'Date' %}</th>
+          <th>{% trans 'Marks' %}</th>
+          <th>{% trans 'Max' %}</th>
+          <th>{% trans 'Percentage' %}</th>
+          <th class="pe-4">{% trans 'Remarks' %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for subject_id, assessments in physical_assessments_by_subject.items %}
+          {% for mark in assessments %}
+          <tr>
+            <td class="ps-4 text-muted fw-semibold">{{ forloop.parentloop.counter }}</td>
+            <td>
+              <span class="fw-semibold text-dark">{{ mark.assessment.subject.title }}</span>
+              <div class="small text-muted">{{ mark.assessment.subject.code }}</div>
+            </td>
+            <td>{{ mark.assessment.title }}</td>
+            <td>
+              <span class="badge 
+                {% if mark.assessment.assessment_type == 'test' %}bg-primary
+                {% elif mark.assessment.assessment_type == 'assignment' %}bg-success
+                {% elif mark.assessment.assessment_type == 'quiz' %}bg-info
+                {% elif mark.assessment.assessment_type == 'project' %}bg-warning
+                {% else %}bg-secondary{% endif %}">
+                {{ mark.assessment.get_assessment_type_display }}
+              </span>
+            </td>
+            <td>{{ mark.assessment.date_conducted|date:"M d, Y"|default:"-" }}</td>
+            <td>
+              <span class="fw-semibold">{{ mark.marks_obtained }}</span>
+            </td>
+            <td>{{ mark.assessment.max_marks }}</td>
+            <td>
+              {% if mark.percentage >= 75 %}
+                <span class="badge bg-success">{{ mark.percentage }}%</span>
+              {% elif mark.percentage >= 50 %}
+                <span class="badge bg-warning text-dark">{{ mark.percentage }}%</span>
+              {% else %}
+                <span class="badge bg-danger">{{ mark.percentage }}%</span>
+              {% endif %}
+            </td>
+            <td class="pe-4 text-muted">{{ mark.remarks|default:"-" }}</td>
+          </tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

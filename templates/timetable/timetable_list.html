@@ -5,7 +5,10 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>{% trans 'Timetable' %}</h2>
-        <a class="btn btn-primary" href="{% url 'timetable_add' %}"><i class="fas fa-plus"></i> {% trans 'Add Entry' %}</a>
+        <div class="btn-group">
+            <a class="btn btn-success" href="{% url 'auto_generate_timetable' %}"><i class="fas fa-magic"></i> {% trans 'Auto Generate' %}</a>
+            <a class="btn btn-primary" href="{% url 'timetable_add' %}"><i class="fas fa-plus"></i> {% trans 'Add Entry' %}</a>
+        </div>
     </div>
 
     <form method="get" class="row g-2 mb-4">

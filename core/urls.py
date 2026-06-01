@@ -50,7 +50,9 @@ from .views import (
     timetable_add,
     timetable_delete,
     timetable_edit,
-    timetable_list
+    timetable_list,
+    auto_generate_timetable,
+    class_timetable_print
 )
 
 # Course app views (for URLs that use class_id + subject_slug)
@@ -156,10 +158,11 @@ urlpatterns = [
     path('timetable/add/', timetable_add, name='timetable_add'),
     path('timetable/<int:pk>/edit/', timetable_edit, name='timetable_edit'),
     path('timetable/<int:pk>/delete/', timetable_delete, name='timetable_delete'),
+    path('timetable/auto-generate/', auto_generate_timetable, name='auto_generate_timetable'),
+    path('timetable/class/<int:class_id>/print/', class_timetable_print, name='class_timetable_print'),
 
     path('marks/entry/', mark_entry_by_level, name='mark_entry_by_level'),
     path('marks/save/', save_marks, name='save_marks'),
-
     path('api/subjects-by-class/', get_subjects_by_class, name='get_subjects_by_class'),    # Legal page
 
 

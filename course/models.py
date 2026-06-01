@@ -41,6 +41,13 @@ class Subject(models.Model):
 
     class_assigned = models.ForeignKey('core.SchoolClass', on_delete=models.CASCADE, null=True, blank=True)
     teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Elective subject flag - if True, students can optionally add this subject
+    is_electable = models.BooleanField(
+        default=False,
+        verbose_name=_("Electable Subject"),
+        help_text=_("If checked, students can optionally add this subject to their class subjects")
+    )
 
     objects = CourseManager()
 
@@ -108,6 +115,36 @@ def log_subject_delete(sender, instance, **kwargs):
             school=instance.school,
             message=_(f"The subject '{instance}' has been deleted.")
         )
+
+
+# =========================================================
+# STUDENT ELECTED SUBJECT (OPTIONAL SUBJECTS CHOSEN BY STUDENTS)
+# =========================================================
+class StudentElectedSubject(models.Model):
+    """
+    Tracks elective subjects that a student has chosen to add to their class subjects.
+    """
+    student = models.ForeignKey(
+        "accounts.Student",
+        on_delete=models.CASCADE,
+        related_name="elected_subjects"
+    )
+    subject = models.ForeignKey(
+        Subject,
+        on_delete=models.CASCADE,
+        related_name="elected_by_students"
+    )
+    elected_on = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ("student", "subject")
+        ordering = ["subject__title"]
+        indexes = [
+            models.Index(fields=["student", "subject"], name="elected_student_subject_idx"),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.student.get_full_name()} - {self.subject.title}"
 
 
 # =========================================================

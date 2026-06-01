@@ -160,11 +160,12 @@ class Student(models.Model):
 class Parent(models.Model):
     """
     Connect student with their parent, parents can
-    only view their connected students information
+    only view their connected students information.
+    A parent can have multiple children.
     """
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    student = models.OneToOneField(Student, null=True, on_delete=models.SET_NULL)
+    student = models.ForeignKey(Student, null=True, on_delete=models.SET_NULL, blank=True)
     first_name = models.CharField(max_length=120)
     last_name = models.CharField(max_length=120)
     phone = models.CharField(max_length=60, blank=True, null=True)
@@ -176,12 +177,27 @@ class Parent(models.Model):
 
     class Meta:
         ordering = ("-user__date_joined",)
+        verbose_name_plural = "Parents"
         indexes = [
-            models.Index(fields=["student"], name="parent_student_idx"),
+            models.Index(fields=["user"], name="parent_user_idx"),
         ]
 
     def __str__(self):
         return self.user.username
+
+    def get_children(self):
+        """Return all students linked to this parent."""
+        return Parent.objects.filter(user=self.user).select_related('student__student', 'student__student_class')
+
+    @property
+    def children(self):
+        """Property to get all children for template usage."""
+        parent_records = Parent.objects.filter(user=self.user)
+        students = []
+        for p in parent_records:
+            if p.student:
+                students.append(p.student)
+        return students
 
 
 class TeacherProfile(models.Model):

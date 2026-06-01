@@ -1,7 +1,9 @@
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import (
@@ -22,6 +24,7 @@ from .forms import (
     EssayQuestionForm,
     MCQuestionForm,
     MCQuestionFormSet,
+    PhysicalTestForm,
     QuestionForm,
     QuizAddForm,
     QUESTION_TYPE_ESSAY,
@@ -35,6 +38,7 @@ from .models import (
     QuestionGrade,
     Quiz,
     Sitting,
+    TestMark,
 )
 
 QUIZ_RESULT_FIELDS = {
@@ -84,6 +88,11 @@ class QuizCreateView(CreateView):
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
         )
+        category = self.request.GET.get("category")
+        if category in {"assignment", EXAM_CATEGORY, "practice"}:
+            initial["category"] = category
+        if category in {"assignment", EXAM_CATEGORY}:
+            initial["exam_paper"] = True
         return initial
 
     def get_context_data(self, **kwargs):
@@ -177,6 +186,205 @@ def quiz_list(request, class_id, subject_slug):
         "course": course,
         "completed_exam_ids": completed_exam_ids,
     })
+
+
+@login_required
+def ready_assessments(request):
+    user = request.user
+    school = getattr(user, "school", None)
+    courses = Course.objects.none()
+
+    if user.is_student:
+        student = get_object_or_404(Student, student=user, student__school=school)
+        if student.student_class_id:
+            courses = Course.objects.filter(
+                school=school,
+                class_assigned=student.student_class,
+            )
+    elif user.is_lecturer:
+        courses = Course.objects.filter(
+            Q(teacher=user) | Q(allocated_subjects__teacher=user),
+            school=school,
+        ).distinct()
+    elif user.is_superuser and school:
+        courses = Course.objects.filter(school=school)
+    else:
+        messages.error(request, "You are not allowed to view assessments.")
+        return redirect("dashboard")
+
+    quizzes = (
+        Quiz.objects.filter(course__in=courses, draft=False, course__class_assigned__isnull=False)
+        .select_related("course", "course__class_assigned")
+        .annotate(question_count=Count("question"))
+        .order_by("category", "course__title", "title")
+    )
+    if user.is_student:
+        quizzes = quizzes.filter(question_count__gt=0)
+
+    teacher_courses = []
+    completed_by_quiz = {}
+    if user.is_student:
+        completed_by_quiz = {
+            sitting.quiz_id: sitting
+            for sitting in Sitting.objects.filter(user=user, complete=True)
+            .select_related("quiz")
+            .order_by("quiz_id", "end", "id")
+        }
+    elif user.is_lecturer:
+        teacher_courses = courses.select_related("class_assigned").order_by("title")
+
+    assignment_list = list(quizzes.filter(category="assignment"))
+    test_list = list(quizzes.filter(category=EXAM_CATEGORY))
+    quiz_list_items = list(quizzes.filter(category="practice"))
+    for assessment in assignment_list + test_list + quiz_list_items:
+        assessment.completed_sitting = completed_by_quiz.get(assessment.id)
+
+    return render(
+        request,
+        "quiz/ready_assessments.html",
+        {
+            "assignments": assignment_list,
+            "tests": test_list,
+            "quizzes": quiz_list_items,
+            "teacher_courses": teacher_courses,
+        },
+    )
+
+
+@login_required
+@lecturer_required
+def physical_test_create(request, class_id, subject_slug):
+    course = get_school_scoped_course(request.user, class_id, subject_slug)
+    if not request.user.is_superuser and not (
+        course.teacher_id == request.user.id
+        or course.allocated_subjects.filter(teacher=request.user).exists()
+    ):
+        messages.error(request, "You can only add tests for your own subjects.")
+        return redirect("ready_assessments")
+
+    form = PhysicalTestForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        test = form.save(commit=False)
+        test.course = course
+        test.category = EXAM_CATEGORY
+        test.exam_paper = True
+        test.single_attempt = True
+        test.draft = False
+        test.save()
+        messages.success(request, f"Test '{test.title}' has been created.")
+        return redirect("test_mark_entry", quiz_id=test.id)
+
+    return render(
+        request,
+        "quiz/physical_test_form.html",
+        {
+            "form": form,
+            "course": course,
+        },
+    )
+
+
+@login_required
+def assessment_result_detail(request, sitting_id):
+    sitting = get_object_or_404(
+        Sitting.objects.select_related("quiz", "course", "course__class_assigned"),
+        pk=sitting_id,
+        user=request.user,
+        complete=True,
+    )
+
+    return render(
+        request,
+        "quiz/result.html",
+        {
+            "course": sitting.course,
+            "quiz": sitting.quiz,
+            "score": sitting.get_current_score,
+            "max_score": sitting.get_max_score,
+            "percent": sitting.get_percent_correct,
+            "sitting": sitting,
+            "questions": sitting.get_questions(with_answers=True),
+        },
+    )
+
+
+@login_required
+@lecturer_required
+def test_mark_entry(request, quiz_id):
+    quiz_queryset = (
+        school_scoped_quizzes(request.user)
+        .select_related("course", "course__class_assigned")
+        .filter(category=EXAM_CATEGORY)
+    )
+    if not request.user.is_superuser:
+        quiz_queryset = quiz_queryset.filter(
+            Q(course__teacher=request.user) | Q(course__allocated_subjects__teacher=request.user)
+        ).distinct()
+    quiz = get_object_or_404(quiz_queryset, pk=quiz_id)
+    course = quiz.course
+    students = Student.objects.select_related("student").filter(
+        student__school=request.user.school,
+        student_class=course.class_assigned,
+    ).order_by("student__last_name", "student__first_name", "student__username")
+    current_quarter = get_current_quarter(getattr(request.user, "school", None))
+
+    if request.method == "POST":
+        saved = 0
+        for student in students:
+            raw_mark = request.POST.get(f"mark_{student.id}", "")
+            if raw_mark == "":
+                continue
+            try:
+                mark = Decimal(raw_mark)
+            except (InvalidOperation, TypeError, ValueError):
+                messages.error(request, "Marks must be numbers between 0 and 100.")
+                return redirect("test_mark_entry", quiz_id=quiz.id)
+            if mark < 0 or mark > 100:
+                messages.error(request, "Marks must be between 0 and 100.")
+                return redirect("test_mark_entry", quiz_id=quiz.id)
+            save_assessment_mark(
+                student=student,
+                course=course,
+                quarter=current_quarter,
+                field_name="final_exam",
+                mark=mark,
+            )
+            TestMark.objects.update_or_create(
+                quiz=quiz,
+                student=student,
+                defaults={
+                    "mark": mark,
+                    "marked_by": request.user,
+                },
+            )
+            saved += 1
+
+        messages.success(request, f"Saved test marks for {saved} student(s).")
+        return redirect("test_mark_entry", quiz_id=quiz.id)
+
+    existing_marks = {
+        test_mark.student_id: test_mark.mark
+        for test_mark in TestMark.objects.filter(quiz=quiz, student__in=students)
+    }
+
+    rows = [
+        {
+            "student": student,
+            "mark": existing_marks.get(student.id, ""),
+        }
+        for student in students
+    ]
+
+    return render(
+        request,
+        "quiz/test_mark_entry.html",
+        {
+            "quiz": quiz,
+            "course": course,
+            "rows": rows,
+            "current_quarter": current_quarter,
+        },
+    )
 
 
 # ========================================================

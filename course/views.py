@@ -58,7 +58,7 @@ def course_single(request, class_id, subject_slug):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_add(request):
     """Add a new subject (uses form, no slug in URL)."""
     if request.method == "POST":
@@ -87,7 +87,7 @@ def subject_add(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def course_edit(request, class_id, subject_slug):
     """Edit an existing subject using class_id and slug."""
     course = get_object_or_404(
@@ -112,7 +112,7 @@ def course_edit(request, class_id, subject_slug):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_delete(request, class_id, subject_slug):
     """Delete a subject using class_id and slug."""
     subject = get_object_or_404(
@@ -238,7 +238,7 @@ def handle_file_delete(request, class_id, subject_slug, file_id):
 # ########################################################
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_add_view(request):
     if request.method == "POST":
         form = SubjectAddForm(request.POST, school=request.user.school)
@@ -266,7 +266,7 @@ def subject_add_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_update_view(request, pk):
     subjects = Subject.objects.filter(school=request.user.school)
     obj = get_object_or_404(subjects, pk=pk)
@@ -281,7 +281,7 @@ def subject_update_view(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_delete_view(request, pk):
     subjects = Subject.objects.filter(school=request.user.school)
     obj = get_object_or_404(subjects, pk=pk)
@@ -509,3 +509,117 @@ def assign_class_view(request, student_id):
         "form": form,
         "student": student
     })
+
+
+# ########################################################
+# Elective Subject Selection Views
+# ########################################################
+
+@login_required
+@student_required
+def elective_subjects_list(request):
+    """
+    Display available electable subjects for the student's class level
+    and allow them to add/remove elective subjects.
+    """
+    from .models import StudentElectedSubject
+    
+    student = get_object_or_404(
+        Student, 
+        student__id=request.user.id, 
+        student__school=request.user.school
+    )
+    
+    if not student.student_class:
+        messages.error(request, "You must be assigned to a class first.")
+        return redirect("dashboard")
+    
+    # Get all electable subjects for the student's class level
+    electable_subjects = Subject.objects.filter(
+        school=request.user.school,
+        class_assigned__level=student.student_class.level,
+        is_electable=True,
+    ).select_related("class_assigned", "teacher")
+    
+    # Get subjects the student has already elected
+    elected_subject_ids = StudentElectedSubject.objects.filter(
+        student=student
+    ).values_list("subject_id", flat=True)
+    
+    # Get elected subjects for display
+    elected_subjects = StudentElectedSubject.objects.filter(
+        student=student
+    ).select_related("subject__teacher", "subject__class_assigned")
+    
+    # Available subjects (not yet elected)
+    available_subjects = electable_subjects.exclude(id__in=elected_subject_ids)
+    
+    return render(request, "course/elective_subjects.html", {
+        "student": student,
+        "available_subjects": available_subjects,
+        "elected_subjects": elected_subjects,
+    })
+
+
+@login_required
+@student_required
+def add_elective_subject(request, subject_id):
+    """
+    Add an elective subject to the student's elected subjects.
+    """
+    from .models import StudentElectedSubject
+    
+    student = get_object_or_404(
+        Student, 
+        student__id=request.user.id, 
+        student__school=request.user.school
+    )
+    
+    if not student.student_class:
+        messages.error(request, "You must be assigned to a class first.")
+        return redirect("elective_subjects_list")
+    
+    # Check if subject exists and is electable
+    subject = get_object_or_404(
+        Subject,
+        id=subject_id,
+        school=request.user.school,
+        class_assigned__level=student.student_class.level,
+        is_electable=True,
+    )
+    
+    # Check if already elected
+    if StudentElectedSubject.objects.filter(student=student, subject=subject).exists():
+        messages.warning(request, f"You have already added {subject.title} to your subjects.")
+    else:
+        StudentElectedSubject.objects.create(student=student, subject=subject)
+        messages.success(request, f"{subject.title} has been added to your subjects.")
+    
+    return redirect("elective_subjects_list")
+
+
+@login_required
+@student_required
+def remove_elective_subject(request, subject_id):
+    """
+    Remove an elective subject from the student's elected subjects.
+    """
+    from .models import StudentElectedSubject
+    
+    student = get_object_or_404(
+        Student, 
+        student__id=request.user.id, 
+        student__school=request.user.school
+    )
+    
+    if request.method == "POST":
+        elected = get_object_or_404(
+            StudentElectedSubject,
+            student=student,
+            subject_id=subject_id,
+        )
+        subject_title = elected.subject.title
+        elected.delete()
+        messages.success(request, f"{subject_title} has been removed from your subjects.")
+    
+    return redirect("elective_subjects_list")

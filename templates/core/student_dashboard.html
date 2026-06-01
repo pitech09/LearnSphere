@@ -20,9 +20,14 @@
       {{ school.name }}{% if student.student_class %} - {{ student.student_class }}{% endif %}
     </div>
   </div>
-  <a class="btn btn-primary" href="{% url 'grade_results' %}">
-    <i class="fas fa-list-ol"></i>{% trans 'Results' %}
-  </a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'ass_results' %}">
+      <i class="fas fa-clipboard-check"></i>{% trans 'Assessment' %}
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'grade_results' %}">
+      <i class="fas fa-list-ol"></i>{% trans 'Results' %}
+    </a>
+  </div>
 </div>
 
 <div class="row users-count px-3">
@@ -58,25 +63,34 @@
 <div class="row px-2">
   <div class="col-lg-7 p-2">
     <div class="card p-3 h-100">
-      <h5>{% trans 'My Subjects' %}</h5>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">{% trans 'Current Assessment' %}</h5>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'ass_results' %}">
+          <i class="fas fa-arrow-right"></i>{% trans 'View All' %}
+        </a>
+      </div>
       <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
               <th>{% trans 'Subject' %}</th>
-              <th>{% trans 'Teacher' %}</th>
-              <th>{% trans 'Code' %}</th>
+              <th>{% trans 'Assignment' %}</th>
+              <th>{% trans 'Test' %}</th>
+              <th>{% trans 'Exam' %}</th>
+              <th>{% trans 'Final' %}</th>
             </tr>
           </thead>
           <tbody>
-            {% for subject in subjects %}
+            {% for assessment in current_assessments %}
             <tr>
-              <td><a href="{{ subject.get_absolute_url }}">{{ subject.title }}</a></td>
-              <td>{{ subject.teacher.get_full_name|default:'-' }}</td>
-              <td>{{ subject.code }}</td>
+              <td><a href="{{ assessment.course.get_absolute_url }}">{{ assessment.course.title }}</a></td>
+              <td>{{ assessment.assignment }}</td>
+              <td>{{ assessment.mid_exam }}</td>
+              <td>{{ assessment.final_exam }}</td>
+              <td>{{ assessment.total }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="3" class="text-muted text-center">{% trans 'No subjects assigned yet.' %}</td></tr>
+            <tr><td colspan="5" class="text-muted text-center">{% trans 'No assessment recorded for the current quarter yet.' %}</td></tr>
             {% endfor %}
           </tbody>
         </table>

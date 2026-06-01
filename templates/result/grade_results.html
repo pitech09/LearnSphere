@@ -20,7 +20,23 @@
   <i class="fas fa-print"></i> {% trans 'Print Results' %}
 </a>
 
-{% for section in quarter_sections %}
+<div class="row px-2 mb-3">
+  <div class="col-md-6 p-0">
+    <div class="card p-3">
+      <h5>{% trans 'Final Report' %}</h5>
+      <p class="mb-1">{% trans 'Average across all 4 quarters' %}: <strong>{{ final_report.average }}%</strong></p>
+      <p class="mb-1">{% trans 'Grade' %}: <strong>{{ final_report.grade }}</strong></p>
+      <p class="mb-1 {% if final_report.comment == 'PASS' %}text-success{% else %}text-danger{% endif %}">
+        {% trans 'Comment' %}: <strong>{{ final_report.comment }}</strong>
+      </p>
+      <p class="small text-muted mb-0">
+        {% trans 'Recorded quarters' %}: {{ final_report.recorded_quarters }} {% trans 'of' %} {{ final_report.quarter_count }}
+      </p>
+    </div>
+  </div>
+</div>
+
+{% for section in visible_quarter_sections %}
 <div class="table-responsive p-0 px-2 mt-4">
   <div class="table-title"><u>{{ section.label }}</u></div>
   <table class="table table-light">
@@ -69,6 +85,8 @@
     </tfoot>
   </table>
 </div>
+{% empty %}
+<div class="alert alert-info">{% trans 'No grade result recorded for the current quarter yet.' %}</div>
 {% endfor %}
 
 {% endblock %}

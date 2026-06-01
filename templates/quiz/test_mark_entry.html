@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Test Marks' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'ready_assessments' %}">{% trans 'Ready Assessments' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Test Marks' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="title-1 mb-1">{{ quiz.title }}</h1>
+    <div class="text-muted">{{ course.title }} - {{ current_quarter }}</div>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="btn-flex mb-3">
+    <button class="btn btn-primary" type="submit">
+      <i class="fas fa-save"></i> {% trans 'Save Marks' %}
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-light align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>{% trans 'Student' %}</th>
+          <th>{% trans 'Test Mark' %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ row.student.student.get_full_name|default:row.student.student.username }}</td>
+          <td>
+            <input class="form-control" type="number" name="mark_{{ row.student.id }}" value="{{ row.mark }}" min="0" max="100" step="0.01">
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="text-center text-muted py-4">{% trans 'No students found for this test subject.' %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+{% endblock content %}

@@ -6,6 +6,10 @@ urlpatterns = [
     path("class/<int:class_id>/course/<slug:subject_slug>/quizzes/", views.quiz_list, name="quiz_index"),
 
     path("progress/", view=views.QuizUserProgressView.as_view(), name="quiz_progress"),
+    path("ready/", views.ready_assessments, name="ready_assessments"),
+    path("result/<int:sitting_id>/", views.assessment_result_detail, name="assessment_result_detail"),
+    path("class/<int:class_id>/course/<slug:subject_slug>/physical-test/add/", views.physical_test_create, name="physical_test_create"),
+    path("test/<int:quiz_id>/marks/", views.test_mark_entry, name="test_mark_entry"),
     path("marking_list/", view=views.QuizMarkingList.as_view(), name="quiz_marking"),
     path("marking/<int:pk>/", view=views.QuizMarkingDetail.as_view(), name="quiz_marking_detail"),
 

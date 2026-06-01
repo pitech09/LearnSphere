@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'parent_dashboard' %}">{% trans 'Parent Portal' %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans 'Fee Information' %}</li>
+        </ol>
+    </nav>
+
+    <h3 class="mb-4">
+        <i class="fas fa-coins text-warning me-2"></i>
+        {% trans 'Fee Information' %}
+    </h3>
+
+    <!-- Child Selector -->
+    {% if children %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <label class="form-label fw-bold">{% trans 'Select Child' %}</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for child in children %}
+                        <a href="{% url 'parent_fees_student' child.id %}" class="btn {% if selected_student and selected_student.id == child.id %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                            <i class="fas fa-user-graduate me-1"></i>
+                            {{ child.student.get_full_name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if selected_student %}
+    <div class="alert alert-info">
+        <i class="fas fa-user-graduate me-2"></i>
+        <strong>{{ selected_student.student.get_full_name }}</strong>
+        <span class="ms-3">{{ selected_student.student_class.name|default:"No class" }}</span>
+    </div>
+
+    <!-- Fees Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-receipt me-1"></i>
+                {% trans 'Fee Records' %}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if fees %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{% trans 'Description' %}</th>
+                            <th>{% trans 'Session/Term' %}</th>
+                            <th>{% trans 'Amount Due' %}</th>
+                            <th>{% trans 'Discount' %}</th>
+                            <th>{% trans 'Paid' %}</th>
+                            <th>{% trans 'Balance' %}</th>
+                            <th>{% trans 'Due Date' %}</th>
+                            <th>{% trans 'Status' %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in fees %}
+                        <tr>
+                            <td>{{ fee.description }}</td>
+                            <td>
+                                {% if fee.session %}{{ fee.session.session }}{% endif %}
+                                {% if fee.term %}- {{ fee.term.name }}{% endif %}
+                            </td>
+                            <td>{{ fee.amount_due }}</td>
+                            <td>{{ fee.discount }}</td>
+                            <td>{{ fee.total_paid }}</td>
+                            <td>
+                                <strong class="{% if fee.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ fee.balance }}
+                                </strong>
+                            </td>
+                            <td>{{ fee.due_date|date:"M d, Y"|default:"N/A" }}</td>
+                            <td>
+                                {% if fee.status == 'paid' %}
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>{% trans 'Paid' %}</span>
+                                {% elif fee.status == 'partial' %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>{% trans 'Partial' %}</span>
+                                {% elif fee.status == 'overdue' %}
+                                <span class="badge bg-danger"><i class="fas fa-exclamation me-1"></i>{% trans 'Overdue' %}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{% trans 'Pending' %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Fee Summary -->
+            <div class="row mt-4">
+                {% with total_due=fees.aggregate.total_due|default:'0' %}
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="border rounded p-3 text-center">
+                        <small class="text-muted">{% trans 'Total Due' %}</small>
+                        <h4 class="mb-0">
+                            {% load l10n %}
+                            {{ fees|length }}
+                        </h4>
+                    </div>
+                </div>
+                {% endwith %}
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4 mb-0">
+                <i class="fas fa-check-circle fa-2x text-success mb-2 d-block"></i>
+                {% trans 'No fee records for this student.' %}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card shadow-sm border-0">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-hand-pointer fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">{% trans 'Select a child to view their fee information' %}</h5>
+            <p class="text-muted mb-0">{% trans 'Click on one of the buttons above to get started.' %}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="card shadow-sm border-0">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-user-slash fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">{% trans 'No children linked to your account' %}</h5>
+            <p class="text-muted mb-0">{% trans 'Please contact the school administration.' %}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

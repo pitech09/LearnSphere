@@ -76,6 +76,17 @@ class QuizAddForm(forms.ModelForm):
         return quiz
 
 
+class PhysicalTestForm(forms.ModelForm):
+    class Meta:
+        model = Quiz
+        fields = ["title", "test_date", "description"]
+        widgets = {
+            "test_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "title": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+        }
+
+
 class MCQuestionForm(forms.ModelForm):
     class Meta:
         model = MCQuestion

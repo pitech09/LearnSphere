@@ -18,9 +18,14 @@
     <h1 class="title-1 mb-1">{% trans 'Teacher Dashboard' %}</h1>
     <div class="text-muted">{{ school.name }}</div>
   </div>
-  <a class="btn btn-primary" href="{% url 'user_course_list' %}">
-    <i class="fas fa-book-open"></i>{% trans 'My Subjects' %}
-  </a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'user_course_list' %}">
+      <i class="fas fa-book-open"></i>{% trans 'My Subjects' %}
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'add_score' %}">
+      <i class="fas fa-clipboard-check"></i>{% trans 'Assignment Marks' %}
+    </a>
+  </div>
 </div>
 
 <div class="row users-count px-3">
@@ -73,6 +78,7 @@
               <th>{% trans 'Subject' %}</th>
               <th>{% trans 'Class' %}</th>
               <th>{% trans 'Code' %}</th>
+              <th>{% trans 'Assignment' %}</th>
             </tr>
           </thead>
           <tbody>
@@ -81,9 +87,18 @@
               <td><a href="{{ subject.get_absolute_url }}">{{ subject.title }}</a></td>
               <td>{{ subject.class_assigned|default:'-' }}</td>
               <td>{{ subject.code }}</td>
+              <td>
+                {% if subject.class_assigned %}
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'quiz_create' class_id=subject.class_assigned.id subject_slug=subject.slug %}?category=assignment">
+                  <i class="fas fa-plus"></i>{% trans 'Create' %}
+                </a>
+                {% else %}
+                <span class="text-muted">-</span>
+                {% endif %}
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="3" class="text-muted text-center">{% trans 'No subjects assigned yet.' %}</td></tr>
+            <tr><td colspan="4" class="text-muted text-center">{% trans 'No subjects assigned yet.' %}</td></tr>
             {% endfor %}
           </tbody>
         </table>

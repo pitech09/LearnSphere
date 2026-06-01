@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans 'Auto Generate Timetable' %} | {% trans 'Learning Management System' %}{% endblock %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'timetable_list' %}">{% trans 'Timetable' %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans 'Auto Generate' %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-magic me-2"></i>{% trans 'Auto Generate Timetable' %}</h2>
+    <a href="{% url 'timetable_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% trans 'Back to Timetable' %}
+    </a>
+</div>
+
+{% include 'snippets/messages.html' %}
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h5 class="card-title">{% trans 'Classes' %}</h5>
+                <p class="display-6">{{ classes.count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h5 class="card-title">{% trans 'Subjects with Teachers' %}</h5>
+                <p class="display-6">{{ subjects.count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h5 class="card-title">{% trans 'Teachers' %}</h5>
+                <p class="display-6">{{ teachers.count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h5 class="card-title">{% trans 'Existing Entries' %}</h5>
+                <p class="display-6">{{ existing_entries_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-cog me-2"></i>{% trans 'Generation Settings' %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_periods_per_day" class="form-label">{% trans 'Periods per Day' %}</label>
+                            {{ form.periods_per_day }}
+                            <small class="form-text text-muted">{{ form.periods_per_day.help_text }}</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_period_duration" class="form-label">{% trans 'Period Duration (minutes)' %}</label>
+                            {{ form.period_duration }}
+                            <small class="form-text text-muted">{{ form.period_duration.help_text }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_start_time" class="form-label">{% trans 'Start Time' %}</label>
+                            {{ form.start_time }}
+                            <small class="form-text text-muted">{{ form.start_time.help_text }}</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_school_hours" class="form-label">{% trans 'School Hours per Day' %}</label>
+                            {{ form.school_hours }}
+                            <small class="form-text text-muted">{{ form.school_hours.help_text }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_max_subject_per_day" class="form-label">{% trans 'Max Same Subject per Day' %}</label>
+                            {{ form.max_subject_per_day }}
+                            <small class="form-text text-muted">{{ form.max_subject_per_day.help_text }}</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">{% trans 'School Days' %}</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for choice in form.days %}
+                                <div class="form-check">
+                                    {{ choice.tag }}
+                                    <label class="form-check-label ms-1" for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="form-text text-muted">{{ form.days.help_text }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.clear_existing }}
+                            <label class="form-check-label" for="id_clear_existing">
+                                {% trans 'Clear Existing Timetable' %}
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">{{ form.clear_existing.help_text }}</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>{% trans 'How it works:' %}</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>{% trans 'The system will create timetable entries for all active classes' %}</li>
+                            <li>{% trans 'Each subject with an assigned teacher will be scheduled' %}</li>
+                            <li>{% trans 'The algorithm avoids clashes - no teacher teaches two classes at the same time' %}</li>
+                            <li>{% trans 'No class will have two subjects scheduled at the same time' %}</li>
+                            <li>{% trans 'A subject will not appear more than the specified maximum times per day' %}</li>
+                            <li>{% trans 'All periods will fit within the specified school hours' %}</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'timetable_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>{% trans 'Cancel' %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-magic me-1"></i>{% trans 'Generate Timetable' %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>{% trans 'Classes' %}</h5>
+            </div>
+            <div class="card-body">
+                {% if classes %}
+                <ul class="list-group list-group-flush">
+                    {% for class in classes %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ class.name }}
+                        <span class="badge bg-primary rounded-pill">{{ class.level }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center">{% trans 'No active classes found.' %}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% trans 'Subjects' %}</h5>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if subjects %}
+                <ul class="list-group list-group-flush">
+                    {% for subject in subjects %}
+                    <li class="list-group-item">
+                        <strong>{{ subject.title }}</strong>
+                        <br>
+                        <small class="text-muted">
+                            <i class="fas fa-user me-1"></i>{{ subject.teacher.get_full_name|default:subject.teacher.username }}
+                            {% if subject.class_assigned %}
+                            | <i class="fas fa-school me-1"></i>{{ subject.class_assigned.name }}
+                            {% endif %}
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center">{% trans 'No subjects with teachers found.' %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

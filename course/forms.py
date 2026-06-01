@@ -35,10 +35,17 @@ class SubjectAddForm(forms.ModelForm):
         required=True,
         label="Teacher"
     )
+    
+    is_electable = forms.BooleanField(
+        required=False,
+        label="Electable Subject",
+        help_text="Check if students can optionally add this subject",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )
 
     class Meta:
         model = Subject
-        fields = ["title", "code", "summary", "class_assigned", "teacher"]
+        fields = ["title", "code", "summary", "class_assigned", "teacher", "is_electable"]
 
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)

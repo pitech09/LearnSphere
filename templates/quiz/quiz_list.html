@@ -18,13 +18,16 @@
 
 {% if request.user.is_superuser or request.user.is_lecturer %}
 <div class="manage-wrap">
+    <a class="btn btn-warning" href="{% url 'quiz_create' class_id=course.class_assigned.id subject_slug=course.slug %}?category=assignment">
+        <i class="fas fa-clipboard-list"></i> {% trans 'Create Assignment' %}
+    </a>
     <a class="btn btn-primary" href="{% url 'quiz_create' class_id=course.class_assigned.id subject_slug=course.slug %}">
         <i class="fas fa-plus"></i> {% trans 'Add Quiz' %}
     </a>
 </div>
 {% endif %}
 
-<div class="title-1">{% trans 'Quizzes' %} [{{ course|truncatechars:25 }}]</div>
+<div class="title-1">{% trans 'Assessments' %} [{{ course|truncatechars:25 }}]</div>
 <br>
 <br>
 
@@ -37,7 +40,15 @@
         <div class="col-md-4 mb-2">
             <div class="card p-2 quiz-wrapper">
                 <div class="d-flex justify-content-between align-items-center text-success mb-4">
-                    <em class="text-left">{{ quiz.category|title }} {% trans 'Quiz' %}</em>
+                    <em class="text-left">
+                        {% if quiz.category == "assignment" %}
+                            {% trans 'Assignment' %}
+                        {% elif quiz.category == "exam" %}
+                            {% trans 'Exam' %}
+                        {% else %}
+                            {% trans 'Practice Quiz' %}
+                        {% endif %}
+                    </em>
                     <div class="text-right text-light bg-danger px-2 small rounded">
                         {{ quiz.get_questions.count }} {% trans 'Questions' %}
                     </div>
@@ -60,7 +71,7 @@
                     <button class="btn btn-block btn-secondary w-100" disabled>{% trans "Completed" %}</button>
                     {% else %}
                     <a class="btn btn-block btn-secondary w-100" href="{% url 'quiz_take' class_id=course.class_assigned.id subject_slug=course.slug pk=quiz.id %}">
-                        {% trans "Start quiz" %} &raquo;
+                        {% trans "Start assessment" %} &raquo;
                     </a>
                     {% endif %}
 
@@ -97,7 +108,7 @@
 
         {% empty %}
         <h4 class="text-center mt-5 py-5 text-muted">
-            <i class="fa-regular fa-folder-open me-2"></i> Course quizzes will appear here.
+            <i class="fa-regular fa-folder-open me-2"></i> {% trans 'Course assessments will appear here.' %}
         </h4>
         {% endfor %}
     </div>

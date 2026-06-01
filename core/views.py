@@ -68,6 +68,7 @@ from django.http import JsonResponse
 from course.models import Subject
 
 @login_required
+@admin_required
 def get_subjects_by_class(request):
     class_id = request.GET.get('class_id')
     if class_id:
@@ -86,6 +87,7 @@ def get_subjects_by_class(request):
     return JsonResponse([], safe=False)
 
 @login_required
+@admin_required
 def mark_entry_by_level(request):
     school = getattr(request.user, 'school', None)
     if not school:
@@ -152,6 +154,7 @@ def mark_entry_by_level(request):
     })
 
 @login_required
+@admin_required
 def mark_entry_by_level(request):
     school = getattr(request.user, 'school', None)
     if not school:
@@ -203,6 +206,7 @@ def mark_entry_by_level(request):
     })
 
 @login_required
+@admin_required
 def save_marks(request):
     if request.method == 'POST':
         school = getattr(request.user, 'school', None)
@@ -257,6 +261,7 @@ def save_marks(request):
 
 
 @login_required
+@admin_required
 def timetable_list(request):
     school = getattr(request.user, 'school', None)
     entries = TimetableEntry.objects.select_related('school_class', 'subject', 'teacher')
@@ -293,6 +298,7 @@ def timetable_list(request):
     return render(request, 'timetable/timetable_list.html', context)
 
 @login_required
+@admin_required
 def timetable_add(request):
     school = getattr(request.user, 'school', None)
     if not school:
@@ -313,6 +319,7 @@ def timetable_add(request):
     return render(request, 'timetable/timetable_form.html', {'form': form, 'title': 'Add Timetable Entry'})
 
 @login_required
+@admin_required
 def timetable_edit(request, pk):
     school = getattr(request.user, 'school', None)
     entry = get_object_or_404(TimetableEntry, pk=pk, school=school)
@@ -329,6 +336,7 @@ def timetable_edit(request, pk):
     return render(request, 'timetable/timetable_form.html', {'form': form, 'title': 'Edit Timetable Entry'})
 
 @login_required
+@admin_required
 def timetable_delete(request, pk):
     school = getattr(request.user, 'school', None)
     entry = get_object_or_404(TimetableEntry, pk=pk, school=school)
@@ -340,6 +348,7 @@ def timetable_delete(request, pk):
 
 
 @login_required
+@admin_required
 def exam_list(request):
     school = getattr(request.user, 'school', None)
     exams = Exam.objects.select_related('school_class', 'session', 'term')
@@ -381,6 +390,7 @@ def exam_list(request):
     return render(request, 'exams/exam_list.html', context)
 
 @login_required
+@admin_required
 def exam_add(request):
     school = getattr(request.user, 'school', None)
     if not school:
@@ -411,6 +421,7 @@ def exam_add(request):
 
 
 @login_required
+@admin_required
 def exam_edit(request, pk):
     school = getattr(request.user, 'school', None)
     exam = get_object_or_404(Exam, pk=pk, school=school)
@@ -436,6 +447,7 @@ def exam_edit(request, pk):
 
 
 @login_required
+@admin_required
 def exam_delete(request, pk):
     school = getattr(request.user, 'school', None)
     exam = get_object_or_404(Exam, pk=pk, school=school)
@@ -447,6 +459,7 @@ def exam_delete(request, pk):
     return render(request, 'core/confirm_delete.html', {'object': exam, 'cancel_url': 'exam_list'})
 
 @login_required
+@admin_required
 def exam_detail(request, pk):
     school = getattr(request.user, 'school', None)
     exam = get_object_or_404(Exam, pk=pk, school=school)
@@ -455,6 +468,7 @@ def exam_detail(request, pk):
 
 
 @login_required
+@admin_required
 def fee_list(request):
     """List all school fees for the user's school."""
     fees = SchoolFee.objects.select_related('student__student', 'session', 'term')
@@ -498,6 +512,7 @@ def fee_list(request):
     return render(request, 'fees/fee_list.html', context)
 
 @login_required
+@admin_required
 def fee_add(request):
     school = getattr(request.user, 'school', None)
     if not school:
@@ -518,6 +533,7 @@ def fee_add(request):
     return render(request, 'fees/fee_form.html', {'form': form, 'title': 'Add Fee'})
 
 @login_required
+@admin_required
 def fee_edit(request, pk):
     school = getattr(request.user, 'school', None)
     fee = get_object_or_404(SchoolFee, pk=pk, school=school)
@@ -534,6 +550,7 @@ def fee_edit(request, pk):
     return render(request, 'fees/fee_form.html', {'form': form, 'title': 'Edit Fee'})
 
 @login_required
+@admin_required
 def fee_delete(request, pk):
     school = getattr(request.user, 'school', None)
     fee = get_object_or_404(SchoolFee, pk=pk, school=school)
@@ -545,6 +562,7 @@ def fee_delete(request, pk):
     return render(request, 'core/confirm_delete.html', {'object': fee, 'cancel_url': 'fee_list'})
 
 @login_required
+@admin_required
 def fee_detail(request, pk):
     school = getattr(request.user, 'school', None)
     fee = get_object_or_404(SchoolFee, pk=pk, school=school)
@@ -552,6 +570,7 @@ def fee_detail(request, pk):
     return render(request, 'fees/fee_detail.html', {'fee': fee, 'payments': payments})
 
 @login_required
+@admin_required
 def payment_add(request, fee_pk):
     school = getattr(request.user, 'school', None)
     fee = get_object_or_404(SchoolFee, pk=fee_pk, school=school)
@@ -788,6 +807,11 @@ def student_dashboard(request):
         (section for section in quarter_sections if section["code"] == current_quarter),
         quarter_sections[0] if quarter_sections else None,
     )
+    current_assessments = (
+        courses.filter(quarter=current_quarter)
+        if current_quarter
+        else courses.none()
+    )
 
     return render(request, "core/student_dashboard.html", {
         "school": request.user.school,
@@ -797,6 +821,7 @@ def student_dashboard(request):
         "registered_count": courses.count(),
         "current_quarter": current_quarter,
         "current_section": current_section,
+        "current_assessments": current_assessments,
     })
 
 
@@ -949,6 +974,7 @@ def current_quarter_update(request):
 # NEWS POSTING
 # =========================================================
 @login_required
+@admin_required
 def post_add(request):
     if request.method == "POST":
         form = NewsAndEventsForm(request.POST)
@@ -972,7 +998,7 @@ def post_add(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def edit_post(request, pk):
     posts = NewsAndEvents.objects.all()
     if request.user.school:
@@ -997,7 +1023,7 @@ def edit_post(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def delete_post(request, pk):
     posts = NewsAndEvents.objects.all()
     if request.user.school:
@@ -1016,6 +1042,7 @@ def delete_post(request, pk):
 # SESSION MANAGEMENT (NO SEMESTER ANYMORE)
 # =========================================================
 @login_required
+@admin_required
 def session_list_view(request):
     sessions = Session.objects.all().order_by("-is_current", "-session")
     if request.user.school:
@@ -1026,6 +1053,7 @@ def session_list_view(request):
 
 
 @login_required
+@admin_required
 def session_add_view(request):
     is_platform_owner = request.user.is_superuser and not getattr(request.user, 'school', None)
     selected_school = None
@@ -1090,7 +1118,7 @@ def session_add_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def session_update_view(request, pk):
     sessions = Session.objects.all()
     if request.user.school:
@@ -1115,7 +1143,7 @@ def session_update_view(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def session_delete_view(request, pk):
     sessions = Session.objects.all()
     if request.user.school:
@@ -1134,7 +1162,7 @@ def session_delete_view(request, pk):
     return redirect("session_list")
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_list_view(request):
     subjects = Subject.objects.select_related("school", "class_assigned", "teacher")
     if request.user.school:
@@ -1143,7 +1171,7 @@ def subject_list_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_add_view(request):
     if request.method == "POST":
         form = SubjectAddForm(request.POST, school=request.user.school)
@@ -1160,7 +1188,7 @@ def subject_add_view(request):
     return render(request, "core/subject_form.html", {"form": form})
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_update_view(request, pk):
     subjects = Subject.objects.all()
     if request.user.school:
@@ -1181,7 +1209,7 @@ def subject_update_view(request, pk):
     return render(request, "core/subject_form.html", {"form": form})
 
 @login_required
-@lecturer_required
+@admin_required
 def subject_delete_view(request, pk):
     subjects = Subject.objects.all()
     if request.user.school:
@@ -1201,7 +1229,7 @@ from .forms import (
 )
 
 @login_required
-@lecturer_required
+@admin_required
 def class_list_view(request):
     classes = SchoolClass.objects.select_related("class_teacher", "school")
     if request.user.school:
@@ -1210,7 +1238,7 @@ def class_list_view(request):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def class_add_view(request):
     form = SchoolClassForm(request.POST or None, school=request.user.school)
 
@@ -1225,7 +1253,7 @@ def class_add_view(request):
     return render(request, "core/class_form.html", {"form": form})
 
 @login_required
-@lecturer_required
+@admin_required
 def class_update_view(request, pk):
     classes = SchoolClass.objects.all()
     if request.user.school:
@@ -1242,7 +1270,7 @@ def class_update_view(request, pk):
 
 
 @login_required
-@lecturer_required
+@admin_required
 def class_delete_view(request, pk):
     classes = SchoolClass.objects.all()
     if request.user.school:
@@ -1255,3 +1283,246 @@ def class_delete_view(request, pk):
         return redirect("class_list")
 
     return render(request, "core/confirm_delete.html", {"object": obj})
+
+
+# =========================================================
+# AUTO TIMETABLE GENERATION
+# =========================================================
+from datetime import time, timedelta
+from .forms import AutoTimetableForm
+from course.models import Subject
+
+
+@login_required
+@admin_required
+def auto_generate_timetable(request):
+    """
+    Auto-generate timetable for all classes, avoiding clashes.
+    Algorithm:
+    1. Get all classes, subjects with teachers, and time slots
+    2. For each class, assign subjects to available time slots
+    3. Ensure no teacher teaches two classes at the same time
+    4. Ensure no class has two subjects at the same time
+    """
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        form = AutoTimetableForm(request.POST)
+        if form.is_valid():
+            periods_per_day = int(form.cleaned_data['periods_per_day'])
+            period_duration = int(form.cleaned_data['period_duration'])
+            start_hour = int(form.cleaned_data['start_time'].hour)
+            start_minute = int(form.cleaned_data['start_time'].minute)
+            days = form.cleaned_data['days']
+            clear_existing = form.cleaned_data['clear_existing']
+            school_hours = int(form.cleaned_data['school_hours'])
+            max_subject_per_day = int(form.cleaned_data['max_subject_per_day'])
+            
+            # Get all active classes for the school
+            classes = SchoolClass.objects.filter(school=school, is_active=True)
+            
+            # Get all subjects with teachers for the school
+            subjects = Subject.objects.filter(
+                school=school,
+                teacher__isnull=False
+            ).select_related('teacher', 'class_assigned')
+            
+            if clear_existing:
+                TimetableEntry.objects.filter(school=school).delete()
+            
+            # Calculate school end time based on school_hours
+            school_end_minutes = (start_hour * 60 + start_minute) + (school_hours * 60)
+            school_end_hour = school_end_minutes // 60
+            school_end_min = school_end_minutes % 60
+            if school_end_hour >= 24:
+                school_end_hour = 23
+                school_end_min = 59
+            school_end_time = time(school_end_hour, school_end_min)
+            
+            # Generate time slots (only within school hours)
+            time_slots = []
+            current_time = time(start_hour, start_minute)
+            for _ in range(periods_per_day):
+                end_minutes = current_time.hour * 60 + current_time.minute + period_duration
+                end_hour = end_minutes // 60
+                end_min = end_minutes % 60
+                if end_hour >= 24:
+                    end_hour = 23
+                    end_min = 59
+                end_time_obj = time(end_hour, end_min)
+                
+                # Check if this period ends within school hours
+                if end_time_obj > school_end_time:
+                    break
+                    
+                time_slots.append((current_time, end_time_obj))
+                # Next period starts 5 minutes after current ends (break time)
+                next_minutes = end_minutes + 5
+                next_hour = next_minutes // 60
+                next_min = next_minutes % 60
+                if next_hour >= 24:
+                    break
+                current_time = time(next_hour, next_min)
+            
+            # Track teacher and class assignments to avoid clashes
+            # Key: (day, time_slot_index) -> set of teacher_ids
+            teacher_schedule = {day: {i: set() for i in range(len(time_slots))} for day in days}
+            # Key: (day, time_slot_index) -> set of class_ids  
+            class_schedule = {day: {i: set() for i in range(len(time_slots))} for day in days}
+            # Track subject count per day per class: {(class_id, day, subject_id): count}
+            subject_day_count = {}
+            
+            created_count = 0
+            
+            # For each class, assign its subjects
+            for school_class in classes:
+                # Get subjects for this class
+                class_subjects = subjects.filter(class_assigned=school_class)
+                
+                if not class_subjects.exists():
+                    continue
+                
+                # Distribute subjects across the week
+                subject_list = list(class_subjects)
+                periods_per_subject = max(1, len(time_slots) * len(days) // max(len(subject_list), 1))
+                
+                for subject in subject_list:
+                    periods_assigned = 0
+                    teacher = subject.teacher
+                    
+                    # Try to assign this subject to available slots
+                    for day in days:
+                        if periods_assigned >= periods_per_subject:
+                            break
+                            
+                        for slot_idx, (start_t, end_t) in enumerate(time_slots):
+                            if periods_assigned >= periods_per_subject:
+                                break
+                            
+                            # Check if teacher is available
+                            if teacher.id in teacher_schedule[day][slot_idx]:
+                                continue
+                            
+                            # Check if class is available
+                            if school_class.id in class_schedule[day][slot_idx]:
+                                continue
+                            
+                            # Check max subject per day constraint
+                            count_key = (school_class.id, day, subject.id)
+                            current_count = subject_day_count.get(count_key, 0)
+                            if current_count >= max_subject_per_day:
+                                continue
+                            
+                            # Check if this exact entry already exists
+                            existing = TimetableEntry.objects.filter(
+                                school=school,
+                                school_class=school_class,
+                                day=day,
+                                start_time=start_t
+                            ).exists()
+                            
+                            if existing:
+                                continue
+                            
+                            # Create the timetable entry
+                            TimetableEntry.objects.create(
+                                school=school,
+                                school_class=school_class,
+                                subject=subject,
+                                teacher=teacher,
+                                day=day,
+                                start_time=start_t,
+                                end_time=end_t,
+                                is_active=True
+                            )
+                            
+                            # Mark teacher and class as busy
+                            teacher_schedule[day][slot_idx].add(teacher.id)
+                            class_schedule[day][slot_idx].add(school_class.id)
+                            
+                            # Update subject day count
+                            subject_day_count[count_key] = current_count + 1
+                            
+                            created_count += 1
+                            periods_assigned += 1
+            
+            messages.success(request, f"Successfully created {created_count} timetable entries.")
+            return redirect('timetable_list')
+    else:
+        form = AutoTimetableForm()
+    
+    # Get stats for display
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    subjects = Subject.objects.filter(school=school, teacher__isnull=False)
+    teachers = User.objects.filter(school=school, is_lecturer=True)
+    existing_entries = TimetableEntry.objects.filter(school=school)
+    
+    return render(request, 'timetable/auto_generate.html', {
+        'form': form,
+        'classes': classes,
+        'subjects': subjects,
+        'teachers': teachers,
+        'existing_entries_count': existing_entries.count(),
+    })
+
+
+@login_required
+@admin_required
+def class_timetable_print(request, class_id):
+    """
+    Display and print timetable for a specific class in a clean grid format.
+    """
+    school = getattr(request.user, 'school', None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect('dashboard')
+    
+    school_class = get_object_or_404(SchoolClass, pk=class_id, school=school)
+    
+    # Get all timetable entries for this class
+    entries = TimetableEntry.objects.filter(
+        school=school,
+        school_class=school_class,
+        is_active=True
+    ).select_related('subject', 'teacher').order_by('day', 'start_time')
+    
+    # Get unique days and time slots
+    days_order = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    days = []
+    time_slots = []
+    
+    for entry in entries:
+        if entry.day not in days:
+            days.append(entry.day)
+        time_key = (entry.start_time, entry.end_time)
+        if time_key not in time_slots:
+            time_slots.append(time_key)
+    
+    # Sort days according to standard order
+    days = sorted(days, key=lambda x: days_order.index(x) if x in days_order else 999)
+    # Sort time slots by start time
+    time_slots = sorted(time_slots, key=lambda x: x[0])
+    
+    # Build the timetable grid
+    timetable_grid = {}
+    for day in days:
+        timetable_grid[day] = {}
+        for time_slot in time_slots:
+            timetable_grid[day][time_slot] = None
+    
+    # Fill in the grid with entries
+    for entry in entries:
+        time_key = (entry.start_time, entry.end_time)
+        if entry.day in timetable_grid and time_key in timetable_grid[entry.day]:
+            timetable_grid[entry.day][time_key] = entry
+    
+    return render(request, 'timetable/class_timetable_print.html', {
+        'school_class': school_class,
+        'days': days,
+        'time_slots': time_slots,
+        'timetable_grid': timetable_grid,
+        'school': school,
+    })

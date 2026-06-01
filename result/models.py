@@ -180,6 +180,123 @@ class TakenCourse(models.Model):
 
 
 # =========================================================
+# PHYSICAL ASSESSMENT (TESTS/ASSIGNMENTS TAKEN PHYSICALLY)
+# =========================================================
+class PhysicalAssessment(models.Model):
+    """
+    Represents a physical test or assignment that a teacher conducts
+    and later enters marks for.
+    """
+    ASSESSMENT_TYPE_TEST = "test"
+    ASSESSMENT_TYPE_ASSIGNMENT = "assignment"
+    ASSESSMENT_TYPE_QUIZ = "quiz"
+    ASSESSMENT_TYPE_PROJECT = "project"
+    ASSESSMENT_TYPE_OTHER = "other"
+
+    ASSESSMENT_TYPE_CHOICES = (
+        (ASSESSMENT_TYPE_TEST, "Test"),
+        (ASSESSMENT_TYPE_ASSIGNMENT, "Assignment"),
+        (ASSESSMENT_TYPE_QUIZ, "Quiz"),
+        (ASSESSMENT_TYPE_PROJECT, "Project"),
+        (ASSESSMENT_TYPE_OTHER, "Other"),
+    )
+
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, null=True, blank=True)
+    subject = models.ForeignKey(
+        "course.Subject",
+        on_delete=models.CASCADE,
+        related_name="physical_assessments"
+    )
+    title = models.CharField(max_length=200, help_text="e.g., 'Test 1', 'Assignment 2'")
+    assessment_type = models.CharField(
+        max_length=20,
+        choices=ASSESSMENT_TYPE_CHOICES,
+        default=ASSESSMENT_TYPE_TEST
+    )
+    description = models.TextField(blank=True)
+    max_marks = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=100,
+        help_text="Maximum marks for this assessment"
+    )
+    date_conducted = models.DateField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_assessments"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date_conducted", "-created_at"]
+        indexes = [
+            models.Index(fields=["school", "subject"], name="pa_school_subject_idx"),
+            models.Index(fields=["school", "assessment_type"], name="pa_school_type_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.subject.title}"
+
+    def save(self, *args, **kwargs):
+        if not self.school_id:
+            if self.subject_id:
+                self.school = self.subject.school
+        super().save(*args, **kwargs)
+
+
+# =========================================================
+# PHYSICAL ASSESSMENT MARK (MARKS FOR EACH STUDENT)
+# =========================================================
+class PhysicalAssessmentMark(models.Model):
+    """
+    Stores the mark obtained by a student in a specific physical assessment.
+    """
+    assessment = models.ForeignKey(
+        PhysicalAssessment,
+        on_delete=models.CASCADE,
+        related_name="marks"
+    )
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="physical_assessment_marks"
+    )
+    marks_obtained = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0
+    )
+    remarks = models.CharField(max_length=200, blank=True)
+    entered_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    entered_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["student__student__last_name", "student__student__first_name"]
+        unique_together = ("assessment", "student")
+        indexes = [
+            models.Index(fields=["assessment", "student"], name="pam_assessment_student_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.student.student.get_full_name()} - {self.assessment.title}: {self.marks_obtained}"
+
+    @property
+    def percentage(self):
+        """Calculate percentage score."""
+        if self.assessment.max_marks > 0:
+            return round((self.marks_obtained / self.assessment.max_marks) * 100, 2)
+        return 0
+
+
+# =========================================================
 # RESULT SUMMARY (TERM / YEAR REPORT CARD)
 # =========================================================
 class Result(models.Model):

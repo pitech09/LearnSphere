@@ -121,6 +121,18 @@ POST_CHOICES = (
     (POST_EVENT, _("Event")),
 )
 
+TARGET_ALL = "all"
+TARGET_PARENTS = "parents"
+TARGET_STUDENTS = "students"
+TARGET_TEACHERS = "teachers"
+
+TARGET_CHOICES = (
+    (TARGET_ALL, _("Everyone")),
+    (TARGET_PARENTS, _("Parents Only")),
+    (TARGET_STUDENTS, _("Students Only")),
+    (TARGET_TEACHERS, _("Teachers Only")),
+)
+
 
 class NewsAndEventsQuerySet(models.QuerySet):
     def search(self, query=None):
@@ -146,6 +158,7 @@ class NewsAndEvents(models.Model):
     title = models.CharField(max_length=200)
     summary = models.TextField(blank=True)
     posted_as = models.CharField(max_length=10, choices=POST_CHOICES)
+    target_audience = models.CharField(max_length=20, choices=TARGET_CHOICES, default=TARGET_ALL)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -158,6 +171,7 @@ class NewsAndEvents(models.Model):
         indexes = [
             models.Index(fields=["school", "-updated_at"], name="news_school_updated_idx"),
             models.Index(fields=["school", "posted_as"], name="news_school_type_idx"),
+            models.Index(fields=["school", "target_audience"], name="news_school_target_idx"),
         ]
 
 

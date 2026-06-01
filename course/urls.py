@@ -31,4 +31,9 @@ urlpatterns = [
     path("class/<int:class_id>/course/<slug:subject_slug>/video_tutorials/<slug:video_slug>/delete/",
          views.handle_video_delete, name="upload_video_delete"),
 
+    # Elective subjects urls
+    path("elective-subjects/", views.elective_subjects_list, name="elective_subjects_list"),
+    path("elective-subjects/add/<int:subject_id>/", views.add_elective_subject, name="add_elective_subject"),
+    path("elective-subjects/remove/<int:subject_id>/", views.remove_elective_subject, name="remove_elective_subject"),
+
 ]

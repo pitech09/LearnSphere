@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans 'Ready Assessments' %}{% endblock title %}
+
+{% block content %}
+<nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Ready Assessments' %}</li>
+  </ol>
+</nav>
+
+{% include 'snippets/messages.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="title-1 mb-1">{% trans 'Ready Quizzes, Assignments and Tests' %}</h1>
+    <div class="text-muted">{% trans 'Available assessments for your subjects.' %}</div>
+  </div>
+</div>
+
+{% if request.user.is_lecturer %}
+<div class="card p-3 mb-3">
+  <h5>{% trans 'Add Test' %}</h5>
+  <div class="d-flex flex-wrap gap-2">
+    {% for course in teacher_courses %}
+      {% if course.class_assigned %}
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'physical_test_create' class_id=course.class_assigned.id subject_slug=course.slug %}">
+        <i class="fas fa-plus"></i> {{ course.title }}
+      </a>
+      {% endif %}
+    {% empty %}
+      <span class="text-muted">{% trans 'No subjects assigned yet.' %}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="row px-2">
+  <div class="col-lg-4 p-2">
+    <div class="card p-3 h-100">
+      <h5><i class="fas fa-clipboard-list text-warning me-1"></i>{% trans 'Assignments' %}</h5>
+      {% include 'quiz/snippets/ready_assessment_list.html' with assessments=assignments empty_text='No assignments ready.' %}
+    </div>
+  </div>
+  <div class="col-lg-4 p-2">
+    <div class="card p-3 h-100">
+      <h5><i class="fas fa-vial text-danger me-1"></i>{% trans 'Tests' %}</h5>
+      {% include 'quiz/snippets/ready_assessment_list.html' with assessments=tests empty_text='No tests ready.' %}
+    </div>
+  </div>
+  <div class="col-lg-4 p-2">
+    <div class="card p-3 h-100">
+      <h5><i class="fas fa-question-circle text-primary me-1"></i>{% trans 'Quizzes' %}</h5>
+      {% include 'quiz/snippets/ready_assessment_list.html' with assessments=quizzes empty_text='No quizzes ready.' %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

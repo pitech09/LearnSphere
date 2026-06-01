@@ -59,6 +59,12 @@ class Quiz(models.Model):
         help_text=_("A detailed description of the quiz"),
     )
     category = models.CharField(max_length=20, choices=CATEGORY_OPTIONS, blank=True)
+    test_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_("Test Date"),
+        help_text=_("Date for a physical test or scheduled assessment."),
+    )
     random_order = models.BooleanField(
         default=False,
         verbose_name=_("Random Order"),
@@ -132,6 +138,34 @@ class Quiz(models.Model):
 
     def get_absolute_url(self):
         return reverse("quiz_index", kwargs={"slug": self.course.slug})
+
+
+class TestMark(models.Model):
+    quiz = models.ForeignKey(
+        Quiz,
+        on_delete=models.CASCADE,
+        related_name="test_marks",
+        limit_choices_to={"category": EXAM_CATEGORY},
+    )
+    student = models.ForeignKey("accounts.Student", on_delete=models.CASCADE)
+    mark = models.DecimalField(max_digits=5, decimal_places=2)
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="entered_test_marks",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("quiz", "student")
+        indexes = [
+            models.Index(fields=["quiz", "student"], name="testmark_quiz_student_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.quiz} - {self.student}: {self.mark}"
 
 
 @receiver(pre_save, sender=Quiz)
