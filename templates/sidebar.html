@@ -254,8 +254,8 @@
 				</a>
 			</li>
 
-			<li class="{% if request.path == parent_admin %}active{% endif %}">
-				<a href="{{ parent_admin }}" class="nav-link-custom">
+			<li class="{% if request.resolver_match.url_name == 'parent_list' %}active{% endif %}">
+				<a href="{% url 'parent_list' %}" class="nav-link-custom">
 					<i class="fas fa-users"></i>
 					<span>{% trans 'Parents' %}</span>
 				</a>

@@ -69,7 +69,9 @@ def validate_username(request):
     return JsonResponse(data)
 
 def logout_view(request):
-    logout(request)
+    if request.method == "POST":
+        logout(request)
+        return redirect("login")
     return redirect("login")
 
 
@@ -162,6 +164,116 @@ def custom_login_view(request):
         messages.error(request, "Invalid ID or Password")
 
     return render(request, "registration/login.html", {"next": request.GET.get("next", "")})
+
+# ########################################################
+# SMS Password Reset (replaces email-based reset)
+# ########################################################
+
+def sms_password_reset(request):
+    """Step 1: User enters phone number → SMS them a reset link."""
+    import requests
+    from django.conf import settings as dj_settings
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_encode
+    from django.utils.encoding import force_bytes
+
+    if request.method == "POST":
+        phone = request.POST.get("phone", "").strip()
+        user = User.objects.filter(phone=phone).first()
+        if user:
+            token = default_token_generator.make_token(user)
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            reset_url = request.build_absolute_uri(
+                f"/accounts/reset/{uidb64}/{token}/"
+            )
+            # Send SMS via TextBee directly
+            textbee_key = getattr(dj_settings, "TEXTBEE_API_KEY", None)
+            textbee_dev = getattr(dj_settings, "TEXTBEE_DEVICE_ID", None)
+            if textbee_key and textbee_dev:
+                try:
+                    requests.post(
+                        f"https://api.textbee.dev/api/v1/gateway/devices/{textbee_dev}/send-sms",
+                        json={"recipients": [str(phone)], "message": f"LearnSphere reset: {reset_url}"},
+                        headers={"x-api-key": textbee_key, "Content-Type": "application/json"},
+                        timeout=15,
+                    )
+                except Exception:
+                    pass
+            messages.success(request, "SMS sent with password reset link.")
+            return redirect("password_reset_done")
+        else:
+            messages.error(request, "No account found with that phone number.")
+    return render(request, "registration/password_reset.html")
+
+
+def sms_password_reset_done(request):
+    """Step 2: Show confirmation that SMS was sent."""
+    return render(request, "registration/password_reset_done.html")
+
+
+def sms_password_reset_confirm(request, uidb64=None, token=None):
+    """Step 3: Verify token and send new password via SMS."""
+    import requests
+    from django.conf import settings as dj_settings
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_decode
+    from django.utils.encoding import force_str
+
+    user_id = force_str(urlsafe_base64_decode(uidb64))
+    user = User.objects.filter(pk=user_id).first()
+
+    if user and default_token_generator.check_token(user, token):
+        if request.method == "POST":
+            new_pw = generate_password(8)
+            user.set_password(new_pw)
+            user.save()
+            # SMS the new password directly
+            phone = user.phone
+            textbee_key = getattr(dj_settings, "TEXTBEE_API_KEY", None)
+            textbee_dev = getattr(dj_settings, "TEXTBEE_DEVICE_ID", None)
+            if textbee_key and textbee_dev and phone:
+                try:
+                    requests.post(
+                        f"https://api.textbee.dev/api/v1/gateway/devices/{textbee_dev}/send-sms",
+                        json={"recipients": [str(phone)], "message": f"LearnSphere new pwd: {new_pw}"},
+                        headers={"x-api-key": textbee_key, "Content-Type": "application/json"},
+                        timeout=15,
+                    )
+                except Exception:
+                    pass
+            messages.success(request, "New password sent via SMS.")
+            return redirect("password_reset_complete")
+        return render(request, "registration/password_reset_confirm.html")
+    else:
+        messages.error(request, "Reset link is invalid or expired.")
+        return redirect("password_reset")
+
+
+def sms_password_reset_complete(request):
+    """Step 4: Show success message."""
+    return render(request, "registration/password_reset_complete.html")
+
+
+# ########################################################
+# Principal: View Parents
+# ########################################################
+
+@login_required
+@admin_required
+def parent_list_view(request):
+    """List all parents in the principal's school."""
+    school = request.user.school
+    parents = Parent.objects.filter(user__school=school).select_related(
+        "user", "student", "student__student", "student__student_class"
+    ).order_by("user__first_name", "user__last_name")
+
+    context = {
+        "title": "Parents",
+        "parents": parents,
+        "parent_count": parents.count(),
+    }
+    return render(request, "accounts/parent_list.html", context)
+
 
 def health_check_view(request):
     return render(request, "core/health_check.html", {

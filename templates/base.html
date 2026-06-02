@@ -20,11 +20,80 @@
 
     <link rel="stylesheet" type="text/css" href="{% static 'css/style.min.css' %}">
 
-    <!-- <script src="https://js.stripe.com/v3/"></script> -->
     {% block header %}{% endblock %}
 </head>
 
 <body>
+
+    <style>
+        /* --- Spinner overlay --- */
+        #page-loader{position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;align-items:center;justify-content:center;background:rgba(255,255,255,0.75);backdrop-filter:blur(2px);pointer-events:auto;display:none;transition:opacity .3s ease}
+        #page-loader .loader-card{text-align:center;background:#fff;padding:28px 36px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+        #page-loader .loader-spinner{width:44px;height:44px;border:5px solid #e0e0e0;border-top:5px solid #0d6efd;border-radius:50%;margin:0 auto;animation:page-spin .8s linear infinite}
+        #page-loader .loader-text{margin-top:14px;color:#555;font-weight:500;font-size:15px}
+        @keyframes page-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    </style>
+
+    <div id="page-loader">
+        <div class="loader-card">
+            <div class="loader-spinner"></div>
+            <p class="loader-text">{% trans 'Loading...' %}</p>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            var loader = document.getElementById('page-loader');
+
+            function showLoader() {
+                if (!loader) return;
+                loader.style.display = 'flex';
+                loader.style.opacity = '1';
+            }
+
+            function hideLoader() {
+                if (!loader) return;
+                loader.style.opacity = '0';
+                setTimeout(function() {
+                    loader.style.display = 'none';
+                }, 350);
+            }
+
+            // Hide when navigating back
+            window.addEventListener('pageshow', hideLoader);
+
+            // Intercept clicks on internal links
+            document.addEventListener('click', function(e) {
+                var link = e.target.closest('a');
+                if (!link) return;
+
+                // Skip external / special links
+                if (link.hasAttribute('download')) return;
+                if (link.protocol === 'javascript:' || link.getAttribute('href') === '#') return;
+                if (link.hostname && link.hostname !== window.location.hostname) return;
+                if (link.hash && link.href === window.location.href + link.hash) return;
+                if (link.closest('form')) return;
+
+                // RequestAnimationFrame ensures the browser repaints before navigation
+                requestAnimationFrame(function() {
+                    showLoader();
+                    // Allow the browser a tick to paint the spinner before navigating
+                    // The default click behavior will still fire and navigate
+                });
+            }, true); // capture phase
+
+            // Also catch form submissions (POST navigations)
+            document.addEventListener('submit', function(e) {
+                var form = e.target;
+                // Only for forms that cause a navigation (no AJAX forms)
+                if (form.getAttribute('action') !== '#' && !form.hasAttribute('data-ajax')) {
+                    requestAnimationFrame(showLoader);
+                }
+            }, true);
+        })();
+    </script>
+
     {% block sidebar %}
         {% include 'sidebar.html' %}
     {% endblock %}

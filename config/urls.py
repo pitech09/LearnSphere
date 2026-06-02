@@ -6,7 +6,7 @@ from django.views import defaults as default_views
 from django.conf.urls.i18n import i18n_patterns
 from django.views.i18n import JavaScriptCatalog
 from django.shortcuts import redirect
-from accounts.views import custom_login_view, logout_view
+from accounts.views import custom_login_view
 
 
 admin.site.site_header = "LearnSphere School Management"
@@ -17,8 +17,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
     path("login/", custom_login_view, name="login"),
-    path("logout/", logout_view, name="logout"),
-    #path("", include("django.contrib.auth.urls")),
     path("", include("core.urls")),
    
 ]

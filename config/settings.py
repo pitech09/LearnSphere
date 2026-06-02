@@ -139,15 +139,15 @@ WSGI_APPLICATION = "config.wsgi.application"
 # -------------------------------------------------
 # DATABASE
 # -------------------------------------------------
-
+"""
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
     }
 }
-
 """
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -161,7 +161,7 @@ DATABASES = {
         },
     }
 }
-"""
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 

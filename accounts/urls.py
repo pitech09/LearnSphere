@@ -1,11 +1,4 @@
 from django.urls import path
-from django.contrib.auth.views import (
-    LogoutView,
-    PasswordResetView,
-    PasswordResetDoneView,
-    PasswordResetConfirmView,
-    PasswordResetCompleteView,
-)
 
 from django.views.i18n import JavaScriptCatalog
 
@@ -31,50 +24,24 @@ from .views import (
     render_lecturer_pdf_list,
     render_student_pdf_list,
     custom_login_view,
+    logout_view,
+    sms_password_reset,
+    sms_password_reset_done,
+    sms_password_reset_confirm,
+    sms_password_reset_complete,
+    parent_list_view,
 )
 
 urlpatterns = [
     # Authentication
     path("login/", custom_login_view, name="login"),
+    path("logout/", logout_view, name="logout"),
 
-    path(
-        "logout/",
-        LogoutView.as_view(next_page="login"),
-        name="logout",
-    ),
-
-    # Password Reset
-    path(
-        "password-reset/",
-        PasswordResetView.as_view(
-            template_name="registration/password_reset.html"
-        ),
-        name="password_reset",
-    ),
-
-    path(
-        "password-reset/done/",
-        PasswordResetDoneView.as_view(
-            template_name="registration/password_reset_done.html"
-        ),
-        name="password_reset_done",
-    ),
-
-    path(
-        "reset/<uidb64>/<token>/",
-        PasswordResetConfirmView.as_view(
-            template_name="registration/password_reset_confirm.html"
-        ),
-        name="password_reset_confirm",
-    ),
-
-    path(
-        "reset/done/",
-        PasswordResetCompleteView.as_view(
-            template_name="registration/password_reset_complete.html"
-        ),
-        name="password_reset_complete",
-    ),
+    # Password Reset via SMS
+    path("password-reset/", sms_password_reset, name="password_reset"),
+    path("password-reset/done/", sms_password_reset_done, name="password_reset_done"),
+    path("reset/<uidb64>/<token>/", sms_password_reset_confirm, name="password_reset_confirm"),
+    path("reset/done/", sms_password_reset_complete, name="password_reset_complete"),
 
     # Dashboard / Profile
     path("admin_panel/", admin_panel, name="admin_panel"),
@@ -110,6 +77,7 @@ urlpatterns = [
     ),
 
     # Parents
+    path("parents/", parent_list_view, name="parent_list"),
     path("parents/add/", ParentAdd.as_view(), name="add_parent"),
 
     # AJAX

@@ -42,10 +42,11 @@ def generate_lecturer_credentials():
 def build_account_credentials_message(user, password):
     school_name = user.school.name if getattr(user, "school", None) else "LearnSphere"
     role = "student" if user.is_student else "teacher"
+    # Minimised SMS: credentials only, no punctuation waste
     return (
-        f"{school_name} {role} account created. "
-        f"Username: {user.username}. Password: {password}. "
-        "Please sign in and change your password."
+        f"{school_name} {role}: "
+        f"u:{user.username} p:{password} "
+        f"{'https://learnsphere.onrender.com' if role == 'student' else 'https://learnsphere.onrender.com'}"
     )
 
 def send_new_account_sms(user, password):

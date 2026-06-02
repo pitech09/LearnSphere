@@ -27,3 +27,5 @@ KeyboardInterrupt escaped interact()
 
 
 In [1]: Do you really want to exit ([y]/n)? 
+y
+

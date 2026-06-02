@@ -1,0 +1,9 @@
+first_name,last_name,gender,class_name,class_level,phone,email,address,parent_first_name,parent_last_name,parent_phone,parent_email,parent_relation
+Lerato,Mokoena,F,Form 1A,F1,+26650123456,lerato@example.com,Maseru,Teboho,Mokoena,+26650123457,teboho@example.com,Guardian
+Relebohile,Tsoeu,F,Form 1A,F1,+26650123458,relebohile@example.com,Roma,Palesa,Tsoeu,+26650123459,palesa@example.com,Mother
+Thabo,Lejone,M,Form 2B,F2,+26650123460,thabo@example.com,Butha-Buthe,Mamello,Lejone,+26650123461,mamello@example.com,Mother
+Litsoanelo,Ramollo,F,Form 3A,F3,+26650123462,litsoanelo@example.com,Mafeteng,Ramo,Ramollo,+26650123463,NULL,,Father
+Itumeleng,Khasipe,M,Form 4C,F4,+26650123464,itumeleng@example.com,Teyateyaneng,Liepollo,Khasipe,+26650123465,liepollo@example.com,Aunt
+Boitumelo,Ralebetse,F,Form 5B,F5,+26650123466,boitumelo@example.com,Mohale's Hoek,,,NULL,,,
+Mpho,Tau,M,Form 1B,F1,+26650123467,mpho@example.com,Quthing,,,NULL,,,
+Refiloe,Phakisi,F,Form 2A,F2,+26650123468,refiloe@example.com,Leribe,,,NULL,,,
