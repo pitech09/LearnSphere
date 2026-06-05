@@ -74,6 +74,15 @@ pip install -r requirements.txt
 
 - Copy and paste everything in the `.env.example` file into the `.env` file. Don't forget to customize the variable values
 
+- To store course files and videos in Cloudinary, add these values to `.env`:
+
+```bash
+CLOUDINARY_MEDIA_ENABLED=True
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
 ```bash
 python manage.py migrate
 ```

@@ -10,6 +10,7 @@ from django.utils.text import slugify
 from accounts.models import User
 from core.models import ActivityLog, Session
 from core.utils import unique_slug_generator
+from course.storage import course_file_storage, course_video_storage
 
 
 # =========================================================
@@ -180,6 +181,7 @@ class Upload(models.Model):
 
     file = models.FileField(
         upload_to="course_files/",
+        storage=course_file_storage,
         validators=[
             FileExtensionValidator([
                 "pdf", "docx", "doc", "xls", "xlsx",
@@ -226,6 +228,7 @@ class UploadVideo(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     video = models.FileField(
         upload_to="course_videos/",
+        storage=course_video_storage,
         validators=[
             FileExtensionValidator(
                 ["mp4", "mkv", "wmv", "3gp", "f4v", "avi", "mp3"]

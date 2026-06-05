@@ -3,6 +3,7 @@ Django settings for config project.
 High School LMS Version (Clean Structure)
 """
 
+from importlib.util import find_spec
 import os
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
@@ -72,10 +73,33 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
 ]
 
+CLOUDINARY_CLOUD_NAME = config("CLOUDINARY_CLOUD_NAME", default="")
+CLOUDINARY_API_KEY = config("CLOUDINARY_API_KEY", default="")
+CLOUDINARY_API_SECRET = config("CLOUDINARY_API_SECRET", default="")
+CLOUDINARY_MEDIA_ENABLED = env_bool(
+    "CLOUDINARY_MEDIA_ENABLED",
+    default=all([CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET]),
+)
+
+if CLOUDINARY_MEDIA_ENABLED and not find_spec("cloudinary_storage"):
+    raise ImproperlyConfigured(
+        "Install django-cloudinary-storage[video] to enable Cloudinary media uploads."
+    )
+
 THIRD_PARTY_APPS = [
+    *(
+        ["cloudinary_storage"]
+        if CLOUDINARY_MEDIA_ENABLED
+        else []
+    ),
     "crispy_forms",
     "crispy_bootstrap5",
     "django_filters",
+    *(
+        ["cloudinary"]
+        if CLOUDINARY_MEDIA_ENABLED
+        else []
+    ),
 ]
 
 PROJECT_APPS = [
@@ -139,15 +163,15 @@ WSGI_APPLICATION = "config.wsgi.application"
 # -------------------------------------------------
 # DATABASE
 # -------------------------------------------------
-"""
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
     }
 }
-"""
 
+"""
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -160,7 +184,7 @@ DATABASES = {
             'sslmode': 'require',
         },
     }
-}
+}"""
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -211,6 +235,13 @@ WHITENOISE_MAX_AGE = 31536000 if not DEBUG else 0
 # -------------------------------------------------
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+    "API_KEY": CLOUDINARY_API_KEY,
+    "API_SECRET": CLOUDINARY_API_SECRET,
+    "SECURE": True,
+}
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = config("DATA_UPLOAD_MAX_MEMORY_SIZE", default=5 * 1024 * 1024, cast=int)
 FILE_UPLOAD_MAX_MEMORY_SIZE = config("FILE_UPLOAD_MAX_MEMORY_SIZE", default=5 * 1024 * 1024, cast=int)

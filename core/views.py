@@ -684,7 +684,7 @@ def principal_dashboard(request):
     timetable = TimetableEntry.objects.select_related("school", "school_class", "subject", "teacher")
     attendance = AttendanceRecord.objects.select_related("school", "student__student", "school_class", "subject")
     marks = TakenCourse.objects.select_related("school", "student__student", "course")
-    logs = ActivityLog.objects.all().order_by("-created_at")[:10]
+    logs = ActivityLog.objects.filter(school=school).order_by("-created_at")[:10] if school else ActivityLog.objects.none()
 
     if school:
         users = users.filter(school=school)

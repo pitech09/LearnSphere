@@ -7,4 +7,5 @@ gunicorn==20.1.0  # https://github.com/benoitc/gunicorn
 # Django
 # ------------------------------------------------------------------------------
 django-storages[boto3]==1.13.1  # https://github.com/jschneier/django-storages
+django-cloudinary-storage[video]==0.3.0
 django-anymail[amazon_ses]==9.0  # https://github.com/anymail/django-anymail
