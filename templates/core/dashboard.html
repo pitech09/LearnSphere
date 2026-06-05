@@ -29,6 +29,9 @@
     <a class="btn btn-outline-primary" href="{% url 'current_quarter_update' %}">
       <i class="fas fa-calendar-week me-1"></i>{{ school.get_current_quarter_display }}
     </a>
+    <a class="btn btn-outline-success ms-2" href="{% url 'finance_dashboard' %}">
+      <i class="fas fa-wallet me-1"></i>{% trans 'Finance' %}
+    </a>
     {% endif %}
   </div>
 </div>
@@ -135,6 +138,56 @@
     </div>
   </div>
 </div>
+
+<div class="row users-count px-3">
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-receipt fa-2x text-success me-3"></i>
+      <div>
+        <small>{% trans 'Fee Income' %}</small>
+        <h2>M {{ collected_fees|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-hand-holding-heart fa-2x text-primary me-3"></i>
+      <div>
+        <small>{% trans 'Other Income' %}</small>
+        <h2>M {{ other_income_total|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-file-invoice-dollar fa-2x text-danger me-3"></i>
+      <div>
+        <small>{% trans 'Expenses' %}</small>
+        <h2>M {{ expense_total|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card-count p-3 d-flex align-items-center">
+      <i class="fas fa-balance-scale fa-2x text-info me-3"></i>
+      <div>
+        <small>{% trans 'Net Balance' %}</small>
+        <h2>M {{ net_balance|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if school %}
+<div class="d-flex justify-content-end gap-2 px-3 mb-3">
+  <a class="btn btn-success" href="{% url 'income_add' %}">
+    <i class="fas fa-plus me-1"></i>{% trans 'Add Income' %}
+  </a>
+  <a class="btn btn-danger" href="{% url 'expense_add' %}">
+    <i class="fas fa-minus me-1"></i>{% trans 'Add Expense' %}
+  </a>
+</div>
+{% endif %}
 
 <div class="row px-2">
   <div class="col-lg-4 p-2">

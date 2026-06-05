@@ -13,6 +13,7 @@ from .views import (
     edit_post,
     delete_post,
     save_marks,
+    class_attendance_mark,
     session_list_view,
     session_add_view,
     session_update_view,
@@ -42,6 +43,15 @@ from .views import (
     fee_list,
     fee_detail,
     payment_add,
+    finance_dashboard,
+    income_list,
+    income_add,
+    income_edit,
+    income_delete,
+    expense_list,
+    expense_add,
+    expense_edit,
+    expense_delete,
     exam_list,
     exam_add,
     exam_edit,
@@ -147,6 +157,15 @@ urlpatterns = [
     path('fees/<int:pk>/', fee_detail, name='fee_detail'),
     path('fees/<int:fee_pk>/pay/', payment_add, name='payment_add'),
     path('fees/bulk-add/', bulk_fee_add, name='bulk_fee_add'),
+    path("finance/", finance_dashboard, name="finance_dashboard"),
+    path("finance/incomes/", income_list, name="income_list"),
+    path("finance/incomes/add/", income_add, name="income_add"),
+    path("finance/incomes/<int:pk>/edit/", income_edit, name="income_edit"),
+    path("finance/incomes/<int:pk>/delete/", income_delete, name="income_delete"),
+    path("finance/expenses/", expense_list, name="expense_list"),
+    path("finance/expenses/add/", expense_add, name="expense_add"),
+    path("finance/expenses/<int:pk>/edit/", expense_edit, name="expense_edit"),
+    path("finance/expenses/<int:pk>/delete/", expense_delete, name="expense_delete"),
 
     path('exams/', exam_list, name='exam_list'),
     path('exams/add/', exam_add, name='exam_add'),
@@ -163,6 +182,7 @@ urlpatterns = [
 
     path('marks/entry/', mark_entry_by_level, name='mark_entry_by_level'),
     path('marks/save/', save_marks, name='save_marks'),
+    path('attendance/daily/', class_attendance_mark, name='class_attendance_mark'),
     path('api/subjects-by-class/', get_subjects_by_class, name='get_subjects_by_class'),    # Legal page
 
 

@@ -59,6 +59,11 @@
 		{% url 'subject_list_view' as subject_list %}
 		{% url 'fee_list' as fee_list_url %}
 		{% url 'bulk_fee_add' as bulk_fee_add_url %}
+		{% url 'finance_dashboard' as finance_dashboard_url %}
+		{% url 'income_list' as income_list_url %}
+		{% url 'income_add' as income_add_url %}
+		{% url 'expense_list' as expense_list_url %}
+		{% url 'expense_add' as expense_add_url %}
 		{% url 'exam_list' as exam_list_url %}
 		{% url 'timetable_list' as timetable_list_url %}
 		{% url 'mark_entry_by_level' as mark_entry_url %}   <!-- NEW: custom mark entry -->
@@ -219,6 +224,27 @@
 				<a href="{{ bulk_fee_add_url }}" class="nav-link-custom small">
 					<i class="fas fa-layer-group"></i>
 					<span>{% trans 'Bulk Fee Add' %}</span>
+				</a>
+			</li>
+
+			<li class="{% if request.path == finance_dashboard_url %}active{% endif %}">
+				<a href="{{ finance_dashboard_url }}" class="nav-link-custom">
+					<i class="fas fa-wallet"></i>
+					<span>{% trans 'Finance Dashboard' %}</span>
+				</a>
+			</li>
+
+			<li class="ps-4 {% if request.path == income_list_url or request.path == income_add_url %}active{% endif %}">
+				<a href="{{ income_list_url }}" class="nav-link-custom small">
+					<i class="fas fa-circle-plus"></i>
+					<span>{% trans 'Income' %}</span>
+				</a>
+			</li>
+
+			<li class="ps-4 {% if request.path == expense_list_url or request.path == expense_add_url %}active{% endif %}">
+				<a href="{{ expense_list_url }}" class="nav-link-custom small">
+					<i class="fas fa-circle-minus"></i>
+					<span>{% trans 'Expenses' %}</span>
 				</a>
 			</li>
 

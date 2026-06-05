@@ -53,6 +53,7 @@ class School(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(null=True, blank=True, unique=True)
     subdomain = models.SlugField(null=True, blank=True, unique=True)
+    registration_number = models.CharField(max_length=80, blank=True)
     address = models.TextField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
@@ -66,6 +67,7 @@ class School(models.Model):
     subscription_amount = models.DecimalField(max_digits=10, decimal_places=2, default=250)
     last_payment_on = models.DateField(null=True, blank=True)
     next_payment_due_on = models.DateField(null=True, blank=True)
+    trial_ends_on = models.DateField(null=True, blank=True)
     suspended_reason = models.TextField(blank=True)
     current_quarter = models.CharField(max_length=4, choices=SCHOOL_QUARTER_CHOICES, default="Q1")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -73,6 +75,10 @@ class School(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_suspended(self):
+        return self.status == SCHOOL_STATUS_SUSPENDED
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -465,6 +471,45 @@ class Expense(models.Model):
         return f"{self.title} - {self.amount} ({self.expense_date})"
 
 
+INCOME_CATEGORY_CHOICES = (
+    ("fees", _("School Fees")),
+    ("donations", _("Donations")),
+    ("grants", _("Grants")),
+    ("sales", _("Sales")),
+    ("transport", _("Transport")),
+    ("events", _("Events & Activities")),
+    ("other", _("Other Income")),
+)
+
+
+class Income(models.Model):
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="incomes")
+    source = models.CharField(max_length=200)
+    category = models.CharField(max_length=30, choices=INCOME_CATEGORY_CHOICES, default="other")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    income_date = models.DateField(default=timezone.localdate)
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-income_date", "-created_at")
+        indexes = [
+            models.Index(fields=["school", "-income_date"], name="income_school_date_idx"),
+            models.Index(fields=["school", "category"], name="income_school_category_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.source} - {self.amount} ({self.income_date})"
+
+
 @receiver(post_save, sender=Expense)
 def log_expense_save(sender, instance, created, **kwargs):
     if instance.school:
@@ -479,6 +524,24 @@ def log_expense_delete(sender, instance, **kwargs):
         ActivityLog.objects.create(
             school=instance.school,
             message=f"Expense '{instance.title}' ({instance.amount}) was deleted."
+        )
+
+
+@receiver(post_save, sender=Income)
+def log_income_save(sender, instance, created, **kwargs):
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=f"Income '{instance.source}' ({instance.amount}) was {'recorded' if created else 'updated'}."
+        )
+
+
+@receiver(post_delete, sender=Income)
+def log_income_delete(sender, instance, **kwargs):
+    if instance.school:
+        ActivityLog.objects.create(
+            school=instance.school,
+            message=f"Income '{instance.source}' ({instance.amount}) was deleted."
         )
 
 
@@ -522,6 +585,7 @@ class Exam(models.Model):
     starts_on = models.DateField(null=True, blank=True)
     ends_on = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=EXAM_STATUS_CHOICES, default=EXAM_DRAFT)
+    results_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -565,12 +629,29 @@ class MarkEntry(models.Model):
     exam = models.ForeignKey(Exam, on_delete=models.SET_NULL, null=True, blank=True)
     continuous_assessment = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     exam_mark = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    final_mark = models.DecimalField(max_digits=5, decimal_places=2, default=0, editable=False)
     status = models.CharField(max_length=20, default="draft")
+    processed_at = models.DateTimeField(null=True, blank=True)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={"is_lecturer": True},
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.student} - {self.subject}"
+
+    def save(self, *args, **kwargs):
+        self.final_mark = (Decimal(self.continuous_assessment) * Decimal("0.40")) + (
+            Decimal(self.exam_mark) * Decimal("0.60")
+        )
+        if self.status in {"approved", "published"} and self.processed_at is None:
+            self.processed_at = timezone.now()
+        super().save(*args, **kwargs)
 
 
 DAY_CHOICES = (

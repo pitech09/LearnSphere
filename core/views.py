@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -14,12 +16,16 @@ from result.models import TakenCourse
 from result.views import build_quarter_sections, get_current_quarter
 from .forms import (
     BulkFeeForm,
+    AttendanceHeaderForm,
     CurrentQuarterForm,
+    ExpenseForm,
     ExamForm,
     ExamScheduleFormSet,
+    IncomeForm,
     MarkEntryByLevelForm,
     SchoolPlatformForm,
     SessionForm,
+    TermForm,
     NewsAndEventsForm,
     SubjectForm,
 )
@@ -28,6 +34,8 @@ from .models import (
     AttendanceRecord,
     Exam,
     FeePayment,
+    Expense,
+    Income,
     NewsAndEvents,
     School,
     SchoolClass,
@@ -258,6 +266,117 @@ def save_marks(request):
         return redirect('mark_entry_by_level')
 
     return redirect('mark_entry_by_level')
+
+
+@login_required
+@lecturer_required
+def class_attendance_mark(request):
+    school = getattr(request.user, "school", None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect("dashboard")
+
+    teacher_classes = SchoolClass.objects.filter(school=school, is_active=True).order_by("level", "name")
+    if not request.user.is_superuser:
+        teacher_classes = teacher_classes.filter(class_teacher=request.user)
+
+    if not teacher_classes.exists():
+        messages.error(request, "You are not assigned to any class for attendance marking.")
+        return redirect("teacher_dashboard")
+
+    initial_class = teacher_classes.first()
+    attendance_date = timezone.localdate()
+    selected_class = initial_class
+
+    if request.method == "POST":
+        header_form = AttendanceHeaderForm(request.POST, school=school, teacher=request.user)
+        if header_form.is_valid():
+            attendance_date = header_form.cleaned_data["attendance_date"]
+            selected_class = header_form.cleaned_data["school_class"]
+            students = Student.objects.select_related("student").filter(
+                student__school=school,
+                student_class=selected_class,
+            ).order_by("student__first_name", "student__last_name", "student__username")
+
+            statuses = request.POST.getlist("status")
+            remarks = request.POST.getlist("remarks")
+            saved = 0
+            for index, student in enumerate(students):
+                status = statuses[index] if index < len(statuses) else "present"
+                remark = remarks[index] if index < len(remarks) else ""
+                AttendanceRecord.objects.update_or_create(
+                    school=school,
+                    student=student,
+                    school_class=selected_class,
+                    subject=None,
+                    date=attendance_date,
+                    defaults={
+                        "status": status,
+                        "remarks": remark,
+                        "recorded_by": request.user,
+                    },
+                )
+                saved += 1
+
+            messages.success(
+                request,
+                f"Attendance saved for {saved} student(s) on {attendance_date}.",
+            )
+            return redirect(
+                f"{reverse('class_attendance_mark')}?date={attendance_date.isoformat()}&class_id={selected_class.id}"
+            )
+    else:
+        date_param = request.GET.get("date")
+        class_id = request.GET.get("class_id")
+        if date_param:
+            try:
+                attendance_date = datetime.fromisoformat(date_param).date()
+            except ValueError:
+                attendance_date = timezone.localdate()
+        if class_id:
+            selected_class = teacher_classes.filter(pk=class_id).first() or initial_class
+        header_form = AttendanceHeaderForm(
+            initial={
+                "attendance_date": attendance_date,
+                "school_class": selected_class,
+            },
+            school=school,
+            teacher=request.user,
+        )
+
+    if request.method == "POST" and not header_form.is_valid():
+        selected_class = initial_class
+
+    students = Student.objects.select_related("student").filter(
+        student__school=school,
+        student_class=selected_class,
+    ).order_by("student__first_name", "student__last_name", "student__username")
+    existing_records = AttendanceRecord.objects.filter(
+        school=school,
+        school_class=selected_class,
+        date=attendance_date,
+        subject__isnull=True,
+        student__in=students,
+    ).select_related("student__student")
+    record_map = {record.student_id: record for record in existing_records}
+    attendance_rows = []
+    for student in students:
+        record = record_map.get(student.id)
+        attendance_rows.append({
+            "student": student,
+            "status": record.status if record else "present",
+            "remarks": record.remarks if record else "",
+        })
+
+    return render(request, "attendance/class_attendance.html", {
+        "school": school,
+        "header_form": header_form,
+        "selected_class": selected_class,
+        "attendance_date": attendance_date,
+        "attendance_rows": attendance_rows,
+        "existing_count": len(existing_records),
+        "status_choices": AttendanceRecord._meta.get_field("status").choices,
+    })
 
 
 @login_required
@@ -637,6 +756,199 @@ def bulk_fee_add(request):
         form = BulkFeeForm(school=school)
 
     return render(request, 'fees/bulk_fee_form.html', {'form': form, 'title': 'Bulk Add Fees'})
+
+
+# =========================================================
+# FINANCE MANAGEMENT
+# =========================================================
+@login_required
+@admin_required
+def finance_dashboard(request):
+    school = getattr(request.user, "school", None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect("dashboard")
+
+    incomes = Income.objects.select_related("school", "recorded_by").filter(school=school)
+    expenses = Expense.objects.select_related("school", "recorded_by").filter(school=school)
+    fee_payments = FeePayment.objects.select_related("fee__school", "received_by").filter(fee__school=school)
+
+    income_total = incomes.aggregate(total=Sum("amount"))["total"] or 0
+    fee_income_total = fee_payments.aggregate(total=Sum("amount"))["total"] or 0
+    expense_total = expenses.aggregate(total=Sum("amount"))["total"] or 0
+    net_balance = (income_total + fee_income_total) - expense_total
+
+    return render(request, "finance/dashboard.html", {
+        "school": school,
+        "income_total": income_total,
+        "fee_income_total": fee_income_total,
+        "expense_total": expense_total,
+        "net_balance": net_balance,
+        "recent_incomes": incomes.order_by("-income_date", "-created_at")[:5],
+        "recent_expenses": expenses.order_by("-expense_date", "-created_at")[:5],
+        "recent_fee_payments": fee_payments.order_by("-paid_on", "-id")[:5],
+    })
+
+
+@login_required
+@admin_required
+def income_list(request):
+    school = getattr(request.user, "school", None)
+    incomes = Income.objects.select_related("school", "recorded_by")
+    if school:
+        incomes = incomes.filter(school=school)
+    else:
+        incomes = incomes.none()
+
+    category = request.GET.get("category")
+    q = request.GET.get("q")
+    if category:
+        incomes = incomes.filter(category=category)
+    if q:
+        incomes = incomes.filter(Q(source__icontains=q) | Q(reference__icontains=q) | Q(notes__icontains=q))
+
+    paginator = Paginator(incomes.order_by("-income_date", "-created_at"), 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "finance/income_list.html", {
+        "page_obj": page_obj,
+        "categories": Income._meta.get_field("category").choices,
+        "selected_category": category,
+        "query": q or "",
+    })
+
+
+@login_required
+@admin_required
+def income_add(request):
+    school = getattr(request.user, "school", None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect("finance_dashboard")
+
+    if request.method == "POST":
+        form = IncomeForm(request.POST)
+        if form.is_valid():
+            income = form.save(commit=False)
+            income.school = school
+            income.recorded_by = request.user
+            income.save()
+            messages.success(request, "Income recorded successfully.")
+            return redirect("income_list")
+    else:
+        form = IncomeForm(initial={"income_date": timezone.localdate()})
+
+    return render(request, "finance/entry_form.html", {"form": form, "title": "Record Income", "cancel_url": "income_list"})
+
+
+@login_required
+@admin_required
+def income_edit(request, pk):
+    school = getattr(request.user, "school", None)
+    income = get_object_or_404(Income, pk=pk, school=school)
+
+    if request.method == "POST":
+        form = IncomeForm(request.POST, instance=income)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Income updated successfully.")
+            return redirect("income_list")
+    else:
+        form = IncomeForm(instance=income)
+
+    return render(request, "finance/entry_form.html", {"form": form, "title": "Edit Income", "cancel_url": "income_list"})
+
+
+@login_required
+@admin_required
+def income_delete(request, pk):
+    school = getattr(request.user, "school", None)
+    income = get_object_or_404(Income, pk=pk, school=school)
+    if request.method == "POST":
+        income.delete()
+        messages.success(request, "Income deleted.")
+        return redirect("income_list")
+    return render(request, "core/confirm_delete.html", {"object": income, "cancel_url": "income_list"})
+
+
+@login_required
+@admin_required
+def expense_list(request):
+    school = getattr(request.user, "school", None)
+    expenses = Expense.objects.select_related("school", "recorded_by")
+    if school:
+        expenses = expenses.filter(school=school)
+    else:
+        expenses = expenses.none()
+
+    category = request.GET.get("category")
+    q = request.GET.get("q")
+    if category:
+        expenses = expenses.filter(category=category)
+    if q:
+        expenses = expenses.filter(Q(title__icontains=q) | Q(description__icontains=q) | Q(receipt_number__icontains=q))
+
+    paginator = Paginator(expenses.order_by("-expense_date", "-created_at"), 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "finance/expense_list.html", {
+        "page_obj": page_obj,
+        "categories": Expense._meta.get_field("category").choices,
+        "selected_category": category,
+        "query": q or "",
+    })
+
+
+@login_required
+@admin_required
+def expense_add(request):
+    school = getattr(request.user, "school", None)
+    if not school:
+        messages.error(request, "No school associated with your account.")
+        return redirect("finance_dashboard")
+
+    if request.method == "POST":
+        form = ExpenseForm(request.POST)
+        if form.is_valid():
+            expense = form.save(commit=False)
+            expense.school = school
+            expense.recorded_by = request.user
+            expense.save()
+            messages.success(request, "Expense recorded successfully.")
+            return redirect("expense_list")
+    else:
+        form = ExpenseForm(initial={"expense_date": timezone.localdate()})
+
+    return render(request, "finance/entry_form.html", {"form": form, "title": "Record Expense", "cancel_url": "expense_list"})
+
+
+@login_required
+@admin_required
+def expense_edit(request, pk):
+    school = getattr(request.user, "school", None)
+    expense = get_object_or_404(Expense, pk=pk, school=school)
+
+    if request.method == "POST":
+        form = ExpenseForm(request.POST, instance=expense)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Expense updated successfully.")
+            return redirect("expense_list")
+    else:
+        form = ExpenseForm(instance=expense)
+
+    return render(request, "finance/entry_form.html", {"form": form, "title": "Edit Expense", "cancel_url": "expense_list"})
+
+
+@login_required
+@admin_required
+def expense_delete(request, pk):
+    school = getattr(request.user, "school", None)
+    expense = get_object_or_404(Expense, pk=pk, school=school)
+    if request.method == "POST":
+        expense.delete()
+        messages.success(request, "Expense deleted.")
+        return redirect("expense_list")
+    return render(request, "core/confirm_delete.html", {"object": expense, "cancel_url": "expense_list"})
+
 # =========================================================
 # NEWS & EVENTS
 # =========================================================
@@ -680,6 +992,8 @@ def principal_dashboard(request):
     classes = SchoolClass.objects.select_related("school", "class_teacher")
     fees = SchoolFee.objects.select_related("school", "student__student", "session", "term")
     payments = FeePayment.objects.select_related("fee__school", "received_by")
+    incomes = Income.objects.select_related("school", "recorded_by")
+    expenses = Expense.objects.select_related("school", "recorded_by")
     exams = Exam.objects.select_related("school", "school_class", "session", "term")
     timetable = TimetableEntry.objects.select_related("school", "school_class", "subject", "teacher")
     attendance = AttendanceRecord.objects.select_related("school", "student__student", "school_class", "subject")
@@ -692,6 +1006,8 @@ def principal_dashboard(request):
         classes = classes.filter(school=school)
         fees = fees.filter(school=school)
         payments = payments.filter(fee__school=school)
+        incomes = incomes.filter(school=school)
+        expenses = expenses.filter(school=school)
         exams = exams.filter(school=school)
         timetable = timetable.filter(school=school)
         attendance = attendance.filter(school=school)
@@ -703,6 +1019,8 @@ def principal_dashboard(request):
     attendance_present = attendance.filter(status="present").count()
     attendance_rate = round((attendance_present / attendance_total) * 100, 1) if attendance_total else 0
     collected_fees = payments.aggregate(total=Sum("amount"))["total"] or 0
+    other_income_total = incomes.aggregate(total=Sum("amount"))["total"] or 0
+    expense_total = expenses.aggregate(total=Sum("amount"))["total"] or 0
     fee_totals = fees.aggregate(
         amount_due=Sum("amount_due"),
         discount=Sum("discount"),
@@ -713,6 +1031,8 @@ def principal_dashboard(request):
         - (fee_totals["discount"] or 0)
         - paid_total
     )
+    total_income = collected_fees + other_income_total
+    net_balance = total_income - expense_total
     marked_courses = marks.exclude(total__isnull=True)
     average_mark = 0
     if marked_courses.exists():
@@ -728,6 +1048,10 @@ def principal_dashboard(request):
         "exam_count": exams.count(),
         "timetable_count": timetable.count(),
         "collected_fees": collected_fees,
+        "other_income_total": other_income_total,
+        "expense_total": expense_total,
+        "total_income": total_income,
+        "net_balance": net_balance,
         "outstanding_fees": outstanding_fees,
         "average_mark": average_mark,
         "upcoming_exams": exams.filter(starts_on__gte=timezone.localdate()).order_by("starts_on")[:5],

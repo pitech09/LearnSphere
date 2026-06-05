@@ -1,13 +1,12 @@
 from django.contrib import admin
-from django.contrib import admin
-from .models import Session, NewsAndEvents, SchoolClass
-
 from .models import (
     ActivityLog,
     AttendanceRecord,
     Exam,
     ExamSchedule,
     FeePayment,
+    Expense,
+    Income,
     MarkEntry,
     NewsAndEvents,
     School,
@@ -161,6 +160,18 @@ class AttendanceRecordAdmin(TenantScopedAdminMixin, admin.ModelAdmin):
     search_fields = ("student__student__first_name", "student__student__last_name", "remarks")
 
 
+class ExpenseAdmin(TenantScopedAdminMixin, admin.ModelAdmin):
+    list_display = ("title", "school", "category", "amount", "expense_date", "recorded_by")
+    list_filter = ("school", "category", "expense_date")
+    search_fields = ("title", "description", "receipt_number")
+
+
+class IncomeAdmin(TenantScopedAdminMixin, admin.ModelAdmin):
+    list_display = ("source", "school", "category", "amount", "income_date", "recorded_by")
+    list_filter = ("school", "category", "income_date")
+    search_fields = ("source", "reference", "notes")
+
+
 class ExamScheduleInline(admin.TabularInline):
     model = ExamSchedule
     extra = 1
@@ -220,14 +231,11 @@ admin.site.register(Term, TermAdmin)
 admin.site.register(NewsAndEvents, NewsAndEventsAdmin)
 admin.site.register(SchoolFee, SchoolFeeAdmin)
 admin.site.register(FeePayment, FeePaymentAdmin)
+admin.site.register(Expense, ExpenseAdmin)
+admin.site.register(Income, IncomeAdmin)
 admin.site.register(AttendanceRecord, AttendanceRecordAdmin)
 admin.site.register(Exam, ExamAdmin)
 admin.site.register(ExamSchedule, ExamScheduleAdmin)
 admin.site.register(MarkEntry, MarkEntryAdmin)
 admin.site.register(TimetableEntry, TimetableEntryAdmin)
 admin.site.register(ActivityLog, ActivityLogAdmin)
-
-
-
-class NewsAndEventsAdmin(admin.ModelAdmin):
-    pass

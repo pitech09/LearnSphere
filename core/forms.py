@@ -1,10 +1,11 @@
 from django import forms
+from django.utils import timezone
 
 from course.models import Subject
-from .models import NewsAndEvents, School, Session, Term, Exam, ExamSchedule
+from .models import NewsAndEvents, School, Session, Term, Exam, ExamSchedule, AttendanceRecord
 from .models import SchoolClass
 from accounts.models import User, Student
-from .models import SchoolFee, FeePayment
+from .models import SchoolFee, FeePayment, Expense, Income
 from django.forms import inlineformset_factory
 from .models import TimetableEntry
 
@@ -112,6 +113,60 @@ class FeePaymentForm(forms.ModelForm):
         }
 
 
+class AttendanceHeaderForm(forms.Form):
+    attendance_date = forms.DateField(
+        initial=timezone.localdate,
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        label="Date",
+    )
+    school_class = forms.ModelChoiceField(
+        queryset=SchoolClass.objects.none(),
+        widget=forms.Select(attrs={"class": "form-control"}),
+        label="Class",
+    )
+
+    def __init__(self, *args, school=None, teacher=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        classes = SchoolClass.objects.filter(is_active=True)
+        if school:
+            classes = classes.filter(school=school)
+        if teacher and not getattr(teacher, "is_superuser", False):
+            classes = classes.filter(class_teacher=teacher)
+        self.fields["school_class"].queryset = classes.order_by("level", "name")
+
+
+class AttendanceStatusForm(forms.Form):
+    student_id = forms.IntegerField(widget=forms.HiddenInput())
+    status = forms.ChoiceField(
+        choices=AttendanceRecord._meta.get_field("status").choices,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    remarks = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Optional note"}),
+    )
+
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['title', 'category', 'amount', 'expense_date', 'description', 'receipt_number']
+        widgets = {
+            'expense_date': forms.DateInput(attrs={'type': 'date'}),
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+
+class IncomeForm(forms.ModelForm):
+    class Meta:
+        model = Income
+        fields = ['source', 'category', 'amount', 'income_date', 'reference', 'notes']
+        widgets = {
+            'income_date': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+
 class SchoolClassForm(forms.ModelForm):
     class_teacher = forms.ModelChoiceField(
         queryset=User.objects.none(),
@@ -189,6 +244,22 @@ class SessionForm(forms.ModelForm):
     class Meta:
         model = Session
         fields = ['session', 'is_current', 'next_session_begins']
+        labels = {
+            "session": "Session",
+            "is_current": "Current session",
+            "next_session_begins": "Next session begins",
+        }
+        help_texts = {
+            "session": "A session is the full academic year, for example 2025/2026.",
+            "is_current": "Mark the session that is active right now.",
+            "next_session_begins": "Optional date for when the following session starts.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["session"].widget.attrs.update({"class": "form-control"})
+        self.fields["next_session_begins"].widget.attrs.update({"class": "form-control"})
+        self.fields["is_current"].widget.attrs.update({"class": "form-check-input"})
 
     def clean(self):
         cleaned_data = super().clean()
@@ -206,7 +277,8 @@ class TermForm(forms.ModelForm):
 
     name = forms.ChoiceField(
         choices=Term._meta.get_field("name").choices,
-        widget=forms.Select(attrs={"class": "form-control"})
+        widget=forms.Select(attrs={"class": "form-control"}),
+        label="Term",
     )
 
     is_current = forms.BooleanField(
@@ -227,12 +299,29 @@ class TermForm(forms.ModelForm):
     class Meta:
         model = Term
         fields = ["session", "name", "is_current", "next_begins"]
+        labels = {
+            "session": "Session",
+            "is_current": "Current term",
+            "next_begins": "Next term begins",
+        }
+        help_texts = {
+            "session": "A term belongs to one session and splits the academic year into smaller grading periods.",
+            "name": "Choose the term label used by your school.",
+            "is_current": "Mark the term that is active right now.",
+            "next_begins": "Optional date for when the next term starts.",
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.fields["session"].widget.attrs.update({
             "class": "form-control"
+        })
+        self.fields["next_begins"].widget.attrs.update({
+            "class": "form-control"
+        })
+        self.fields["is_current"].widget.attrs.update({
+            "class": "form-check-input"
         })
 
 class SubjectForm(forms.ModelForm):
@@ -257,6 +346,12 @@ class CurrentQuarterForm(forms.ModelForm):
     class Meta:
         model = School
         fields = ["current_quarter"]
+        labels = {
+            "current_quarter": "Current quarter",
+        }
+        help_texts = {
+            "current_quarter": "Quarter is the current reporting period in the school calendar, usually Q1 to Q4.",
+        }
         widgets = {
             "current_quarter": forms.Select(attrs={"class": "form-control"}),
         }

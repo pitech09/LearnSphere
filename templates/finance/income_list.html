@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>{% trans 'Income Records' %}</h2>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" href="{% url 'finance_dashboard' %}">{% trans 'Dashboard' %}</a>
+            <a class="btn btn-primary" href="{% url 'income_add' %}">{% trans 'Add Income' %}</a>
+        </div>
+    </div>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="{% trans 'Search source, reference, notes' %}">
+        </div>
+        <div class="col-md-3">
+            <select name="category" class="form-select">
+                <option value="">{% trans 'All Categories' %}</option>
+                {% for code, label in categories %}
+                    <option value="{{ code }}" {% if selected_category == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-secondary" type="submit">{% trans 'Filter' %}</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>{% trans 'Date' %}</th>
+                    <th>{% trans 'Source' %}</th>
+                    <th>{% trans 'Category' %}</th>
+                    <th>{% trans 'Amount' %}</th>
+                    <th>{% trans 'Reference' %}</th>
+                    <th>{% trans 'Recorded By' %}</th>
+                    <th>{% trans 'Actions' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                <tr>
+                    <td>{{ item.income_date }}</td>
+                    <td>{{ item.source }}</td>
+                    <td>{{ item.get_category_display }}</td>
+                    <td>M {{ item.amount|floatformat:2 }}</td>
+                    <td>{{ item.reference|default:"-" }}</td>
+                    <td>{{ item.recorded_by.get_full_name|default:item.recorded_by.username|default:"-" }}</td>
+                    <td>
+                        <a class="btn btn-sm btn-warning" href="{% url 'income_edit' item.pk %}">{% trans 'Edit' %}</a>
+                        <a class="btn btn-sm btn-danger" href="{% url 'income_delete' item.pk %}">{% trans 'Delete' %}</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">{% trans 'No income records found.' %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'snippets/pagination.html' with page_obj=page_obj %}
+</div>
+{% endblock %}

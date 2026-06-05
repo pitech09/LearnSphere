@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>{% trans 'Finance Dashboard' %}</h2>
+            <p class="text-muted mb-0">{{ school.name }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-success" href="{% url 'income_add' %}">{% trans 'Add Income' %}</a>
+            <a class="btn btn-danger" href="{% url 'expense_add' %}">{% trans 'Add Expense' %}</a>
+            <a class="btn btn-outline-primary" href="{% url 'income_list' %}">{% trans 'Manage Income' %}</a>
+            <a class="btn btn-outline-danger" href="{% url 'expense_list' %}">{% trans 'Manage Expenses' %}</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <small class="text-muted">{% trans 'Fee Income' %}</small>
+                <h3 class="mb-0">M {{ fee_income_total|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <small class="text-muted">{% trans 'Other Income' %}</small>
+                <h3 class="mb-0">M {{ income_total|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <small class="text-muted">{% trans 'Expenses' %}</small>
+                <h3 class="mb-0 text-danger">M {{ expense_total|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <small class="text-muted">{% trans 'Net Balance' %}</small>
+                <h3 class="mb-0 {% if net_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    M {{ net_balance|floatformat:2 }}
+                </h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">{% trans 'Recent Income' %}</h5>
+                    <a class="btn btn-sm btn-primary" href="{% url 'income_add' %}">{% trans 'Add' %}</a>
+                </div>
+                <ul class="list-unstyled mb-0">
+                    {% for item in recent_incomes %}
+                        <li class="mb-2">
+                            <strong>{{ item.source }}</strong><br>
+                            <small class="text-muted">{{ item.get_category_display }} - {{ item.income_date }}</small><br>
+                            <span>M {{ item.amount|floatformat:2 }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">{% trans 'No income recorded yet.' %}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">{% trans 'Recent Expenses' %}</h5>
+                    <a class="btn btn-sm btn-danger" href="{% url 'expense_add' %}">{% trans 'Add' %}</a>
+                </div>
+                <ul class="list-unstyled mb-0">
+                    {% for item in recent_expenses %}
+                        <li class="mb-2">
+                            <strong>{{ item.title }}</strong><br>
+                            <small class="text-muted">{{ item.get_category_display }} - {{ item.expense_date }}</small><br>
+                            <span>M {{ item.amount|floatformat:2 }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">{% trans 'No expenses recorded yet.' %}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card p-3 h-100">
+                <h5 class="mb-2">{% trans 'Recent Fee Payments' %}</h5>
+                <ul class="list-unstyled mb-0">
+                    {% for item in recent_fee_payments %}
+                        <li class="mb-2">
+                            <strong>{{ item.fee.student.student.get_full_name }}</strong><br>
+                            <small class="text-muted">{{ item.paid_on }} - {{ item.get_method_display }}</small><br>
+                            <span>M {{ item.amount|floatformat:2 }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">{% trans 'No fee payments recorded yet.' %}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
