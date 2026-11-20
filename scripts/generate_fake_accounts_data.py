@@ -30,7 +30,7 @@ class UserFactory(DjangoModelFactory):
         phone (str): The generated phone number.
         address (str): The generated address.
         is_student (bool): Flag indicating if the user is a student.
-        is_lecturer (bool): Flag indicating if the user is a lecturer.
+        is_lecturer (bool): Flag indicating if the user is a teacher.
         is_parent (bool): Flag indicating if the user is a parent.
         is_dep_head (bool): Flag indicating if the user is a department head.
     """

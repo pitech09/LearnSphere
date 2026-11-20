@@ -1,9 +1,12 @@
+import re
+
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
+from django.db.models.functions import Lower
 from PIL import Image
 
 from .validators import ASCIIUsernameValidator
@@ -98,6 +101,32 @@ class User(AbstractUser):
             models.Index(fields=["school", "is_parent"], name="acct_user_school_par_idx"),
             models.Index(fields=["email"], name="acct_user_email_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                condition=Q(email__isnull=False) & ~Q(email=""),
+                name="acct_user_unique_email_ci",
+            ),
+            models.UniqueConstraint(
+                fields=["phone"],
+                condition=Q(phone__isnull=False) & ~Q(phone=""),
+                name="acct_user_unique_phone",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        elif self.email == "":
+            self.email = None
+
+        if self.phone:
+            # Treat common formatting differences as the same number.
+            self.phone = re.sub(r"[\s().-]+", "", self.phone.strip())
+        elif self.phone == "":
+            self.phone = None
+
+        return super().save(*args, **kwargs)
 
     def get_role(self):
         if self.is_superuser:
@@ -164,7 +193,7 @@ class Parent(models.Model):
     A parent can have multiple children.
     """
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="parent_records")
     student = models.ForeignKey(Student, null=True, on_delete=models.SET_NULL, blank=True)
     first_name = models.CharField(max_length=120)
     last_name = models.CharField(max_length=120)

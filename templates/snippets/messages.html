@@ -9,6 +9,10 @@
             <div class="alert py-2 alert-warning d-flex align-items-center">
                 <i class="fas fa-exclamation-circle me-2" style="min-width: 35px;"></i><span>{{ message }}</span>
             </div>
+        {% elif message.tags == 'info' %}
+            <div class="alert py-2 alert-info d-flex align-items-center">
+                <i class="fas fa-info-circle me-2" style="min-width: 35px;"></i><span>{{ message }}</span>
+            </div>
         {% else %}
             <div class="alert py-2 alert-success d-flex align-items-center">
                 <i class="fas fa-check-circle me-2" style="min-width: 35px;"></i><span>{{ message }}</span>

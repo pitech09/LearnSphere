@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: learnsphere
+      POSTGRES_USER: learnsphere
+      POSTGRES_PASSWORD: learnsphere-local-only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learnsphere -d learnsphere"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: "local-compose-secret-change-me"
+      USE_SQLITE: "False"
+      DB_NAME: learnsphere
+      DB_USER: learnsphere
+      DB_PASSWORD: learnsphere-local-only
+      DB_HOST: db
+      DB_PORT: "5432"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000
+      FORCE_HTTPS: "False"
+      SESSION_COOKIE_SECURE: "False"
+      CSRF_COOKIE_SECURE: "False"
+      SENDGRID_API_KEY: ""
+      DEFAULT_FROM_EMAIL: no-reply@localhost
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+      python manage.py collectstatic --noinput &&
+      gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
+      --access-logfile - --error-logfile -"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

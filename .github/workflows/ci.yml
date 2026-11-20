@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt
+      - name: Django checks
+        env:
+          DEBUG: "False"
+          SECRET_KEY: ci-only-secret-key-with-enough-length-for-checks
+          USE_SQLITE: "True"
+          FORCE_HTTPS: "True"
+          ALLOWED_HOSTS: testserver,localhost
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          SENDGRID_API_KEY: ""
+          DEFAULT_FROM_EMAIL: ci@example.invalid
+        run: |
+          python manage.py check
+          python manage.py check --deploy
+          python manage.py makemigrations --check --dry-run
+          python manage.py collectstatic --noinput
+      - name: Tests
+        env:
+          DEBUG: "False"
+          SECRET_KEY: ci-only-secret-key-with-enough-length-for-checks
+          USE_SQLITE: "True"
+          FORCE_HTTPS: "False"
+          SESSION_COOKIE_SECURE: "False"
+          CSRF_COOKIE_SECURE: "False"
+          ALLOWED_HOSTS: testserver,localhost
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          SENDGRID_API_KEY: ""
+          DEFAULT_FROM_EMAIL: ci@example.invalid
+        run: python manage.py test --noinput

@@ -14,7 +14,7 @@
 - **Integrate the dashboard with dynamic/live data**:
   - Overall attendance
   - School demographics
-    - Lecturer qualification
+    - Teacher qualification
     - Students' level
   - Students average grade per course:
     This helps to keep track of students' performance
@@ -24,7 +24,7 @@
     - A calendar that shows upcoming events
   - Enrollments per course
     - How many students enroll in each course
-  - Website traffic over a specific user type (Admin, Student, Lecturer, etc.)
+  - Website traffic over a specific user type (Admin, Student, Teacher, etc.)
 - **Apply data exporting for all tables**:
   - This can be done using jQuery libraries like `DataTables`
 - **Using a template to PDF converter to generate reports**:

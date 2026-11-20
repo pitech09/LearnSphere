@@ -6,7 +6,9 @@
 
 Learning management system using Django web framework. You might want to develop a learning management system (also known as a school/college management system) for a school/college organization, or simply for the purpose of learning the tech stack and enhancing your portfolio. In either case, this project would be a great way to get started. The aim is to create the world's most lightweight yet feature-rich learning management system. However, this is not possible without your support, so please give it a star ⭐️.
 
-_Documentation is under development_
+Operational documentation is available in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+and [docs/OPERATIONS.md](docs/OPERATIONS.md). End users can use the
+[role-based user guide](docs/USER_GUIDE.md).
 
 Let's enhance the project by contributing! 👩‍💻👩‍💻
 
@@ -17,9 +19,9 @@ Let's enhance the project by contributing! 👩‍💻👩‍💻
 - Dashboard: School demographics and analytics. Restricted to only admins
 - News And Events: All users can access this page
 - Admin manages students(Add, Update, Delete)
-- Admin manages lecturers(Add, Update, Delete)
+- Admin manages teachers (Add, Update, Delete)
 - Students can Add and Drop courses
-- Lecturers submit students' scores: _Attendance, Mid exam, Final exam, assignment_
+- Teachers submit students' scores: _Attendance, Mid exam, Final exam, assignment_
 - The system calculates students' _Total, average, point, and grades automatically_
 - Grade comment for each student with a **pass**, **fail**, or **pass with a warning**
 - Assessment result page for students
@@ -72,7 +74,7 @@ pip install -r requirements.txt
 
 - Create `.env` file inside the root directory
 
-- Copy and paste everything in the `.env.example` file into the `.env` file. Don't forget to customize the variable values
+- Copy `.env.example` into `.env` and customize the values. Never commit `.env`.
 
 - To store course files and videos in Cloudinary, add these values to `.env`:
 
@@ -94,6 +96,11 @@ python manage.py createsuperuser
 ```bash
 python manage.py runserver
 ```
+
+For production, use PostgreSQL, durable media storage, `DEBUG=False`, HTTPS,
+and the release checklist in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The
+included `Dockerfile` and `docker-compose.yml` provide a repeatable container
+smoke environment.
 
 Last but not least, go to this address http://127.0.0.1:8000
 

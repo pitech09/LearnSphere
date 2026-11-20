@@ -98,6 +98,10 @@
         {% include 'sidebar.html' %}
     {% endblock %}
 
+    <div class="container-fluid" id="global-messages" aria-live="polite" aria-atomic="true">
+        {% include 'snippets/messages.html' %}
+    </div>
+
     {% block maincontent %}
     <div id="main">
         {% block topbar %}

@@ -132,7 +132,8 @@ dmypy.json
 staticfiles/
 datadump.json
 local_note.txt
-docs/
+# Keep operational documentation in version control.
+docs/_build/
 
 !media/
 

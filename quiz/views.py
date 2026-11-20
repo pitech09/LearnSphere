@@ -71,8 +71,26 @@ def school_scoped_quizzes(user):
     return qs
 
 
+def teacher_scoped_quizzes(user):
+    return school_scoped_quizzes(user).filter(
+        Q(course__teacher=user) | Q(course__allocated_subjects__teacher=user)
+    ).distinct()
+
+
+def get_teacher_course(user, class_id, subject_slug):
+    if user.is_superuser:
+        return get_school_scoped_course(user, class_id, subject_slug)
+    return get_object_or_404(
+        school_scoped_courses(user).filter(
+            Q(teacher=user) | Q(allocated_subjects__teacher=user)
+        ).distinct(),
+        class_assigned_id=class_id,
+        slug=subject_slug,
+    )
+
+
 # ========================================================
-# 🎯 QUIZ MANAGEMENT (LECTURER)
+# 🎯 QUIZ MANAGEMENT (TEACHER)
 # ========================================================
 
 @method_decorator([login_required, lecturer_required], name="dispatch")
@@ -83,8 +101,8 @@ class QuizCreateView(CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
-        initial["course"] = get_school_scoped_course(
-            self.request.user, 
+        initial["course"] = get_teacher_course(
+            self.request.user,
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
         )
@@ -97,8 +115,8 @@ class QuizCreateView(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["course"] = get_school_scoped_course(
-            self.request.user, 
+        context["course"] = get_teacher_course(
+            self.request.user,
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
         )
@@ -106,7 +124,7 @@ class QuizCreateView(CreateView):
         return context
 
     def form_valid(self, form):
-        form.instance.course = get_school_scoped_course(
+        form.instance.course = get_teacher_course(
             self.request.user, 
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
@@ -131,11 +149,11 @@ class QuizUpdateView(UpdateView):
     template_name = "quiz/quiz_form.html"
 
     def get_object(self, queryset=None):
-        return get_object_or_404(school_scoped_quizzes(self.request.user), pk=self.kwargs["pk"])
+        return get_object_or_404(teacher_scoped_quizzes(self.request.user), pk=self.kwargs["pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["course"] = get_school_scoped_course(
+        context["course"] = get_teacher_course(
             self.request.user, 
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
@@ -154,7 +172,7 @@ class QuizUpdateView(UpdateView):
 @login_required
 @lecturer_required
 def quiz_delete(request, class_id, subject_slug, pk):
-    quiz = get_object_or_404(school_scoped_quizzes(request.user), pk=pk)
+    quiz = get_object_or_404(teacher_scoped_quizzes(request.user), pk=pk)
     if request.method != "POST":
         return render(request, "core/confirm_delete.html", {
             "object": quiz, 
@@ -399,9 +417,9 @@ class MCQuestionCreate(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
+        quiz = get_object_or_404(teacher_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
 
-        context["course"] = get_school_scoped_course(
+        context["course"] = get_teacher_course(
             self.request.user, 
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
@@ -426,7 +444,7 @@ class MCQuestionCreate(CreateView):
         with transaction.atomic():
             self.object = form.save()
 
-            quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
+            quiz = get_object_or_404(teacher_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
             self.object.quiz.add(quiz)
 
             formset.instance = self.object
@@ -451,8 +469,8 @@ class EssayQuestionCreate(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
-        context["course"] = get_school_scoped_course(
+        quiz = get_object_or_404(teacher_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
+        context["course"] = get_teacher_course(
             self.request.user, 
             class_id=self.kwargs["class_id"], 
             subject_slug=self.kwargs["subject_slug"]
@@ -464,7 +482,7 @@ class EssayQuestionCreate(CreateView):
     def form_valid(self, form):
         with transaction.atomic():
             self.object = form.save()
-            quiz = get_object_or_404(school_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
+            quiz = get_object_or_404(teacher_scoped_quizzes(self.request.user), id=self.kwargs["quiz_id"])
             self.object.quiz.add(quiz)
 
         if "another" in self.request.POST:
@@ -512,7 +530,7 @@ class QuizUserProgressView(TemplateView):
         })
         return context
 # ========================================================
-# 🧠 QUIZ MARKING (LECTURER)
+# 🧠 QUIZ MARKING (TEACHER)
 # ========================================================
 
 @method_decorator([login_required, lecturer_required], name="dispatch")

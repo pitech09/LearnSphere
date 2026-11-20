@@ -85,8 +85,15 @@ GRADE_POINT_MAPPING = {
     NG: 0.0,
 }
 
-# Fields used to calculate test average (assignment and mid_exam only – no quiz)
-TEST_FIELDS = ("assignment", "mid_exam")
+# Default weights preserve the existing high-school calculation. Schools can
+# set any component to zero when it should not contribute to the final grade.
+DEFAULT_GRADING_WEIGHTS = {
+    "assignment": Decimal("20"),
+    "mid_exam": Decimal("20"),
+    "quiz": Decimal("0"),
+    "attendance": Decimal("0"),
+    "final_exam": Decimal("60"),
+}
 
 
 # =========================================================
@@ -107,8 +114,8 @@ class TakenCourse(models.Model):
     # Teacher‑entered scores (all out of 100)
     assignment = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     mid_exam = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    quiz = models.DecimalField(max_digits=5, decimal_places=2, default=0)      # stored but not used in grading
-    attendance = models.DecimalField(max_digits=5, decimal_places=2, default=0) # stored but not used
+    quiz = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    attendance = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     final_exam = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     # Automatically calculated fields
@@ -130,19 +137,46 @@ class TakenCourse(models.Model):
     # TEST AVERAGE (average of assignment and mid_exam only)
     # =====================================================
     def get_test_average(self):
-        """Average of assignment and mid_exam (quiz excluded)."""
-        test_total = sum(Decimal(getattr(self, field)) for field in TEST_FIELDS)
-        return (test_total / Decimal(len(TEST_FIELDS))).quantize(
+        """Weighted average of configured non-final components."""
+        weights = self.grading_weights
+        fields = ("assignment", "mid_exam", "quiz", "attendance")
+        total_weight = sum((weights[field] for field in fields), Decimal("0"))
+        if not total_weight:
+            return Decimal("0.00")
+        score = sum(
+            Decimal(getattr(self, field)) * weights[field] for field in fields
+        ) / total_weight
+        return score.quantize(
             Decimal("0.01"),
             rounding=ROUND_HALF_UP,
         )
+
+    @property
+    def grading_weights(self):
+        school = self.school or self.student.student.school
+        if not school:
+            return DEFAULT_GRADING_WEIGHTS.copy()
+        return {
+            "assignment": Decimal(school.assignment_weight),
+            "mid_exam": Decimal(school.mid_exam_weight),
+            "quiz": Decimal(school.quiz_weight),
+            "attendance": Decimal(school.attendance_weight),
+            "final_exam": Decimal(school.final_exam_weight),
+        }
 
     # =====================================================
     # FINAL MARK = FINAL EXAM SCORE ONLY
     # =====================================================
     def get_total(self):
-        """40% test average + 60% final exam."""
-        weighted = self.get_test_average() * Decimal("0.40") + Decimal(self.final_exam) * Decimal("0.60")
+        """Calculate the total using the school's configured weights."""
+        weights = self.grading_weights
+        total_weight = sum(weights.values(), Decimal("0"))
+        if not total_weight:
+            return Decimal("0.00")
+        weighted = sum(
+            Decimal(getattr(self, field)) * weight
+            for field, weight in weights.items()
+        ) / total_weight
         return weighted.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     # =====================================================
     # GRADE CALCULATION (based on final exam score)
@@ -172,7 +206,7 @@ class TakenCourse(models.Model):
         if not self.school_id:
             self.school = self.student.student.school
 
-        self.total = self.get_total()          # final exam only
+        self.total = self.get_total()
         self.grade = self.get_grade()          # based on total
         self.point = self.get_point()
         self.comment = self.get_comment()

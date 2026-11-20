@@ -73,13 +73,6 @@ def post_save_account_receiver(
 
     if password:
 
-        User.objects.filter(
-            pk=instance.pk
-        ).update(
-            username=username,
-            password=User.objects.make_random_password()
-        )
-
         instance.username = username
         instance.set_password(password)
 

@@ -41,7 +41,7 @@ def env_list(name, default):
     return [item.strip() for item in str(value).split(",") if item.strip()]
 
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'False'
+DEBUG = env_bool("DEBUG", default=False)
 SECRET_KEY = config(
     "SECRET_KEY",
     default="unsafe-dev-only-secret-key" if DEBUG else "",
@@ -164,27 +164,25 @@ WSGI_APPLICATION = "config.wsgi.application"
 # DATABASE
 # -------------------------------------------------
 
-"""DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+if env_bool("USE_SQLITE", default=DEBUG):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
     }
-}"""
-
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("DB_NAME"),
+            "USER": config("DB_USER"),
+            "PASSWORD": config("DB_PASSWORD"),
+            "HOST": config("DB_HOST"),
+            "PORT": config("DB_PORT"),
+            "OPTIONS": {"sslmode": "require"},
+        }
     }
-}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -271,12 +269,12 @@ CSRF_TRUSTED_ORIGINS = env_list(
 # -------------------------------------------------
 # SECURITY HARDENING
 # -------------------------------------------------
-FORCE_HTTPS = env_bool("FORCE_HTTPS", default=False)
+FORCE_HTTPS = env_bool("FORCE_HTTPS", default=not DEBUG)
 
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = FORCE_HTTPS
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=FORCE_HTTPS)
 SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SECURE = FORCE_HTTPS
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=FORCE_HTTPS)
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=FORCE_HTTPS)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -302,8 +300,8 @@ CACHES = {
 # Email config
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-SENDGRID_API_KEY=config("SENDGRID_API_KEY")
-DEFAULT_FROM_EMAIL=config("DEFAULT_FROM_EMAIL")
+SENDGRID_API_KEY = config("SENDGRID_API_KEY", default="")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="")
 
 # =============================
 # TextBee SMS config

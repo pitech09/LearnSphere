@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
@@ -26,6 +26,31 @@ from result.models import TakenCourse
 from result.views import get_current_quarter
 
 
+def school_scoped_subjects(user):
+    queryset = Subject.objects.all()
+    if getattr(user, "school_id", None):
+        return queryset.filter(school_id=user.school_id)
+    return queryset if user.is_superuser else queryset.none()
+
+
+def teacher_subjects(user):
+    queryset = school_scoped_subjects(user)
+    if user.is_superuser:
+        return queryset
+    return queryset.filter(
+        Q(teacher=user) | Q(allocated_subjects__teacher=user)
+    ).distinct()
+
+
+def get_course_for_user(user, class_id, subject_slug, *, teacher=False):
+    queryset = teacher_subjects(user) if teacher else school_scoped_subjects(user)
+    return get_object_or_404(
+        queryset,
+        class_assigned_id=class_id,
+        slug=subject_slug,
+    )
+
+
 # ########################################################
 # Course Views (all updated to use class_id + subject_slug)
 # ########################################################
@@ -33,11 +58,7 @@ from result.views import get_current_quarter
 @login_required
 def course_single(request, class_id, subject_slug):
     """Display a single subject (course) with its files and videos."""
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug)
 
     files = Upload.objects.filter(subject=course).order_by("-upload_time")
     videos = UploadVideo.objects.filter(subject=course).order_by("-timestamp")
@@ -90,11 +111,7 @@ def subject_add(request):
 @admin_required
 def course_edit(request, class_id, subject_slug):
     """Edit an existing subject using class_id and slug."""
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug)
     if request.method == "POST":
         form = SubjectAddForm(request.POST, instance=course, school=request.user.school)
         if form.is_valid():
@@ -115,11 +132,7 @@ def course_edit(request, class_id, subject_slug):
 @admin_required
 def subject_delete(request, class_id, subject_slug):
     """Delete a subject using class_id and slug."""
-    subject = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    subject = get_course_for_user(request.user, class_id, subject_slug)
     title = subject.title
     if request.method != "POST":
         return render(
@@ -157,11 +170,7 @@ def deallocate_course(request, pk):
 @login_required
 @lecturer_required
 def handle_file_upload(request, class_id, subject_slug):
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug, teacher=True)
     if request.method == "POST":
         form = UploadFormFile(request.POST, request.FILES)
         if form.is_valid():
@@ -184,11 +193,7 @@ def handle_file_upload(request, class_id, subject_slug):
 @login_required
 @lecturer_required
 def handle_file_edit(request, class_id, subject_slug, file_id):
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug, teacher=True)
     upload = get_object_or_404(Upload, pk=file_id, subject=course)
 
     if request.method == "POST":
@@ -211,11 +216,7 @@ def handle_file_edit(request, class_id, subject_slug, file_id):
 @login_required
 @lecturer_required
 def handle_file_delete(request, class_id, subject_slug, file_id):
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug, teacher=True)
     upload = get_object_or_404(Upload, pk=file_id, subject=course)
     title = upload.title
     if request.method != "POST":
@@ -301,11 +302,7 @@ def subject_delete_view(request, pk):
 @login_required
 @lecturer_required
 def handle_video_upload(request, class_id, subject_slug):
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug, teacher=True)
     if request.method == "POST":
         form = UploadFormVideo(request.POST, request.FILES)
         if form.is_valid():
@@ -327,11 +324,7 @@ def handle_video_upload(request, class_id, subject_slug):
 
 @login_required
 def handle_video_single(request, class_id, subject_slug, video_slug):
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug)
     video = get_object_or_404(UploadVideo, slug=video_slug, subject=course)
 
     return render(
@@ -344,11 +337,7 @@ def handle_video_single(request, class_id, subject_slug, video_slug):
 @login_required
 @lecturer_required
 def handle_video_edit(request, class_id, subject_slug, video_slug):
-    course = get_object_or_404(
-        Subject,
-        class_assigned_id=class_id,
-        slug=subject_slug
-    )
+    course = get_course_for_user(request.user, class_id, subject_slug, teacher=True)
     video = get_object_or_404(UploadVideo, slug=video_slug, subject=course)
 
     if request.method == "POST":

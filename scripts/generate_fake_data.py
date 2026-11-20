@@ -82,7 +82,7 @@ class CourseAllocationFactory(DjangoModelFactory):
     Factory for creating CourseAllocation instances.
 
     Attributes:
-        lecturer (User): The associated lecturer for the course allocation.
+        teacher (User): The associated teacher for the course allocation.
         session (Session): The associated session for the course allocation.
     """
 
@@ -175,11 +175,11 @@ def populate_course_allocation(num_allocations: int) -> None:
     # Fetch all available users (lecturers)
     lecturers = list(
         User.objects.filter(is_lecturer=True)
-    )  # Assuming lecturers are lecturer
+    )  # Select teachers for course allocation
 
     if not lecturers:
         print(
-            "No lecturers found. Please add some lecturers before running this script."
+            "No teachers found. Please add some teachers before running this script."
         )
         return
 
@@ -200,7 +200,7 @@ def populate_course_allocation(num_allocations: int) -> None:
         allocation.courses.set(random_courses)
 
         print(
-            f"Created CourseAllocation for lecturer: {lecturer.username} with {len(random_courses)} courses."
+            f"Created CourseAllocation for teacher: {lecturer.username} with {len(random_courses)} courses."
         )
 
     print(f"Successfully populated {num_allocations} CourseAllocation instances.")

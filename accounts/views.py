@@ -7,13 +7,12 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import HttpResponse, JsonResponse
+from django.db import connection
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template, render_to_string
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
 from django_filters.views import FilterView
-from urllib3 import request
-from xhtml2pdf import pisa
 from django.contrib.auth import authenticate, login
 from accounts.decorators import admin_required
 from accounts.filters import LecturerFilter, StudentFilter
@@ -41,6 +40,8 @@ logger = logging.getLogger(__name__)
 
 def render_to_pdf(template_name, context):
     """Render a given template to PDF format."""
+    from xhtml2pdf import pisa
+
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = 'filename="profile.pdf"'
     template = render_to_string(template_name, context)
@@ -112,30 +113,27 @@ from accounts.models import User
 
 def custom_login_view(request):
     if request.method == "POST":
-        identifier = request.POST.get("username")
+        email = request.POST.get("email", "").strip()
         password = request.POST.get("password")
         next_url = request.POST.get("next") or request.GET.get("next")
 
-        user_obj = None
-
-        # 🔥 STEP 1: Try username first
-        try:
-            user_obj = User.objects.get(username=identifier)
-        except User.DoesNotExist:
-            pass
-
-        # 🔥 STEP 2: Try email fallback
-        if not user_obj:
-            try:
-                user_obj = User.objects.get(email=identifier)
-            except User.DoesNotExist:
-                pass
-
-        # 🔥 STEP 3: Resolve to username
-        if user_obj:
-            identifier = user_obj.username
-
-        user = authenticate(request, username=identifier, password=password)
+        # Email is the public login identifier. Older databases may contain
+        # duplicate emails, so authenticate each matching account and only
+        # continue when exactly one account matches the password.
+        matching_users = User.objects.filter(
+            email__iexact=email,
+            is_active=True,
+        )
+        authenticated_users = [
+            matching_user
+            for matching_user in matching_users
+            if authenticate(
+                request,
+                username=matching_user.username,
+                password=password,
+            )
+        ]
+        user = authenticated_users[0] if len(authenticated_users) == 1 else None
 
         if user is not None:
             login(request, user)
@@ -161,7 +159,7 @@ def custom_login_view(request):
 
             return redirect("dashboard")
 
-        messages.error(request, "Invalid ID or Password")
+        messages.error(request, "Invalid email or password")
 
     return render(request, "registration/login.html", {"next": request.GET.get("next", "")})
 
@@ -276,10 +274,16 @@ def parent_list_view(request):
 
 
 def health_check_view(request):
-    return render(request, "core/health_check.html", {
-        "status": "OK",
-        "message": "The application is running smoothly!"
-    })
+    try:
+        connection.ensure_connection()
+    except Exception:
+        logger.exception("Health check database connection failed")
+        return JsonResponse(
+            {"status": "unhealthy", "database": "unavailable"},
+            status=503,
+        )
+
+    return JsonResponse({"status": "ok", "database": "ok"})
 
 
 # ########################################################
@@ -305,7 +309,7 @@ def profile(request):
             teacher_id=request.user.id, school=request.user.school
         ).distinct()
         context.update({
-            "user_type": "Lecturer",
+            "user_type": "Teacher",
             "courses": courses,
         })
 
@@ -357,7 +361,7 @@ def profile_single(request, user_id):
             school=user.school,
         ).distinct()
         context.update({
-            "user_type": "Lecturer",
+            "user_type": "Teacher",
             "courses": courses,
         })
     elif user.is_student:
@@ -420,7 +424,7 @@ def change_password(request):
 
 
 # ########################################################
-# Staff (Lecturer) Views
+# Staff (Teacher) Views
 # ########################################################
 
 
@@ -443,14 +447,14 @@ def staff_add_view(request):
             
             messages.success(
                 request,
-                f"Account for lecturer {full_name} has been created. "
+                f"Account for teacher {full_name} has been created. "
                 f"Login credentials will be sent by SMS to {phone} within a minute.",
             )
             return redirect("lecturer_list")
     else:
         form = StaffAddForm()
     return render(
-        request, "accounts/add_staff.html", {"title": "Add Lecturer", "form": form}
+        request, "accounts/add_staff.html", {"title": "Add Teacher", "form": form}
     )
 
 
@@ -463,13 +467,13 @@ def edit_staff(request, pk):
         if form.is_valid():
             form.save()
             full_name = lecturer.get_full_name
-            messages.success(request, f"Lecturer {full_name} has been updated.")
+            messages.success(request, f"Teacher {full_name} has been updated.")
             return redirect("lecturer_list")
         messages.error(request, "Please correct the error below.")
     else:
         form = ProfileUpdateForm(instance=lecturer)
     return render(
-        request, "accounts/edit_lecturer.html", {"title": "Edit Lecturer", "form": form}
+        request, "accounts/edit_lecturer.html", {"title": "Edit Teacher", "form": form}
     )
 
 
@@ -488,7 +492,7 @@ class LecturerFilterView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Lecturers"
+        context["title"] = "Teachers"
         return context
 
 
@@ -518,7 +522,7 @@ def delete_staff(request, pk):
     if request.method != "POST":
         return render(request, "core/confirm_delete.html", {"object": lecturer, "cancel_url": "lecturer_list"})
     lecturer.delete()
-    messages.success(request, f"Lecturer {full_name} has been deleted.")
+    messages.success(request, f"Teacher {full_name} has been deleted.")
     return redirect("lecturer_list")
 
 

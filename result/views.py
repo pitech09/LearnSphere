@@ -111,8 +111,12 @@ def build_final_report_summary(quarter_sections):
     recorded_sections = [
         section for section in quarter_sections if section["total_subjects"] > 0
     ]
-    total_average = sum(Decimal(str(section["average"])) for section in quarter_sections)
-    final_average = (total_average / Decimal(quarter_count)).quantize(
+    total_average = sum(
+        (Decimal(str(section["average"])) for section in recorded_sections),
+        Decimal("0"),
+    )
+    divisor = Decimal(len(recorded_sections)) if recorded_sections else Decimal("1")
+    final_average = (total_average / divisor).quantize(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )

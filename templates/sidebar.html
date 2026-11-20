@@ -135,7 +135,7 @@
 			<li class="{% if request.path == lec %}active{% endif %}">
 				<a href="{% url 'lecturer_list' %}" class="nav-link-custom">
 					<i class="fas fa-chalkboard-teacher"></i>
-					<span>{% trans 'Lecturers' %}</span>
+					<span>{% trans 'Teachers' %}</span>
 				</a>
 			</li>
 
@@ -296,7 +296,7 @@
 
 			{% endif %}
 
-			<!-- Lecturer only -->
+			<!-- Teacher only -->
 			{% if request.user.is_lecturer %}
 			<li class="{% if request.path == ascore %}active{% endif %}">
 				<a href="{% url 'add_score' %}" class="nav-link-custom">

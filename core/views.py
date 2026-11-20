@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from django.db import IntegrityError
 from django.http import JsonResponse
@@ -99,73 +100,6 @@ def get_subjects_by_class(request):
 def mark_entry_by_level(request):
     school = getattr(request.user, 'school', None)
     if not school:
-        messages.error(request, "No school associated with your account.")
-        return redirect('dashboard')
-
-    students = []
-    mark_entries = []
-    form = MarkEntryByLevelForm(request.POST or None, school=school)
-    subject = None
-    exam = None
-
-    # Handle POST: redirect to GET with query params
-    if request.method == 'POST' and form.is_valid():
-        level = form.cleaned_data['level']
-        subject = form.cleaned_data['subject']
-        exam = form.cleaned_data.get('exam')
-        url = f"{reverse('mark_entry_by_level')}?level={level}&subject={subject.id}&exam={exam.id if exam else ''}"
-        return redirect(url)
-
-    # Handle GET: load students and existing marks
-    level = request.GET.get('level')
-    subject_id = request.GET.get('subject')
-    exam_id = request.GET.get('exam')
-
-    if level and subject_id:
-        # Pre‑populate the form for display
-        initial = {'level': level, 'subject': subject_id}
-        if exam_id:
-            initial['exam'] = exam_id
-        form = MarkEntryByLevelForm(initial=initial, school=school)
-
-        try:
-            subject = Subject.objects.get(id=subject_id, school=school)
-            exam = Exam.objects.get(id=exam_id) if exam_id else None
-        except Subject.DoesNotExist:
-            messages.error(request, "Subject not found.")
-            return redirect('mark_entry_by_level')
-
-        # Get all classes under the chosen level
-        classes = SchoolClass.objects.filter(school=school, level=level)
-        # Get all students in those classes
-        students = Student.objects.filter(student_class__in=classes, student__school=school).select_related('student')
-
-        # Retrieve existing marks
-        existing = MarkEntry.objects.filter(student__in=students, subject=subject, exam=exam)
-        mark_dict = {me.student_id: me for me in existing}
-
-        for student in students:
-            mark = mark_dict.get(student.id)
-            mark_entries.append({
-                'student': student,
-                'ca': mark.continuous_assessment if mark else '',
-                'exam_mark': mark.exam_mark if mark else '',
-                'mark_id': mark.id if mark else None,
-            })
-
-    return render(request, 'marks/mark_entry_form.html', {
-        'form': form,
-        'students': students,
-        'mark_entries': mark_entries,
-        'subject': subject,
-        'exam': exam,
-    })
-
-@login_required
-@admin_required
-def mark_entry_by_level(request):
-    school = getattr(request.user, 'school', None)
-    if not school:
         messages.error(request, "No school associated.")
         return redirect('dashboard')
 
@@ -243,9 +177,30 @@ def save_marks(request):
             exam_m = exam_marks[i] if i < len(exam_marks) else 0
             mark_id = mark_ids[i] if i < len(mark_ids) else None
 
+            try:
+                student = Student.objects.get(
+                    pk=student_id,
+                    student__school=school,
+                )
+            except Student.DoesNotExist:
+                continue
+            try:
+                ca = Decimal(ca)
+                exam_m = Decimal(exam_m)
+            except (InvalidOperation, TypeError, ValueError):
+                return JsonResponse({'error': 'Marks must be numeric'}, status=400)
+            if ca < 0 or ca > 100 or exam_m < 0 or exam_m > 100:
+                return JsonResponse({'error': 'Marks must be between 0 and 100'}, status=400)
+
             if mark_id:
                 # Update existing
-                mark = MarkEntry.objects.get(id=mark_id, student_id=student_id, subject=subject)
+                mark = get_object_or_404(
+                    MarkEntry,
+                    id=mark_id,
+                    student=student,
+                    subject=subject,
+                    school=school,
+                )
                 mark.continuous_assessment = ca
                 mark.exam_mark = exam_m
                 mark.save()
@@ -253,7 +208,7 @@ def save_marks(request):
                 # Create new
                 MarkEntry.objects.create(
                     school=school,
-                    student_id=student_id,
+                    student=student,
                     subject=subject,
                     exam=exam,
                     continuous_assessment=ca,

@@ -70,6 +70,11 @@ class School(models.Model):
     trial_ends_on = models.DateField(null=True, blank=True)
     suspended_reason = models.TextField(blank=True)
     current_quarter = models.CharField(max_length=4, choices=SCHOOL_QUARTER_CHOICES, default="Q1")
+    assignment_weight = models.DecimalField(max_digits=5, decimal_places=2, default=20)
+    mid_exam_weight = models.DecimalField(max_digits=5, decimal_places=2, default=20)
+    quiz_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    attendance_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    final_exam_weight = models.DecimalField(max_digits=5, decimal_places=2, default=60)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

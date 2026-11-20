@@ -5,7 +5,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed initial users (admin, lecturers, students)"
+    help = "Seed initial users (admin, teachers, students)"
 
     def handle(self, *args, **kwargs):
 
